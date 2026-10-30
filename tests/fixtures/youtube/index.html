@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Synthetic YouTube player contract</title>
+    <style>
+      body {
+        background: #101522;
+        color: white;
+        font: 16px system-ui;
+        margin: 30px;
+      }
+      #movie_player {
+        position: relative;
+        width: 800px;
+        max-width: 100%;
+      }
+      video {
+        width: 100%;
+      }
+      .ytp-caption-window-container {
+        position: absolute;
+        bottom: 30px;
+        left: 20px;
+        background: #111c;
+        padding: 8px;
+      }
+      button {
+        margin: 10px;
+        padding: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Synthetic player contract — no YouTube transcript</h1>
+    <div id="movie_player">
+      <video controls src="/pattern.webm"></video>
+      <div class="ytp-caption-window-container">
+        <div class="caption-window">
+          <span class="ytp-caption-segment">Synthetic manual caption.</span>
+        </div>
+      </div>
+      <button class="ytp-subtitles-button" aria-pressed="true">CC</button>
+    </div>
+    <script src="/fixture.js"></script>
+  </body>
+</html>

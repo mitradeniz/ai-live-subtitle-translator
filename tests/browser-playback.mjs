@@ -6,7 +6,8 @@ import { chromium } from 'playwright';
 import { startFixture } from '../scripts/fixture-server.mjs';
 
 const temp = await mkdtemp(join(tmpdir(), 'subtitle-playback-'));
-const server = await startFixture();
+// Keep the owner's manual fixture on port 4173 untouched.
+const server = await startFixture(0);
 let context;
 const errors = [];
 const screenshots = resolve('test-results');
@@ -46,6 +47,12 @@ async function setup(mock) {
     },
   );
   context.setDefaultTimeout(10_000);
+  await context.route('http://127.0.0.1:4173/**', async (route) => {
+    const url = new URL(route.request().url());
+    url.port = String(server.address().port);
+    const response = await route.fetch({ url: url.href });
+    await route.fulfill({ response });
+  });
   context.on('page', (page) => {
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('dialog', async (dialog) => {
@@ -128,7 +135,7 @@ try {
   );
   assert.equal(
     await production.popup
-      .getByRole('button', { name: 'Enable native captions' })
+      .getByRole('button', { name: 'Enable captions' })
       .count(),
     1,
   );

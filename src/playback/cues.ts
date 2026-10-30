@@ -74,8 +74,9 @@ export type CaptionResult = {
   generation: number;
   items: { id: string; revision: number; text: string }[];
 };
+export type CaptionUnit = Pick<Cue, 'id' | 'revision' | 'text'>;
 export type CaptionTransform = (
-  cues: readonly Cue[],
+  cues: readonly CaptionUnit[],
   generation: number,
   signal: AbortSignal,
 ) => Promise<CaptionResult>;
@@ -94,7 +95,7 @@ export class PlaybackGeneration {
     this.#abort = new AbortController();
     return ++this.#value;
   }
-  accepts(result: CaptionResult, cues: readonly Cue[]) {
+  accepts(result: CaptionResult, cues: readonly CaptionUnit[]) {
     return (
       result.generation === this.#value &&
       result.items.length === cues.length &&

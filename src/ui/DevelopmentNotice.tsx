@@ -8,8 +8,8 @@ export function DevelopmentNotice() {
       </p>
       <p>
         {import.meta.env.MODE === 'mock'
-          ? 'The local timing lab repeats captions with a [MOCK] prefix. It does not translate.'
-          : 'Native HTML5 captions are available on demand. Translation and API-key setup are not available yet.'}
+          ? 'This test build repeats available captions with a [MOCK] prefix. It does not translate.'
+          : 'Native tracks and visible YouTube captions are supported experimentally. Real translation is not available yet.'}
       </p>
     </section>
   );

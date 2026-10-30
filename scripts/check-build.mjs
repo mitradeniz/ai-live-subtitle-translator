@@ -78,6 +78,7 @@ for (const name of ['popup.html', 'options.html']) {
   }
 }
 await readFile(`${output}/background.js`);
+await readFile(`${output}/youtube-source.js`);
 const content = await readFile(`${output}/content-scripts/captions.js`, 'utf8');
 assert.equal(
   content.includes('[MOCK]'),

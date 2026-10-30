@@ -5,12 +5,14 @@ export const PlaybackStateSchema = z.enum([
   'disabled',
   'no-video',
   'unavailable',
+  'source-required',
 ]);
 export type PlaybackState = z.infer<typeof PlaybackStateSchema>;
 export type PlaybackOperation =
   'playback.enable' | 'playback.disable' | 'playback.status';
 export type PlaybackHandler = (
   operation: PlaybackOperation,
+  youtubeSourceConfirmed: boolean,
 ) => Promise<PlaybackState>;
 
 export const PlaybackControlSchema = z.discriminatedUnion('type', [
@@ -18,6 +20,7 @@ export const PlaybackControlSchema = z.discriminatedUnion('type', [
     version: z.literal(1),
     type: z.literal('playback.start'),
     sessionId: z.uuid(),
+    youtubeSourceConfirmed: z.boolean().default(false),
   }),
   z.strictObject({ version: z.literal(1), type: z.literal('playback.stop') }),
   z.strictObject({

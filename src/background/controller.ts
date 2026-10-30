@@ -46,7 +46,14 @@ export function createController(
         if (!playback) throw new BoundaryError('UNAVAILABLE');
         response = {
           ok: true,
-          data: { kind: 'playback', state: await playback(request.type) },
+          data: {
+            kind: 'playback',
+            state: await playback(
+              request.type,
+              request.type === 'playback.enable' &&
+                request.youtubeSourceConfirmed,
+            ),
+          },
         };
       } else if (request.type === 'content.settings') {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');

@@ -4,10 +4,11 @@ import {
   type PlaybackHandler,
 } from '../messaging/playback.ts';
 import type { SessionRegistry } from './sessions.ts';
+import { isYouTubeWatch } from '../youtube/source.ts';
 
 export function createPlaybackHandler(sessions: SessionRegistry) {
   let operation = 0;
-  const handle: PlaybackHandler = async (type) => {
+  const handle: PlaybackHandler = async (type, youtubeSourceConfirmed) => {
     const ticket = type === 'playback.status' ? operation : ++operation;
     // No tab/document identity is accepted from the popup payload.
     const [tab] = await browser.tabs.query({
@@ -40,10 +41,13 @@ export function createPlaybackHandler(sessions: SessionRegistry) {
     }
     try {
       const url = new URL(tab.url ?? '');
+      const youtube = isYouTubeWatch(url.href);
+      if (youtube && !youtubeSourceConfirmed) return 'source-required';
       if (!['http:', 'https:'].includes(url.protocol)) return 'unavailable';
       if (
         import.meta.env.MODE === 'mock' &&
-        url.origin !== 'http://127.0.0.1:4173'
+        url.origin !== 'http://127.0.0.1:4173' &&
+        !youtube
       )
         return 'unavailable';
       const results = await browser.scripting.executeScript({
@@ -53,6 +57,14 @@ export function createPlaybackHandler(sessions: SessionRegistry) {
       });
       const injection = results.find((result) => result.frameId === 0);
       if (ticket !== operation || !injection?.documentId) return 'disabled';
+      if (youtube) {
+        await browser.scripting.executeScript({
+          target: { tabId, documentIds: [injection.documentId] },
+          files: ['/youtube-source.js'],
+          world: 'MAIN',
+        });
+        if (ticket !== operation) return 'disabled';
+      }
       // Every field comes from browser APIs, including the actual injected document.
       // The content request independently checks origin/document via onMessage sender.
       const sessionId = sessions.grant({
@@ -70,6 +82,7 @@ export function createPlaybackHandler(sessions: SessionRegistry) {
           version: 1,
           type: 'playback.start',
           sessionId,
+          youtubeSourceConfirmed,
         },
         { documentId: injection.documentId },
       );

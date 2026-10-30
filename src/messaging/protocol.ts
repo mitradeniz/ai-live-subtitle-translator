@@ -68,7 +68,11 @@ const envelope = {
 };
 const sessionId = z.uuid();
 export const RequestSchema = z.discriminatedUnion('type', [
-  z.strictObject({ ...envelope, type: z.literal('playback.enable') }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('playback.enable'),
+    youtubeSourceConfirmed: z.boolean().default(false),
+  }),
   z.strictObject({ ...envelope, type: z.literal('playback.disable') }),
   z.strictObject({ ...envelope, type: z.literal('playback.status') }),
   z.strictObject({ ...envelope, type: z.literal('settings.read') }),

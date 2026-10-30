@@ -45,6 +45,9 @@ export class CaptionOverlay {
       this.#text = text;
     }
   }
+  setLabel(text: string) {
+    if (this.#label.textContent !== text) this.#label.textContent = text;
+  }
 
   dispose() {
     this.host.remove();

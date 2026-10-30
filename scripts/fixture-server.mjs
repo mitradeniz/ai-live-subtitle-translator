@@ -13,7 +13,7 @@ const files = new Map([
   ['/replacement.vtt', ['replacement.vtt', 'text/vtt; charset=utf-8']],
 ]);
 
-export async function startFixture() {
+export async function startFixture(port = 4173) {
   const server = createServer((request, response) => {
     void (async () => {
       const route = files.get(
@@ -70,7 +70,7 @@ export async function startFixture() {
   });
   await new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(4173, '127.0.0.1', resolve);
+    server.listen(port, '127.0.0.1', resolve);
   });
   return server;
 }

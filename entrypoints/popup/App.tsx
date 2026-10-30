@@ -9,21 +9,29 @@ export function App() {
     'Choose a video page, then enable captions.',
   );
   const [busy, setBusy] = useState(false);
+  const [youtubeSourceConfirmed, setYouTubeSourceConfirmed] = useState(false);
 
   async function control(type: PlaybackOperation) {
     setBusy(true);
     setError(null);
     try {
       const { sendRequest } = await import('../../src/messaging/client');
-      const data = await sendRequest({ type });
+      const data = await sendRequest(
+        type === 'playback.enable'
+          ? { type, youtubeSourceConfirmed }
+          : { type },
+      );
       if (data.kind !== 'playback') throw new Error('Unexpected response');
       const messages = {
-        enabled: 'Caption overlay enabled. Waiting for accessible native cues.',
+        enabled:
+          'Caption overlay enabled. Waiting for accessible caption text.',
         disabled: 'Caption overlay is off. Native caption state restored.',
         'no-video': 'No visible HTML5 video found in the main page.',
+        'source-required':
+          'Select a source caption track in YouTube, then confirm your selection.',
         unavailable:
           import.meta.env.MODE === 'mock'
-            ? 'Open the local fixture at http://127.0.0.1:4173, then try again.'
+            ? 'Open the local fixture or a YouTube watch page, then try again.'
             : 'Access unavailable. Open a regular video webpage and click the extension again.',
       };
       setStatus(messages[data.state]);
@@ -48,6 +56,16 @@ export function App() {
       <p className="eyebrow">AI Live Subtitle Translator</p>
       <h1>Subtitles, in your language.</h1>
       <DevelopmentNotice />
+      <label className="source-confirm">
+        <input
+          type="checkbox"
+          checked={youtubeSourceConfirmed}
+          onChange={(event) => setYouTubeSourceConfirmed(event.target.checked)}
+        />
+        <span>
+          For YouTube: I selected an original caption track, not Auto-translate.
+        </span>
+      </label>
       <div className="popup-controls">
         <button
           disabled={busy}
@@ -56,7 +74,7 @@ export function App() {
         >
           {import.meta.env.MODE === 'mock'
             ? 'Enable mock captions'
-            : 'Enable native captions'}
+            : 'Enable captions'}
         </button>
         <button
           disabled={busy}

@@ -10,7 +10,7 @@ export default defineBackground(() => {
       local: browser.storage.local,
       session: browser.storage.session,
     },
-    (operation) => playback.handle(operation),
+    (operation, confirmed) => playback.handle(operation, confirmed),
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
     createPlaybackHandler(controller.sessions);

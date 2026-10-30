@@ -5,13 +5,15 @@ import { sendRequest } from '../src/messaging/client';
 import { withinMessageBudget } from '../src/messaging/protocol';
 import { CaptionPlayer } from '../src/playback/player';
 import type { CaptionTransform } from '../src/playback/cues';
+import { isYouTubeWatch, SOURCE_STOP } from '../src/youtube/source';
+import { YouTubePlayer } from '../src/youtube/player';
 
 export default defineContentScript({
   registration: 'runtime',
   noScriptStartedPostMessage: true,
   // No matches: only explicit activeTab injection, never automatic site access.
   main(ctx) {
-    let player: CaptionPlayer | undefined;
+    let player: CaptionPlayer | YouTubePlayer | undefined;
     let generation = 0;
     const onMessage: Parameters<
       typeof browser.runtime.onMessage.addListener
@@ -34,6 +36,7 @@ export default defineContentScript({
       player?.dispose();
       player = undefined;
       if (control.type === 'playback.stop') {
+        document.dispatchEvent(new CustomEvent(SOURCE_STOP));
         respond('disabled');
         return;
       }
@@ -45,7 +48,10 @@ export default defineContentScript({
         if (data.kind !== 'settings') throw new Error('Settings unavailable');
         let transform: CaptionTransform | undefined;
         if (import.meta.env.MODE === 'mock') {
-          if (location.origin !== 'http://127.0.0.1:4173')
+          if (
+            location.origin !== 'http://127.0.0.1:4173' &&
+            !isYouTubeWatch(location.href)
+          )
             throw new Error('Test fixture only');
           transform = (await import('../src/testing/mock-translator'))
             .mockTranslate;
@@ -65,8 +71,16 @@ export default defineContentScript({
             (a, b) =>
               b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight,
           )[0];
-        if (!video) return 'no-video';
-        player = new CaptionPlayer(
+        if (!video) {
+          document.dispatchEvent(new CustomEvent(SOURCE_STOP));
+          return 'no-video';
+        }
+        const Player = isYouTubeWatch(location.href)
+          ? YouTubePlayer
+          : CaptionPlayer;
+        if (Player === YouTubePlayer && !control.youtubeSourceConfirmed)
+          return 'source-required';
+        player = new Player(
           video,
           data.settings,
           transform,
@@ -76,7 +90,11 @@ export default defineContentScript({
             : '',
         );
         return 'enabled';
-      })().then(respond, () => respond('unavailable'));
+      })().then(respond, () => {
+        if (ticket === generation)
+          document.dispatchEvent(new CustomEvent(SOURCE_STOP));
+        respond('unavailable');
+      });
       return true;
     };
     browser.runtime.onMessage.addListener(onMessage);
