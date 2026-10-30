@@ -72,9 +72,10 @@ export class CaptionPlayer {
 
   stopTranslation() {
     this.#transform = undefined;
+    this.#overlay.setLabel('Original captions');
     this.#invalidate();
     this.#overlay.setTranslationStatus(
-      'Translation stopped. Re-enable captions to use updated preferences.',
+      'Translation stopped. Open the extension popup and choose Enable captions again.',
     );
     this.#paint();
   }

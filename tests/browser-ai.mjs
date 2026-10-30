@@ -28,6 +28,9 @@ try {
   assert.deepEqual(manifest.optional_host_permissions, [
     'https://translate.googleapis.com/*',
     'https://api.openai.com/*',
+    'https://translation.googleapis.com/*',
+    'https://api.deepseek.com/*',
+    'https://generativelanguage.googleapis.com/*',
   ]);
   // This test copy supplies grants; real Chrome grant/removal remains an owner check.
   manifest.host_permissions = [
@@ -270,11 +273,11 @@ try {
   mode = 'auth';
   await saveKey();
   await options.getByRole('button', { name: 'Run small paid test' }).click();
-  await feedback('OpenAI rejected');
+  await feedback('Provider rejected');
   const afterAuth = count;
   await page.waitForTimeout(1100);
   await options.getByRole('button', { name: 'Run small paid test' }).click();
-  await feedback('OpenAI rejected');
+  await feedback('Provider rejected');
   assert.equal(count, afterAuth);
   const cdp = await context.newCDPSession(options);
   await cdp.send('ServiceWorker.enable');
@@ -285,7 +288,7 @@ try {
     .getByText(/Saved key: this session only/)
     .waitFor();
   await options.getByRole('button', { name: 'Run small paid test' }).click();
-  await feedback('OpenAI rejected');
+  await feedback('Provider rejected');
   assert.equal(count, afterAuth);
   await context.close();
   await launch();

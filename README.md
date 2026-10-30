@@ -6,7 +6,7 @@ An open-source browser extension being developed for video subtitle translation.
 tracks after you enable it on a page, plus an experimental YouTube visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface. **Experimental keyless Google translation is available after explicit opt-in.
-OpenAI BYOK is implemented with mocked contract/browser coverage; real-key verification is pending.** A separate, clearly labeled local test build
+Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; real-key verification is pending.** A separate, clearly labeled local test build
 repeats captions with a mock prefix for testing. YouTube live caption delivery varies; see the limitations below.
 
 ## Requirements
@@ -46,6 +46,7 @@ Build output and local caches are ignored by Git.
 | `pnpm test`                         | Unit tests for messages, credentials, sessions, cue timing, and cleanup        |
 | `pnpm check`                        | Typecheck, lint, format, unit tests, production build and artifact check       |
 | `pnpm test:browser`                 | Production credential/storage and UI browser tests                             |
+| `pnpm test:providers`               | Offline Cloud/DeepSeek/Gemini contracts, switching and quota browser checks    |
 | `pnpm test:ai`                      | Offline-routed OpenAI contracts, UI, deletion and restart browser tests        |
 | `pnpm test:google`                  | Offline-routed Google provider, fallback and cancellation browser tests        |
 | `pnpm test:youtube`                 | Test YouTube source/visible-caption behavior against routed synthetic fixtures |
@@ -103,7 +104,7 @@ navigating stops the overlay; enable it again to resume. Reload resets the fixtu
 Use **Container fullscreen** for the supported overlay path. Stop the server with Ctrl+C.
 
 The normal build has no mock translator implementation or mock controls. Both variants
-bundle scripts locally and use MV3. Only the normal build can use Google or OpenAI after opt-in. The mock
+bundle scripts locally and use MV3. Only the normal build can use translation providers after opt-in. The mock
 build is a test artifact and is not intended for store distribution.
 
 ## Experimental keyless Google
@@ -118,8 +119,7 @@ the video page. For the original local fixture (`pnpm fixture`), pause at one se
 
 This sends caption text and source/target language choices to Google using an
 undocumented endpoint. No API key, Google Cloud account, website cookies, video or
-audio is used. Google Cloud's official paid/API-key service is a separate integration
-and is not implemented. This mode has no availability guarantee; technical success
+audio is used. Google Cloud's official paid/API-key service is a separate, explicitly selected integration described below. This mode has no availability guarantee; technical success
 is not a store approval or confirmation of distribution rights. Google terms and
 store disclosures need review before distribution.
 
@@ -149,71 +149,129 @@ Timeouts, invalid responses, missing permission and local limits have visible ov
 messages. Source changes, seek, navigation and disable cancel work; stale responses
 cannot replace current captions. No caption text or response is persisted.
 
-## OpenAI with your own key
+## Select a translation engine
 
-Use the normal build. In **Open settings**, choose target `tr` and bilingual display,
-then save preferences. Under **OpenAI · Your API key**:
+In **Open settings**, the **Translation engine** section shows the current choice:
 
-1. Keep the supported endpoint `https://api.openai.com/v1/chat/completions`. Choose
-   `gpt-5.4-mini-2026-03-17` (the default snapshot) or its `gpt-5.4-mini` alias.
-   This is one reviewed OpenAI profile, not a universal compatible-endpoint client.
-   Other hosts, HTTP, URL credentials, paths, queries, fragments and models are rejected.
-2. Enter your own API key and click **Save AI profile and key**. Leave **Remember
-   this new key on this device** unchecked for session storage. The input clears
-   after saving; no request is sent. Leaving the input blank updates the profile
-   without replacing a stored key. The retention checkbox applies to a newly entered key.
-3. Click **Use OpenAI for captions** and allow access to `api.openai.com`.
-   This explicitly selects AI and makes Google inactive. No live key test runs automatically.
-4. Click **Run small paid test** once. It sends only the synthetic sentence
-   `Hello, world.` with an English-to-Turkish instruction. A pass means a valid
-   response contract; check actual language and quality during playback. API usage
-   belongs to your account and may incur charges. See the provider's current
-   [model support and pricing](https://developers.openai.com/api/docs/models/gpt-5.4-mini).
-5. Refresh the video page if you reloaded the extension, then enable captions again.
-   For YouTube, turn on original-source CC and confirm the source in the popup.
-   The overlay labels OpenAI as the recipient. While waiting or on failure, originals remain.
+- **Google · Experimental · No key** uses the undocumented keyless service.
+- **Google Cloud · Your key · Provider billing** uses official Translation Basic v2.
+- **AI · Your key and model** uses the saved OpenAI, DeepSeek or Gemini profile.
+- **Original captions only** disables translation without removing saved keys or grants.
 
-Only current caption text, stable cue IDs/revisions, source/target language and the
-other cues in that batch are sent as context. No prior transcript, page URL, audio,
-video, website cookies or tools are provided to the model. The key is used only in
-the HTTPS Authorization header; it is not in model messages. `store: false` is set;
-this does not promise zero retention by the provider. See OpenAI's
-[data controls](https://developers.openai.com/api/docs/guides/your-data).
+Configure the appropriate key/profile below, choose an engine and click **Apply engine**.
+Chrome requests only that engine's host access. The provider cards' **Use … for captions**
+buttons make the same explicit selection. No paid engine is selected by default; upgrades
+preserve an existing explicit selection. Failures never select another provider.
 
-Batches contain 1–4 cues of at most 1,000 characters each. Limits: one AI request
-at a time across tabs and the explicit test, 10 requests per fixed minute window,
-100 per browser/extension session, at least one second between requests, a
-15-second timeout, 2,048 maximum completion tokens, 64 KiB response body and 4,000
-output characters per cue. No automatic retry, paid fallback, lookahead or cache.
-These safeguards are **not a billing cap**; use provider account limits too. Dense
-or rapidly revised captions may stay original if requests are late or limited.
+Changes to the engine, profile, key or language cancel pending work and clear translated
+results. The overlay switches to **Original captions**, with instructions to open the
+extension popup and choose **Enable captions** again. This stop message is not a quota
+error or evidence that a paid request succeeded. Refresh the video tab after extension reload.
 
-Structured output is validated again locally: exact cue membership/revisions, no
-extra payload fields, duplicate IDs, refusals, tool calls or truncated completion.
-Output is always rendered as text, including markup-like strings. Cancellation
-and generation checks reject stale results after seek/source changes. HTTP
-401/403/429 stops further AI requests for the browser session; after correcting
-account/key/quota issues, explicitly save a key to clear that stop. Saving a key
-does not reset spent request budgets. Other errors retain originals and show a
-fixed, redacted message. No raw provider error or credential is returned to the page.
+## Google Cloud Translation Basic v2
 
-**Delete AI key** removes session and device copies and cancels pending work.
-**Disable AI and remove access** stops translation and removes the host grant,
-but retains the key until deleted. Removing permission in Chrome also stops work.
-Switching providers or changing settings/profile/key invalidates active translation
-sessions; re-enable captions to resume. There is no fallback to Google if AI fails.
-Already sent text and accepted provider charges cannot be retracted by cancellation.
+Create or use your own Google Cloud project with billing and Cloud Translation API
+configured, following Google's [Basic setup guide](https://docs.cloud.google.com/translate/docs/setup).
+Enter the key under **Google Cloud · Your API key**, then **Save Cloud key**. Saving
+makes no network request. Select Google Cloud and approve `translation.googleapis.com`.
+**Run small Cloud paid test** sends only `Hello, world.` from English to Turkish, once
+per click. It may incur provider charges. Then activate captions on an English video
+with target `tr` and bilingual display. A valid test response is not a quality benchmark.
 
-Session keys survive service-worker sleep/restart, but disappear on browser restart
-or extension reload/update. Remembered keys survive those restarts until deleted
-or the extension is removed. Remembered storage is not encrypted by this extension.
-Keys are bound to their exact HTTPS origin; a mismatched origin or corrupt stored
-profile invalidates the key. This version has no editable custom origin. Exports
-contain caption preferences only, never credentials, profile or provider selection.
+The adapter uses [Basic v2 translate](https://docs.cloud.google.com/translate/docs/reference/rest/v2/translate),
+`format: text`, and NMT. Multiple strings are mapped to their original cue IDs/revisions
+in request order; missing/extra results are rejected. API keys are sent using the
+[documented `x-goog-api-key` header](https://docs.cloud.google.com/docs/authentication/api-keys-use),
+never query parameters. Errors and diagnostics never return raw response text or keys.
+Cloud storage is separate from the AI key; no Gemini key or keyless mode is used implicitly.
 
-Automated OpenAI checks use only fake keys and offline responses. Real provider
-latency, account access and translation quality remain owner checks; no live-key
-success or cross-vendor compatibility is claimed. No project server or domain is needed.
+The current Cloud language subset is `en`, `tr`, `de`, `fr`, `es`, `it`, `pt`, `ja`,
+`ko`, `ar`, `ru`, `zh-CN`, `zh-TW`, `he`, `id`, `nl`, `pl`, `uk`, `hi`. Regional codes
+map to their base language; `zh-Hans` maps to `zh-CN`, `zh-Hant`/`zh-HK` to `zh-TW`,
+legacy `iw` to `he` and `in` to `id`. Source `auto` omits the source field. Unsupported
+codes are rejected locally. Output remains literal text, including markup-like text
+or entity strings; nothing is inserted as HTML.
+
+## AI with your own key
+
+Under **AI · Your API key**, choose a reviewed profile:
+
+| Provider | Supported model                                     | Exact HTTPS endpoint                                                       |
+| -------- | --------------------------------------------------- | -------------------------------------------------------------------------- |
+| OpenAI   | `gpt-5.4-mini-2026-03-17` (default), `gpt-5.4-mini` | `https://api.openai.com/v1/chat/completions`                               |
+| DeepSeek | `deepseek-flash`                                    | `https://api.deepseek.com/chat/completions`                                |
+| Gemini   | `gemini-3.8-flash`                                  | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions` |
+
+These are specific supported contracts, not universal endpoint/model compatibility.
+Model IDs cannot be mixed between providers. Other hosts, HTTP, URL credentials,
+paths, queries and fragments are rejected. Model/account availability is provider-controlled.
+Sources: [OpenAI model](https://developers.openai.com/api/docs/models/gpt-5.4-mini),
+[DeepSeek reference](https://api-docs.deepseek.com/api/create-chat-completion/),
+[Gemini compatibility](https://ai.google.dev/gemini-api/docs/openai).
+
+1. Choose the AI provider/model. Changing the dropdown clears any unsaved key input.
+   **Saving a different origin deletes the previously saved AI key**, even if you
+   selected Remember. There is one active AI key slot, not a vault of vendor keys.
+2. Enter that provider's key and choose **Save AI profile and key**. The input clears;
+   saving makes no request. An empty input preserves an existing key only when its
+   origin still matches. Save changes before enabling/testing the profile.
+3. Choose **Use [provider] for captions**, or select **AI** → **Apply engine**.
+   Approve only the displayed recipient host. There is no automatic key test.
+4. Click **Run small paid test** once. The only source is `Hello, world.` with an
+   English-to-Turkish instruction. API usage and charges/quota belong to your account.
+5. On the video page, enable captions again. Expect the selected provider and destination
+   in the overlay, originals while waiting, then Turkish text if the request succeeds.
+   On YouTube, use original-source CC and confirm the source in the popup.
+
+AI requests include only the bounded current cue batch (IDs, revisions and text) and
+language choices. Context is limited to other cues in the same batch. No previous
+transcript, page URL, audio, video, website cookies, tools or prompt secrets are sent.
+The key is in the Authorization header only. OpenAI uses strict structured output with
+`store: false` and reasoning off. DeepSeek uses documented JSON-object mode, a JSON
+example and thinking disabled; whitespace-only output is rejected. Gemini uses its
+OpenAI-compatible endpoint with JSON schema and low reasoning. All outputs undergo
+the same local ID/revision, size, refusal and completion validation and plain-text rendering.
+No blanket zero-retention promise is made; each provider's data policies apply.
+
+## Paid-provider limits and recovery
+
+Cloud and AI each allow one request at a time (including their explicit test), at
+most four 1,000-character cues/request, 10 requests/fixed minute, 100/browser-extension
+session, >=1s interval, 15s timeout, 64KiB response and 4,000 output characters/cue.
+AI generation is capped at 2,048 tokens/request. AI profiles share the AI budget;
+Cloud has its own budget. Limits survive worker restarts; browser/extension restart
+starts a new session. There is no retry, automatic provider fallback, lookahead or cache.
+These safeguards are **not a billing cap**. Dense or short captions may stay original.
+
+Errors identify the next action without exposing provider messages:
+
+- **Key/account access:** check the key, API activation, key restrictions and billing.
+- **Quota/balance:** check the provider account; never repeatedly test to exhaust quota.
+- **Language/configuration:** select a supported language/profile and re-enable captions.
+- **Permission:** restore access explicitly in settings; then re-enable captions.
+- **Network/invalid response:** originals remain; try an explicit test after resolving
+  connectivity, or explicitly choose a different engine.
+
+Key/access and quota failures stop that paid engine for the browser session. After
+fixing the problem, explicitly saving the key clears the stop but not spent request
+budgets. Disabling/re-enabling does not reset budgets. No live quota-exhaustion test
+is performed. A service-worker restart invalidates playback sessions; re-enable captions.
+
+**Delete AI key / Delete Cloud key** removes both session and device copies and
+cancels work. **Disable … and remove access** stops work and removes that host grant;
+the key remains until deleted. Selecting another engine does not automatically revoke
+previously granted hosts. Removing permissions in Chrome stops active translation.
+Already transmitted text and accepted provider charges cannot be retracted.
+
+Keys default to trusted session storage: worker sleep preserves them, browser restart
+or extension reload/update clears them. **Remember this new key on this device**
+explicitly opts a newly entered key into durable local storage; it is not encrypted
+by this extension. Origin mismatch or corrupt AI profile invalidates the AI key.
+Exports contain only caption preferences, never keys, profiles or engine selection.
+
+Automated paid-provider checks use fake keys and offline responses. Live account
+access, translation quality and latency remain owner checks for OpenAI, Google Cloud,
+DeepSeek and Gemini. No project server, proxy, shared key or purchased domain is needed.
 
 ## YouTube preview
 
@@ -233,7 +291,7 @@ so the first changed line can be missed. YouTube's own captions remain untouched
 
 For mock evaluation, load the existing `.output/chrome-mv3-mock` build. It repeats
 available text with `[MOCK]`; it does not translate. No fixture server or terminal
-command is needed for this YouTube test. The ordinary production build can translate available captions when Google or OpenAI is selected in settings. No caption endpoint fetching is implemented.
+command is needed for this YouTube test. The ordinary production build can translate available captions when a translation engine is selected in settings. No caption endpoint fetching is implemented.
 
 During investigation, two public videos played and exposed source metadata but no
 native text tracks. Two bounded credential-free timed-caption probes returned empty
@@ -280,10 +338,12 @@ has no install-time host grants, automatically registered content scripts,
 web-accessible resources, or external message handlers. Injection runs in the
 isolated world and targets the user-selected tab's main document. Incognito is disabled.
 Executable code is bundled locally. Production CSP permits connections only to
-`https://translate.googleapis.com` and `https://api.openai.com`; only the selected provider’s optional host permission is requested on opt-in.
+`https://translate.googleapis.com`, `https://api.openai.com`, `https://translation.googleapis.com`,
+`https://api.deepseek.com` and `https://generativelanguage.googleapis.com`. Only the selected
+provider’s optional host permission is requested on opt-in.
 The mock build has no optional provider host and blocks remote connections. The
 page's native track loader may load its own caption resources when a track is enabled.
-No project backend, domain, shared key, or analytics is used. OpenAI mode requires your own provider account and API quota. On YouTube only, a
+No project backend, domain, shared key, or analytics is used. Cloud and AI modes require your own provider account/key and API quota. On YouTube only, a
 packaged MAIN-world reader supplies bounded source metadata (video ID, language,
 track ID/type and translation flag) through a validated, request-correlated DOM
 event. It reads no caption text, caption URLs, credentials or cookies and makes no requests.
@@ -315,6 +375,7 @@ pnpm test:playback
 pnpm test:youtube
 pnpm test:google
 pnpm test:ai
+pnpm test:providers
 ```
 
 Tests use fresh temporary profiles, never your personal browser. The security suite
@@ -338,6 +399,11 @@ The security and YouTube suites also open a real toolbar popup with
 `chrome.action.openPopup()` to check its sender metadata and source-confirmation UI.
 This exercises a different context from loading `popup.html` in a tab; it still
 does not simulate the user's toolbar click granting `activeTab`.
+
+The multi-provider suite (`pnpm test:providers`) is always offline: it routes synthetic
+Cloud, DeepSeek, Gemini and keyless Google responses. It covers explicit selection,
+origin-bound key replacement, delayed-request switching, literal text, invalid keys
+and a mocked 429 quota failure. It cannot consume real provider quota.
 
 The AI suite is always offline and uses sentinel keys with routed Chat Completions
 responses. It covers explicit test, literal Unicode/markup output, malformed results,

@@ -4,7 +4,7 @@ import type { TrustedStorage } from './storage.ts';
 const KEY = 'translation-provider.v1';
 const Schema = z.strictObject({
   schemaVersion: z.literal(1),
-  provider: z.enum(['google', 'ai', 'none']),
+  provider: z.enum(['google', 'google-cloud', 'ai', 'none']),
 });
 export class ProviderSelection {
   #storage: TrustedStorage;
@@ -20,12 +20,15 @@ export class ProviderSelection {
       return parsed.success ? parsed.data.provider : ('none' as const);
     });
   }
-  set(provider: 'google' | 'ai' | 'none', current = () => true) {
+  set(
+    provider: 'google' | 'google-cloud' | 'ai' | 'none',
+    current = () => true,
+  ) {
     return this.#storage.run(async ({ local }) => {
       if (current()) await local.set({ [KEY]: { schemaVersion: 1, provider } });
     });
   }
-  disable(provider: 'google' | 'ai') {
+  disable(provider: 'google' | 'google-cloud' | 'ai') {
     return this.#storage.run(async ({ local }) => {
       const raw = (await local.get(KEY))[KEY];
       const parsed = Schema.safeParse(raw);

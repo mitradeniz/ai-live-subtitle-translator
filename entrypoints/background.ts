@@ -1,4 +1,5 @@
-import { AI_HOST } from '../src/translation/ai-profile.ts';
+import { CLOUD_HOST } from '../src/translation/google-cloud.ts';
+import { AI_PROFILES } from '../src/translation/ai-profile.ts';
 import { defineBackground } from 'wxt/utils/define-background';
 import { browser } from 'wxt/browser';
 import { createController } from '../src/background/controller.ts';
@@ -20,10 +21,19 @@ export default defineBackground(() => {
           : browser.permissions.contains({ origins: [GOOGLE_HOST] }),
     },
     {
+      permitted: (origin) =>
+        import.meta.env.MODE === 'mock' ||
+        !AI_PROFILES.some(
+          (profile) => new URL(profile.endpoint).origin === origin,
+        )
+          ? Promise.resolve(false)
+          : browser.permissions.contains({ origins: [`${origin}/*`] }),
+    },
+    {
       permitted: () =>
         import.meta.env.MODE === 'mock'
           ? Promise.resolve(false)
-          : browser.permissions.contains({ origins: [AI_HOST] }),
+          : browser.permissions.contains({ origins: [CLOUD_HOST] }),
     },
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
@@ -60,6 +70,8 @@ export default defineBackground(() => {
             'ai.configure',
             'ai.enable',
             'ai.disable',
+            'cloud.enable',
+            'cloud.disable',
             'settings.update',
             'credentials.set',
             'credentials.delete',
@@ -78,8 +90,10 @@ export default defineBackground(() => {
         await controller.google.setEnabled(false);
         await controller.selection.disable('google');
       }
-      if (!(await browser.permissions.contains({ origins: [AI_HOST] })))
+      if (!(await controller.ai.permitted()))
         await controller.selection.disable('ai');
+      if (!(await controller.cloud.permitted()))
+        await controller.selection.disable('google-cloud');
       controller.cancelAll();
       await resetTranslations();
     })().catch(() => {

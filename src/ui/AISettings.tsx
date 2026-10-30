@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
 import {
-  AI_HOST,
-  AI_ORIGIN,
-  AI_ENDPOINT,
-  AI_MODELS,
+  AI_PROFILES,
+  AIProfileSchema,
+  aiDefinition,
   DEFAULT_AI_PROFILE,
   type AIProfile,
 } from '../translation/ai-profile';
@@ -13,6 +12,10 @@ import { TRANSLATION_MESSAGES } from '../translation/contracts';
 
 export function AISettings() {
   const [profile, setProfile] = useState<AIProfile>(DEFAULT_AI_PROFILE);
+  const [dirty, setDirty] = useState(false);
+  const definition = aiDefinition(profile);
+  const origin = new URL(profile.endpoint).origin;
+  const host = `${origin}/*`;
   const [key, setKey] = useState('');
   const [remember, setRemember] = useState(false);
   const [retention, setRetention] = useState<string | null>(null);
@@ -75,60 +78,89 @@ export function AISettings() {
       await sendRequest({
         type: 'credentials.set',
         credentialId: 'ai',
-        credential: { schemaVersion: 1, origin: AI_ORIGIN, key: value },
+        credential: { schemaVersion: 1, origin, key: value },
         rememberOnDevice: remember,
       });
     }
+    setDirty(false);
     setMessage(
-      'Saved without contacting OpenAI. Re-enable captions after changes.',
+      'Saved without contacting the provider. Re-enable captions after changes.',
     );
   }
   async function enable() {
     // Keep the browser permission request directly inside the user gesture.
-    const granted = browser.permissions.request({ origins: [AI_HOST] });
+    const granted = browser.permissions.request({ origins: [host] });
     await run(async () => {
       if (!(await granted)) {
-        setMessage('OpenAI access was not granted.');
+        setMessage('Provider access was not granted.');
         return;
       }
       await sendRequest({ type: 'ai.enable' });
       setMessage(
-        'OpenAI selected. Google is inactive. Re-enable captions on the video page.',
+        `${definition.name} selected. Other engines are inactive. Re-enable captions on the video page.`,
       );
     });
   }
   return (
     <section className="glass-panel google-panel" aria-labelledby="ai-title">
-      <h2 id="ai-title">OpenAI · Your API key</h2>
+      <h2 id="ai-title">AI · Your API key</h2>
       <p>
         Paid API usage on your own account. Caption text, language choices and
         up to four current cues as context go directly to{' '}
-        <strong>api.openai.com</strong>. No audio, video or website cookies are
-        sent.
+        <strong>{new URL(profile.endpoint).hostname}</strong>. No audio, video
+        or website cookies are sent.
       </p>
       <fieldset disabled={busy}>
-        <legend className="visually-hidden">OpenAI profile</legend>
+        <legend className="visually-hidden">AI profile</legend>
+        <label>
+          AI provider
+          <select
+            aria-label="AI provider"
+            value={profile.endpoint}
+            onChange={(event) => {
+              const next = AI_PROFILES.find(
+                (item) => item.endpoint === event.target.value,
+              );
+              if (!next) return;
+              setProfile(
+                AIProfileSchema.parse({
+                  schemaVersion: 1,
+                  endpoint: next.endpoint,
+                  model: next.defaultModel,
+                }),
+              );
+              setKey('');
+              setRemember(false);
+              setDirty(true);
+            }}
+          >
+            {AI_PROFILES.map((item) => (
+              <option value={item.endpoint} key={item.endpoint}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label>
           Supported HTTPS endpoint
-          <select
-            value={profile.endpoint}
-            onChange={() => setProfile({ ...profile, endpoint: AI_ENDPOINT })}
-          >
-            <option value={AI_ENDPOINT}>{AI_ENDPOINT}</option>
-          </select>
+          <input readOnly value={profile.endpoint} />
         </label>
         <label>
           Model
           <select
             value={profile.model}
             onChange={(event) => {
-              const model = AI_MODELS.find(
-                (item) => item === event.target.value,
-              );
-              if (model) setProfile({ ...profile, model });
+              const parsed = AIProfileSchema.safeParse({
+                ...profile,
+                model: event.target.value,
+              });
+              if (parsed.success) {
+                setProfile(parsed.data);
+                setDirty(true);
+              }
             }}
           >
-            {AI_MODELS.map((model) => (
+            {definition.models.map((model) => (
               <option key={model} value={model}>
                 {model}
               </option>
@@ -136,8 +168,9 @@ export function AISettings() {
           </select>
         </label>
         <p className="field-help">
-          Only this OpenAI Chat Completions profile is supported. Custom
-          endpoints and other vendors are not enabled.
+          Reviewed profiles only; no custom endpoints. Saving a different AI
+          provider deletes the old origin-bound key. Enter a key for the
+          selected provider. Save before enabling or testing.
         </p>
         <label>
           API key
@@ -200,22 +233,22 @@ export function AISettings() {
           </button>
           <button
             type="button"
-            disabled={enabled && permitted}
+            disabled={dirty || (enabled && permitted)}
             onClick={() => void enable()}
           >
-            Use OpenAI for captions
+            Use {definition.name} for captions
           </button>
           <button
             type="button"
             className="secondary"
-            disabled={!retention || !permitted}
+            disabled={dirty || !retention || !permitted}
             onClick={() =>
               void run(async () => {
                 const data = await sendRequest({ type: 'ai.test' });
                 if (data.kind !== 'ai-test') throw new Error();
                 setMessage(
                   data.success
-                    ? 'Small test passed: OpenAI returned a valid response to the English-to-Turkish test. Check translation quality during playback.'
+                    ? 'Small test passed: The selected provider returned a valid response to the English-to-Turkish test. Check translation quality during playback.'
                     : TRANSLATION_MESSAGES[data.error ?? 'RESPONSE'],
                 );
               })
@@ -226,14 +259,15 @@ export function AISettings() {
           <button
             type="button"
             className="secondary"
+            disabled={dirty}
             onClick={() =>
               void run(async () => {
                 await sendRequest({ type: 'ai.disable' });
-                await browser.permissions.remove({ origins: [AI_HOST] });
-                if (await browser.permissions.contains({ origins: [AI_HOST] }))
+                await browser.permissions.remove({ origins: [host] });
+                if (await browser.permissions.contains({ origins: [host] }))
                   throw new Error();
                 setMessage(
-                  'AI disabled and OpenAI access removed. Saved key retained until you delete it.',
+                  'AI disabled and selected provider access removed. Saved key retained until you delete it.',
                 );
               })
             }
@@ -243,11 +277,12 @@ export function AISettings() {
         </div>
       </fieldset>
       <p className="field-help">
-        The test sends only “Hello, world.” to OpenAI, once per click. Saving or
-        opening this page never tests a key. Up to 10 requests/minute, 100 per
-        browser session, one at a time, 2,048 output tokens/request; no retries
-        or automatic provider fallback. These are request limits, not a billing
-        cap. Check your provider’s pricing and account limits.
+        The test sends only “Hello, world.” to the saved AI provider, once per
+        click. Saving or opening this page never tests a key. Up to 10
+        requests/minute, 100 per browser session, one at a time, 2,048 output
+        tokens/request; no retries or automatic provider fallback. These are
+        request limits, not a billing cap. Check your provider’s pricing and
+        account limits.
       </p>
       {message && <p role="status">{message}</p>}
     </section>

@@ -1,3 +1,5 @@
+import { CloudSettings } from '../../src/ui/CloudSettings';
+import { ProviderSelector } from '../../src/ui/ProviderSelector';
 import { browser } from 'wxt/browser';
 import { useEffect, useState, type FormEvent } from 'react';
 import { sendRequest } from '../../src/messaging/client';
@@ -214,7 +216,9 @@ export function App() {
         <aside className="preview-column">
           {import.meta.env.MODE !== 'mock' && (
             <>
+              <ProviderSelector />
               <AISettings />
+              <CloudSettings />
               <GoogleSettings />
             </>
           )}

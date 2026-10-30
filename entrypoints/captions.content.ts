@@ -62,7 +62,7 @@ export default defineContentScript({
           transform = (await import('../src/testing/mock-translator'))
             .mockTranslate;
         } else if (
-          (data.googleEnabled || data.aiEnabled) &&
+          (data.googleEnabled || data.aiEnabled || data.cloudEnabled) &&
           data.settings.displayMode !== 'original'
         ) {
           transform = providerTransform(control.sessionId);
@@ -99,9 +99,7 @@ export default defineContentScript({
           import.meta.env.MODE === 'mock'
             ? 'MOCK · Timing test · Not a translation'
             : transform
-              ? data.aiEnabled
-                ? 'OpenAI · Paid API · Captions sent to api.openai.com'
-                : 'Google · Experimental · Captions sent to Google'
+              ? (data.providerLabel ?? '')
               : '',
         );
         return 'enabled';

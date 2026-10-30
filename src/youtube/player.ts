@@ -92,9 +92,10 @@ export class YouTubePlayer {
   }
   stopTranslation() {
     this.#transform = undefined;
+    this.#label = 'Original captions';
     this.#clear();
     this.#overlay.setTranslationStatus(
-      'Translation stopped. Re-enable captions to use updated preferences.',
+      'Translation stopped. Open the extension popup and choose Enable captions again.',
     );
     this.#sample();
   }

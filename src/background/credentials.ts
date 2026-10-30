@@ -68,12 +68,18 @@ export class CredentialStore {
   }
 
   // Background-only provider hook: deliberately absent from the runtime protocol.
-  readForOrigin(id: CredentialId, origin: string): Promise<string | null> {
+  readForOrigin(
+    id: CredentialId,
+    origin: string,
+    current = () => true,
+  ): Promise<string | null> {
     const key = this.#key(id);
     if (!OriginSchema.safeParse(origin).success)
       throw new BoundaryError('INVALID_MESSAGE');
     return this.#storage.run(async (areas) => {
+      if (!current()) return null;
       const item = await this.#read(areas, key);
+      if (!current()) return null;
       if (!item) return null;
       if (item.record.origin !== origin) {
         await this.#remove(areas, key);

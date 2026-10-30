@@ -1,4 +1,5 @@
-import { AICoordinator, type AIPorts } from './ai.ts';
+import { AIProfileSchema, aiDefinition } from '../translation/ai-profile.ts';
+import { PaidCoordinator, type PaidPorts } from './paid.ts';
 import { ProviderSelection } from './provider-selection.ts';
 import { DEFAULT_SETTINGS } from '../messaging/protocol.ts';
 import {
@@ -22,24 +23,33 @@ export function createController(
   areas: StorageAreas,
   playback?: PlaybackHandler,
   googlePorts: GooglePorts = { permitted: async () => false },
-  aiPorts: AIPorts = { permitted: async () => false },
+  aiPorts: PaidPorts = { permitted: async () => false },
+  cloudPorts: PaidPorts = { permitted: async () => false },
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
   const credentials = new CredentialStore(storage);
   const google = new GoogleCoordinator(storage, googlePorts);
-  const ai = new AICoordinator(storage, credentials, aiPorts);
+  const ai = new PaidCoordinator(storage, credentials, aiPorts);
+  const cloud = new PaidCoordinator(
+    storage,
+    credentials,
+    cloudPorts,
+    'google-cloud',
+  );
   const selection = new ProviderSelection(storage);
   let epoch = 0;
   const cancelAll = () => {
     epoch++;
     google.cancelAll();
     ai.cancelAll();
+    cloud.cancelAll();
     sessions.revokeAll();
   };
   const sessions = new SessionRegistry(extensionId, Date.now, (tabId) => {
     google.cancelTab(tabId);
     ai.cancelTab(tabId);
+    cloud.cancelTab(tabId);
   });
   let pending = 0;
 
@@ -89,6 +99,7 @@ export function createController(
         if (request.type === 'content.cancel') {
           google.cancel(request.sessionId, request.jobId);
           ai.cancel(request.sessionId, request.jobId);
+          cloud.cancel(request.sessionId, request.jobId);
           response = { ok: true, data: { kind: 'saved' } };
         } else {
           const preferences = await settings.read();
@@ -97,7 +108,13 @@ export function createController(
             const selected = await selection.read();
             valid();
             if (selected === 'none') throw new TranslationFailure('OFF');
-            const result = await (selected === 'ai' ? ai : google).translate(
+            const result = await (
+              selected === 'ai'
+                ? ai
+                : selected === 'google-cloud'
+                  ? cloud
+                  : google
+            ).translate(
               sender.identity.tabId,
               request.sessionId,
               request.job,
@@ -119,6 +136,79 @@ export function createController(
               },
             };
           }
+        }
+      } else if (request.type === 'provider.status') {
+        if (sender.kind !== 'ui' || sender.page !== 'options')
+          throw new BoundaryError('FORBIDDEN');
+        response = {
+          ok: true,
+          data: {
+            kind: 'provider-status',
+            selected:
+              (await selection.read()) === 'google' && !(await google.enabled())
+                ? 'none'
+                : await selection.read(),
+          },
+        };
+      } else if (
+        request.type === 'cloud.status' ||
+        request.type === 'cloud.enable' ||
+        request.type === 'cloud.disable' ||
+        request.type === 'cloud.test'
+      ) {
+        if (sender.kind !== 'ui' || sender.page !== 'options')
+          throw new BoundaryError('FORBIDDEN');
+        if (request.type === 'cloud.test') {
+          const ticket = epoch;
+          try {
+            await cloud.translate(
+              -1,
+              'options-cloud-test',
+              {
+                jobId: crypto.randomUUID(),
+                generation: 0,
+                items: [{ id: 'test', revision: 0, text: 'Hello, world.' }],
+              },
+              {
+                ...DEFAULT_SETTINGS,
+                sourceLanguage: 'en',
+                targetLanguage: 'tr',
+              },
+              () => {
+                if (ticket !== epoch) throw new TranslationFailure('CANCELLED');
+              },
+            );
+            response = {
+              ok: true,
+              data: { kind: 'cloud-test', success: true },
+            };
+          } catch (error) {
+            if (!(error instanceof TranslationFailure)) throw error;
+            response = {
+              ok: true,
+              data: { kind: 'cloud-test', success: false, error: error.code },
+            };
+          }
+        } else {
+          if (request.type !== 'cloud.status') cancelAll();
+          const ticket = epoch;
+          if (request.type === 'cloud.enable') {
+            if (!(await cloud.permitted()))
+              throw new BoundaryError('UNAVAILABLE');
+            await selection.set('google-cloud', () => ticket === epoch);
+          }
+          if (request.type === 'cloud.disable')
+            await selection.disable('google-cloud');
+          if (request.type !== 'cloud.status' && ticket === epoch) cancelAll();
+          response = {
+            ok: true,
+            data: {
+              kind: 'cloud-status',
+              enabled: (await selection.read()) === 'google-cloud',
+              permitted: await cloud.permitted(),
+              status: await credentials.status('google-cloud'),
+            },
+          };
         }
       } else if (
         request.type === 'ai.status' ||
@@ -172,7 +262,7 @@ export function createController(
             ok: true,
             data: {
               kind: 'ai-status',
-              profile: await ai.profile(),
+              profile: AIProfileSchema.parse(await ai.profile()),
               enabled: (await selection.read()) === 'ai',
               permitted: await ai.permitted(),
               status: await credentials.status('ai'),
@@ -206,6 +296,17 @@ export function createController(
         const selected = await selection.read();
         const googleEnabled = selected === 'google' && (await google.enabled());
         const aiEnabled = selected === 'ai';
+        const cloudEnabled = selected === 'google-cloud';
+        const aiProfile = aiEnabled
+          ? AIProfileSchema.parse(await ai.profile())
+          : null;
+        const providerLabel = aiProfile
+          ? `${aiDefinition(aiProfile).name} · User API · Captions sent to ${new URL(aiProfile.endpoint).hostname}`
+          : cloudEnabled
+            ? 'Google Cloud · Paid API · Captions sent to translation.googleapis.com'
+            : googleEnabled
+              ? 'Google · Experimental · Captions sent to Google'
+              : '';
         sessions.assertBound(request.sessionId, sender.identity);
         response = {
           ok: true,
@@ -214,6 +315,8 @@ export function createController(
             settings: preferences,
             googleEnabled,
             aiEnabled,
+            cloudEnabled,
+            providerLabel,
           },
         };
       } else {
@@ -251,7 +354,7 @@ export function createController(
               request.credential,
               request.rememberOnDevice,
             );
-            if (request.credentialId === 'ai') await ai.keyChanged();
+            await (request.credentialId === 'ai' ? ai : cloud).keyChanged();
             cancelAll();
             response = { ok: true, data: { kind: 'saved' } };
             break;
@@ -282,5 +385,5 @@ export function createController(
       pending--;
     }
   }
-  return { dispatch, sessions, google, ai, selection, cancelAll };
+  return { dispatch, sessions, google, ai, cloud, selection, cancelAll };
 }

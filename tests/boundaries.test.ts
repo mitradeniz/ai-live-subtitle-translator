@@ -303,6 +303,8 @@ test('session token is bound to browser tab, frame, document and origin', async 
       settings: DEFAULT_SETTINGS,
       googleEnabled: false,
       aiEnabled: false,
+      cloudEnabled: false,
+      providerLabel: '',
     },
   });
   for (const sender of [

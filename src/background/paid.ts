@@ -1,7 +1,11 @@
+import {
+  CLOUD_PROFILE,
+  CLOUD_ENDPOINT,
+  translateCloud,
+} from '../translation/google-cloud.ts';
 import { z } from '../messaging/schema.ts';
 import type { Settings } from '../messaging/protocol.ts';
 import {
-  AI_ORIGIN,
   AIProfileSchema,
   DEFAULT_AI_PROFILE,
 } from '../translation/ai-profile.ts';
@@ -14,13 +18,13 @@ import { BoundaryError } from './errors.ts';
 import type { CredentialStore } from './credentials.ts';
 import type { TrustedStorage } from './storage.ts';
 
-export interface AIPorts {
-  permitted(): Promise<boolean>;
+export interface PaidPorts {
+  permitted(origin: string): Promise<boolean>;
   fetch?: typeof fetch;
   now?: () => number;
 }
 const PROFILE = 'ai-profile.v1';
-const QUOTA = 'ai.quota.v1';
+
 const QuotaSchema = z.strictObject({
   schemaVersion: z.literal(1),
   started: z.number().finite().nonnegative(),
@@ -28,11 +32,14 @@ const QuotaSchema = z.strictObject({
   total: z.number().int().min(0).max(100),
   last: z.number().finite().nonnegative(),
   blocked: z.boolean(),
+  blockCode: z.enum(['AUTH', 'QUOTA']).optional(),
 });
-export class AICoordinator {
+export class PaidCoordinator {
   #storage: TrustedStorage;
   #credentials: CredentialStore;
-  #ports: AIPorts;
+  #ports: PaidPorts;
+  #credentialId: 'ai' | 'google-cloud';
+  #quota: string;
   #epoch = 0;
   #job:
     | {
@@ -46,13 +53,17 @@ export class AICoordinator {
   constructor(
     storage: TrustedStorage,
     credentials: CredentialStore,
-    ports: AIPorts,
+    ports: PaidPorts,
+    credentialId: 'ai' | 'google-cloud' = 'ai',
   ) {
     this.#storage = storage;
     this.#credentials = credentials;
     this.#ports = ports;
+    this.#credentialId = credentialId;
+    this.#quota = `${credentialId}.quota.v1`;
   }
   async profile() {
+    if (this.#credentialId === 'google-cloud') return CLOUD_PROFILE;
     const profile = await this.#storage.run(async ({ local }) => {
       const raw = (await local.get(PROFILE))[PROFILE];
       if (raw === undefined) return DEFAULT_AI_PROFILE;
@@ -67,6 +78,7 @@ export class AICoordinator {
     return profile;
   }
   async configure(raw: unknown) {
+    if (this.#credentialId !== 'ai') throw new BoundaryError('FORBIDDEN');
     this.cancelAll();
     const epoch = this.#epoch;
     const parsed = AIProfileSchema.safeParse(raw);
@@ -80,13 +92,16 @@ export class AICoordinator {
     await this.#credentials.readForOrigin(
       'ai',
       new URL(parsed.data.endpoint).origin,
+      () => epoch === this.#epoch,
     );
     await this.#storage.run(async ({ local }) => {
       if (epoch === this.#epoch) await local.set({ [PROFILE]: parsed.data });
     });
   }
-  permitted() {
-    return this.#ports.permitted();
+  async permitted() {
+    return this.#ports.permitted(
+      new URL((await this.profile()).endpoint).origin,
+    );
   }
   cancelAll() {
     this.#epoch++;
@@ -107,15 +122,19 @@ export class AICoordinator {
   async keyChanged() {
     this.cancelAll();
     await this.#storage.run(async ({ session }) => {
-      const parsed = QuotaSchema.safeParse((await session.get(QUOTA))[QUOTA]);
+      const parsed = QuotaSchema.safeParse(
+        (await session.get(this.#quota))[this.#quota],
+      );
       if (parsed.success)
-        await session.set({ [QUOTA]: { ...parsed.data, blocked: false } });
+        await session.set({
+          [this.#quota]: { ...parsed.data, blocked: false },
+        });
     });
   }
   async #reserve() {
     const code = await this.#storage.run(async ({ session }) => {
       const now = (this.#ports.now ?? Date.now)();
-      const raw = (await session.get(QUOTA))[QUOTA];
+      const raw = (await session.get(this.#quota))[this.#quota];
       const parsed = QuotaSchema.safeParse(raw);
       if (raw !== undefined && !parsed.success) return 'LIMIT' as const;
       const quota = parsed.success
@@ -127,8 +146,9 @@ export class AICoordinator {
             total: 0,
             last: 0,
             blocked: false,
+            blockCode: undefined,
           };
-      if (quota.blocked) return 'AI_BLOCKED' as const;
+      if (quota.blocked) return quota.blockCode ?? ('AI_BLOCKED' as const);
       if (now - quota.started >= 60_000) {
         quota.started = now;
         quota.count = 0;
@@ -142,7 +162,7 @@ export class AICoordinator {
       quota.count++;
       quota.total++;
       quota.last = now;
-      await session.set({ [QUOTA]: quota });
+      await session.set({ [this.#quota]: quota });
       return null;
     });
     if (code) throw new TranslationFailure(code);
@@ -177,22 +197,30 @@ export class AICoordinator {
       const profile = await this.profile();
       check();
       if (!(await this.permitted())) throw new TranslationFailure('PERMISSION');
-      const key = await this.#credentials.readForOrigin('ai', AI_ORIGIN);
+      check();
+      const key = await this.#credentials.readForOrigin(
+        this.#credentialId,
+        new URL(profile.endpoint).origin,
+        () => epoch === this.#epoch && !current.abort.signal.aborted,
+      );
       check();
       if (!key) throw new TranslationFailure('AI_KEY');
       await this.#reserve();
       check();
       if (!(await this.permitted())) throw new TranslationFailure('PERMISSION');
       check();
-      const result = await translateAI(
-        profile,
+      const args = [
         key,
         job,
         settings.sourceLanguage,
         settings.targetLanguage,
         current.abort.signal,
         this.#ports.fetch,
-      );
+      ] as const;
+      const result =
+        profile.endpoint === CLOUD_ENDPOINT
+          ? await translateCloud(...args)
+          : await translateAI(profile, ...args);
       check();
       if (!(await this.permitted())) throw new TranslationFailure('PERMISSION');
       check();
@@ -200,15 +228,21 @@ export class AICoordinator {
     } catch (error) {
       if (
         error instanceof TranslationFailure &&
-        error.code === 'AI_BLOCKED' &&
+        (error.code === 'AUTH' || error.code === 'QUOTA') &&
         epoch === this.#epoch
       ) {
         await this.#storage.run(async ({ session }) => {
           const parsed = QuotaSchema.safeParse(
-            (await session.get(QUOTA))[QUOTA],
+            (await session.get(this.#quota))[this.#quota],
           );
           if (parsed.success && epoch === this.#epoch)
-            await session.set({ [QUOTA]: { ...parsed.data, blocked: true } });
+            await session.set({
+              [this.#quota]: {
+                ...parsed.data,
+                blocked: true,
+                blockCode: error.code,
+              },
+            });
         });
       }
       throw error;

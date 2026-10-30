@@ -11,7 +11,7 @@ import {
   type TranslationJob,
 } from '../src/translation/contracts.ts';
 import { DEFAULT_SETTINGS } from '../src/messaging/protocol.ts';
-import { AICoordinator } from '../src/background/ai.ts';
+import { PaidCoordinator } from '../src/background/paid.ts';
 import { TrustedStorage } from '../src/background/storage.ts';
 import { CredentialStore } from '../src/background/credentials.ts';
 import { createController } from '../src/background/controller.ts';
@@ -85,7 +85,7 @@ function harness(fetcher: typeof fetch = async () => response()) {
     fetch: fetcher,
     now: () => now,
   };
-  const ai = new AICoordinator(storage, keys, ports);
+  const ai = new PaidCoordinator(storage, keys, ports);
   return {
     areas,
     ai,
@@ -223,9 +223,9 @@ test('strict output rejects refusal, tool calls, truncation, duplicates, extra f
 
 test('response size, JSON and transport failures are redacted; no automatic retries', async () => {
   for (const [reply, expected] of [
-    [new Response('', { status: 401 }), 'AI_BLOCKED'],
-    [new Response('', { status: 403 }), 'AI_BLOCKED'],
-    [new Response('', { status: 429 }), 'AI_BLOCKED'],
+    [new Response('', { status: 401 }), 'AUTH'],
+    [new Response('', { status: 403 }), 'AUTH'],
+    [new Response('', { status: 429 }), 'QUOTA'],
     [new Response('', { status: 500 }), 'NETWORK'],
     [new Response('<html>'), 'RESPONSE'],
     [
@@ -328,7 +328,11 @@ test('missing keys, original-only mode, failed storage init, denied host and ori
   const areas = fakeAreas();
   areas.local.failAccess = true;
   const storage = new TrustedStorage(areas);
-  const ai = new AICoordinator(storage, new CredentialStore(storage), h.ports);
+  const ai = new PaidCoordinator(
+    storage,
+    new CredentialStore(storage),
+    h.ports,
+  );
   await assert.rejects(ai.translate(7, 's', job(), DEFAULT_SETTINGS, () => {}));
   assert.equal(count, 0);
 });
@@ -372,7 +376,7 @@ test('request budget survives worker reconstruction; key replacement cannot eras
     h.advance();
   }
   const storage = new TrustedStorage(h.areas);
-  const restored = new AICoordinator(
+  const restored = new PaidCoordinator(
     storage,
     new CredentialStore(storage),
     h.ports,
@@ -409,23 +413,26 @@ test('authentication/throttling latch survives restart; explicit key save clears
       return new Response('', { status });
     });
     await h.keys.set('ai', keyRecord);
-    await assert.rejects(h.translate(), code('AI_BLOCKED'));
+    await assert.rejects(
+      h.translate(),
+      code(status === 429 ? 'QUOTA' : 'AUTH'),
+    );
     h.advance();
     const storage = new TrustedStorage(h.areas);
-    const restored = new AICoordinator(
+    const restored = new PaidCoordinator(
       storage,
       new CredentialStore(storage),
       h.ports,
     );
     await assert.rejects(
       restored.translate(7, 's', job(), DEFAULT_SETTINGS, () => {}),
-      code('AI_BLOCKED'),
+      code(status === 429 ? 'QUOTA' : 'AUTH'),
     );
     assert.equal(count, 1);
     await restored.keyChanged();
     await assert.rejects(
       restored.translate(7, 's', job(), DEFAULT_SETTINGS, () => {}),
-      code('AI_BLOCKED'),
+      code(status === 429 ? 'QUOTA' : 'AUTH'),
     );
     assert.equal(count, 2);
   }

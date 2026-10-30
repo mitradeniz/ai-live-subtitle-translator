@@ -81,6 +81,15 @@ export const RequestSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('playback.disable') }),
   z.strictObject({ ...envelope, type: z.literal('playback.status') }),
   z.strictObject({ ...envelope, type: z.literal('settings.read') }),
+  ...(
+    [
+      'cloud.status',
+      'cloud.enable',
+      'cloud.disable',
+      'cloud.test',
+      'provider.status',
+    ] as const
+  ).map((type) => z.strictObject({ ...envelope, type: z.literal(type) })),
   ...(['ai.status', 'ai.enable', 'ai.disable', 'ai.test'] as const).map(
     (type) => z.strictObject({ ...envelope, type: z.literal(type) }),
   ),
@@ -165,6 +174,23 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
         settings: SettingsSchema,
         googleEnabled: z.boolean().optional(),
         aiEnabled: z.boolean().optional(),
+        cloudEnabled: z.boolean().optional(),
+        providerLabel: z.string().max(160).optional(),
+      }),
+      z.strictObject({
+        kind: z.literal('provider-status'),
+        selected: z.enum(['none', 'google', 'google-cloud', 'ai']),
+      }),
+      z.strictObject({
+        kind: z.literal('cloud-status'),
+        enabled: z.boolean(),
+        permitted: z.boolean(),
+        status: CredentialStatusSchema,
+      }),
+      z.strictObject({
+        kind: z.literal('cloud-test'),
+        success: z.boolean(),
+        error: TranslationErrorSchema.optional(),
       }),
       z.strictObject({
         kind: z.literal('ai-status'),

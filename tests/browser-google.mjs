@@ -20,6 +20,9 @@ try {
   assert.deepEqual(manifest.optional_host_permissions, [
     'https://translate.googleapis.com/*',
     'https://api.openai.com/*',
+    'https://translation.googleapis.com/*',
+    'https://api.deepseek.com/*',
+    'https://generativelanguage.googleapis.com/*',
   ]);
   assert.equal(manifest.host_permissions, undefined);
   // Temporary grants only: no activeTab gesture or optional-permission dialog automation is claimed.
