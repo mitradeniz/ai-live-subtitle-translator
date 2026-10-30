@@ -1,4 +1,5 @@
 import { z } from './schema.ts';
+import { PlaybackStateSchema } from './playback.ts';
 
 const language = z
   .string()
@@ -67,6 +68,9 @@ const envelope = {
 };
 const sessionId = z.uuid();
 export const RequestSchema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('playback.enable') }),
+  z.strictObject({ ...envelope, type: z.literal('playback.disable') }),
+  z.strictObject({ ...envelope, type: z.literal('playback.status') }),
   z.strictObject({ ...envelope, type: z.literal('settings.read') }),
   z.strictObject({
     ...envelope,
@@ -120,6 +124,10 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion('kind', [
+      z.strictObject({
+        kind: z.literal('playback'),
+        state: PlaybackStateSchema,
+      }),
       z.strictObject({ kind: z.literal('settings'), settings: SettingsSchema }),
       z.strictObject({
         kind: z.literal('export'),

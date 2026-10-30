@@ -9,12 +9,15 @@ export default defineConfig({
       modulePreload: { polyfill: false },
     },
   }),
-  manifest: {
-    name: 'AI Live Subtitle Translator',
+  manifest: ({ mode }) => ({
+    name:
+      mode === 'mock'
+        ? '[TEST] Subtitle timing lab'
+        : 'AI Live Subtitle Translator',
     description:
       'Early development build. Subtitle translation is not available yet.',
     minimum_chrome_version: '151',
-    permissions: ['storage'],
+    permissions: ['storage', 'activeTab', 'scripting'],
     incognito: 'not_allowed',
     action: {
       default_title: 'AI Live Subtitle Translator',
@@ -23,5 +26,5 @@ export default defineConfig({
       extension_pages:
         "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src 'none'",
     },
-  },
+  }),
 });

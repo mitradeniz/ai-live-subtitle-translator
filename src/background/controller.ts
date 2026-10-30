@@ -10,8 +10,13 @@ import { identifySender } from './senders.ts';
 import { SessionRegistry } from './sessions.ts';
 import { SettingsStore } from './settings.ts';
 import { TrustedStorage, type StorageAreas } from './storage.ts';
+import type { PlaybackHandler } from '../messaging/playback.ts';
 
-export function createController(extensionId: string, areas: StorageAreas) {
+export function createController(
+  extensionId: string,
+  areas: StorageAreas,
+  playback?: PlaybackHandler,
+) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
   const credentials = new CredentialStore(storage);
@@ -31,7 +36,19 @@ export function createController(extensionId: string, areas: StorageAreas) {
       const request = parsed.data;
       const sender = identifySender(browserSender, extensionId);
       let response: Response;
-      if (request.type === 'content.settings') {
+      if (
+        request.type === 'playback.enable' ||
+        request.type === 'playback.disable' ||
+        request.type === 'playback.status'
+      ) {
+        if (sender.kind !== 'ui' || sender.page !== 'popup')
+          throw new BoundaryError('FORBIDDEN');
+        if (!playback) throw new BoundaryError('UNAVAILABLE');
+        response = {
+          ok: true,
+          data: { kind: 'playback', state: await playback(request.type) },
+        };
+      } else if (request.type === 'content.settings') {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         sessions.assertBound(request.sessionId, sender.identity);
         const preferences = await settings.read();

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const output = resolve('.output/chrome-mv3');
+const mock = process.argv.includes('--mock');
+const output = resolve(mock ? '.output/chrome-mv3-mock' : '.output/chrome-mv3');
 const manifest = JSON.parse(await readFile(`${output}/manifest.json`, 'utf8'));
 
 assert.equal(manifest.manifest_version, 3);
@@ -12,9 +13,13 @@ assert.equal(manifest.action?.default_popup, 'popup.html');
 assert.equal(manifest.options_ui?.page, 'options.html');
 assert.equal(manifest.options_ui?.open_in_tab, true);
 
-assert.deepEqual(manifest.permissions, ['storage']);
+assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
+assert.equal(
+  manifest.name,
+  mock ? '[TEST] Subtitle timing lab' : 'AI Live Subtitle Translator',
+);
 assert.equal(manifest.incognito, 'not_allowed');
-// Settings and credentials need storage, but no site access or injected code.
+// Only user-triggered activeTab access; no persistent hosts or automatic injection.
 for (const field of [
   'host_permissions',
   'optional_permissions',
@@ -39,6 +44,26 @@ for (const file of files.filter((entry) => entry.isFile())) {
     `Unexpected file ${file.name}`,
   );
   assert.ok(!file.name.startsWith('.'), `Unexpected hidden file ${file.name}`);
+  const source = await readFile(resolve(file.parentPath, file.name), 'utf8');
+  for (const marker of [
+    'SENTINEL_NOT_A_REAL',
+    'provider.example.test',
+    'boundary-probe',
+    '.local-notes',
+  ]) {
+    assert.ok(!source.includes(marker), `Test/private marker in ${file.name}`);
+  }
+  if (!mock)
+    for (const marker of [
+      '[MOCK]',
+      'MOCK · Timing test',
+      'Enable mock captions',
+    ]) {
+      assert.ok(
+        !source.includes(marker),
+        `Mock code/UI leaked into ${file.name}`,
+      );
+    }
 }
 
 for (const name of ['popup.html', 'options.html']) {
@@ -53,6 +78,12 @@ for (const name of ['popup.html', 'options.html']) {
   }
 }
 await readFile(`${output}/background.js`);
+const content = await readFile(`${output}/content-scripts/captions.js`, 'utf8');
+assert.equal(
+  content.includes('[MOCK]'),
+  mock,
+  'Mock output must exist only in the test build',
+);
 console.log(
-  'Production build: MV3 entrypoints, local scripts, CSP, and storage-only permissions verified.',
+  'Production build: MV3 entrypoints, local scripts, CSP, and user-triggered permissions verified.',
 );

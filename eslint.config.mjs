@@ -24,7 +24,7 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['tests/fixtures/*.js'],
+    files: ['tests/fixtures/**/*.js'],
     extends: [js.configs.recommended],
     languageOptions: { globals: { ...globals.browser, chrome: 'readonly' } },
   },
@@ -32,5 +32,9 @@ export default defineConfig([
     files: ['**/*.mjs'],
     extends: [js.configs.recommended],
     languageOptions: { globals: { ...globals.node, chrome: 'readonly' } },
+  },
+  {
+    files: ['tests/browser-*.mjs'],
+    languageOptions: { globals: globals.browser },
   },
 ]);

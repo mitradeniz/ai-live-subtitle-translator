@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Native caption timing lab</title>
+    <link rel="stylesheet" href="/fixture.css" />
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">LOCAL FIXTURE · SYNTHETIC MEDIA</p>
+      <h1>Caption timing lab</h1>
+      <p>
+        Open the extension on this page and choose
+        <strong>Enable mock captions</strong> in the test build. Every mock line
+        repeats the source with <code>[MOCK]</code>; it is not a translation.
+      </p>
+      <div id="player">
+        <video controls preload="auto" src="/pattern.webm">
+          <track
+            default
+            kind="subtitles"
+            label="Synthetic English"
+            srclang="en"
+            src="/captions.vtt"
+          />
+        </video>
+      </div>
+      <div class="controls">
+        <button id="play">Play / pause</button
+        ><button id="back">Back 5 seconds</button
+        ><button id="forward">Forward 5 seconds</button>
+        <label
+          >Speed
+          <select id="speed">
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+          </select></label
+        >
+        <button id="fullscreen">Container fullscreen</button
+        ><button id="native-fullscreen">Video fullscreen (fallback)</button>
+        <button id="replace-track">Replace track</button
+        ><button id="revise">Revise first cue</button
+        ><button id="replace-video">Replace video</button
+        ><button id="navigate">Same-page navigation</button>
+      </div>
+      <p id="time" aria-live="off">0.0 / 24.0 seconds</p>
+      <p id="result" role="status"></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Video time</th>
+            <th>Original text</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0–4 s</td>
+            <td>Hello from the timing lab.</td>
+          </tr>
+          <tr>
+            <td>4–8 s</td>
+            <td>Pause here. The caption should stay.</td>
+          </tr>
+          <tr>
+            <td>6–9 s</td>
+            <td>Two cues can overlap.</td>
+          </tr>
+          <tr>
+            <td>9–10 s, 18–20 s</td>
+            <td>No caption</td>
+          </tr>
+          <tr>
+            <td>10–14 s</td>
+            <td>Literal markup-like text, displayed safely</td>
+          </tr>
+          <tr>
+            <td>14–18 s</td>
+            <td>Seek backward, then change the speed.</td>
+          </tr>
+          <tr>
+            <td>20–24 s</td>
+            <td>End of the synthetic clip.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Use container fullscreen for the overlay. Video-only fullscreen stops
+        the overlay and restores native captions. Re-enable after exiting.
+        Disable in the popup restores the original track mode. Reload this page
+        to reset track/video changes.
+      </p>
+    </main>
+    <script src="/fixture.js"></script>
+  </body>
+</html>

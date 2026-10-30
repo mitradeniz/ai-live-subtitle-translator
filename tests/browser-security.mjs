@@ -71,7 +71,7 @@ try {
   const manifest = JSON.parse(
     await readFile(join(production, 'manifest.json'), 'utf8'),
   );
-  assert.deepEqual(manifest.permissions, ['storage']);
+  assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
   assert.equal(manifest.content_scripts, undefined);
   assert.equal(manifest.host_permissions, undefined);
   const profile = join(temp, 'production-profile');
