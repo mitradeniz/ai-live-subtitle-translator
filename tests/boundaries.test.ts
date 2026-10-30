@@ -129,7 +129,7 @@ test('invalid settings cannot be saved', async () => {
   }
 });
 
-test('sender URL, extension ID, origin, lifecycle and document metadata are required', async () => {
+test('options require sender URL, extension ID, origin, lifecycle and document metadata', async () => {
   const controller = createController(EXTENSION_ID, fakeAreas());
   const wrong = [
     undefined,
@@ -147,6 +147,53 @@ test('sender URL, extension ID, origin, lifecycle and document metadata are requ
   for (const sender of wrong)
     assert.deepEqual(
       await controller.dispatch(request('settings.read'), sender),
+      { ok: false, error: 'FORBIDDEN' },
+    );
+});
+
+test('toolbar popup without document metadata retains only popup privileges', async () => {
+  const sender = {
+    id: EXTENSION_ID,
+    origin: `chrome-extension://${EXTENSION_ID}`,
+    url: `chrome-extension://${EXTENSION_ID}/popup.html`,
+  };
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    async () => 'source-required',
+  );
+  assert.deepEqual(
+    await controller.dispatch(request('playback.enable'), sender),
+    { ok: true, data: { kind: 'playback', state: 'source-required' } },
+  );
+  for (const message of [
+    request('settings.update', { preferences }),
+    request('settings.export'),
+    request('credentials.status', { credentialId: 'ai' }),
+    request('credentials.set', { credentialId: 'ai', credential }),
+    request('credentials.delete', { credentialId: 'ai' }),
+  ])
+    assert.deepEqual(await controller.dispatch(message, sender), {
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  for (const patch of [
+    { id: 'another-extension' },
+    { origin: 'null' },
+    { origin: 'https://www.youtube.com' },
+    { url: sender.url + '?role=popup' },
+    { url: `chrome-extension://${EXTENSION_ID}/options.html` },
+    { documentLifecycle: 'cached' },
+    { documentLifecycle: 'active' },
+    { documentId: 'document-without-lifecycle' },
+    { frameId: 0 },
+    { tab: { id: 7 } },
+  ])
+    assert.deepEqual(
+      await controller.dispatch(request('playback.enable'), {
+        ...sender,
+        ...patch,
+      }),
       { ok: false, error: 'FORBIDDEN' },
     );
 });
@@ -287,6 +334,9 @@ test('content sender requires a nonopaque matching origin and complete browser i
     { origin: 'null' },
     { frameId: undefined },
     { tab: undefined },
+    { documentId: undefined },
+    { documentLifecycle: undefined },
+    { documentId: undefined, documentLifecycle: undefined },
     { url: 'about:blank' },
     { documentLifecycle: 'cached' },
   ]) {

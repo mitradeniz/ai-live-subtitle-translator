@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
+import { openToolbarPopup } from './browser-toolbar.mjs';
 
 const temp = await mkdtemp(join(tmpdir(), 'subtitle-boundaries-'));
 const production = resolve('.output/chrome-mv3');
@@ -96,6 +97,32 @@ try {
     ),
     'Popup must size to content instead of the browser viewport',
   );
+  const toolbar = await openToolbarPopup(context, worker);
+  for (const type of ['credentials.status', 'settings.export']) {
+    const result = await toolbar.evaluate(
+      (message) => chrome.runtime.sendMessage(message),
+      {
+        version: 1,
+        requestId: 'toolbar-boundary',
+        type,
+        ...(type === 'credentials.status' ? { credentialId: 'ai' } : {}),
+      },
+    );
+    assert.deepEqual(result, { ok: false, error: 'FORBIDDEN' });
+  }
+  assert.equal(
+    (
+      await toolbar.evaluate(() =>
+        chrome.runtime.sendMessage({
+          version: 1,
+          requestId: 'toolbar-boundary',
+          type: 'settings.read',
+        }),
+      )
+    ).ok,
+    true,
+  );
+  await toolbar.close();
   await popup.getByRole('button', { name: 'Open settings' }).click();
   await page.bringToFront();
   await page.getByLabel('Target language').fill('de');

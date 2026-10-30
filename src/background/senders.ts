@@ -11,8 +11,9 @@ const SenderSchema = z.object({
     .string()
     .min(1)
     .max(128)
-    .regex(/^[A-Za-z0-9_-]+$/),
-  documentLifecycle: z.literal('active'),
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .optional(),
+  documentLifecycle: z.literal('active').optional(),
   frameId: z.number().int().nonnegative().optional(),
   tab: z
     .object({
@@ -54,6 +55,16 @@ export function identifySender(
           : null;
     if (!page || (sender.frameId !== undefined && sender.frameId !== 0))
       throw new BoundaryError('FORBIDDEN');
+    // Chrome's toolbar popup can omit document metadata entirely. Its exact
+    // extension origin, URL and ID still come from the browser, not the message.
+    const toolbarPopup =
+      page === 'popup' &&
+      sender.tab === undefined &&
+      sender.frameId === undefined &&
+      sender.documentId === undefined &&
+      sender.documentLifecycle === undefined;
+    if (!toolbarPopup && (!sender.documentId || !sender.documentLifecycle))
+      throw new BoundaryError('FORBIDDEN');
     return { kind: 'ui', page };
   }
   let url: URL;
@@ -66,7 +77,9 @@ export function identifySender(
     !['http:', 'https:'].includes(url.protocol) ||
     sender.origin !== url.origin ||
     !sender.tab ||
-    sender.frameId === undefined
+    sender.frameId === undefined ||
+    !sender.documentId ||
+    !sender.documentLifecycle
   )
     throw new BoundaryError('FORBIDDEN');
   return {

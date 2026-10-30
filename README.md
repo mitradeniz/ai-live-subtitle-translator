@@ -181,6 +181,9 @@ This page-controlled channel is untrusted data, never an authorization mechanism
 
 Messages are schema-validated and authorized from browser-supplied sender metadata.
 Only the popup can request activation; it cannot supply a tab or document ID. The
+toolbar popup is identified by its exact extension ID, origin and packaged URL;
+Chrome may omit document metadata for this non-tab view. Content scripts still
+require a complete tab/frame/document identity and an active document lifecycle. The
 background uses Chrome's tab and injection results and binds a session to tab, frame,
 document and origin. Content scripts receive safe preferences only. Only the options
 page may mutate settings, export or manage credentials. No runtime message returns a key.
@@ -218,6 +221,11 @@ The YouTube suite routes every site request to original local fixture data at a
 synthetic watch URL and grants YouTube access only to a temporary test copy. It tests
 adapter behavior, not real YouTube delivery. These scoped regression checks are not
 a security audit or certification.
+
+The security and YouTube suites also open a real toolbar popup with
+`chrome.action.openPopup()` to check its sender metadata and source-confirmation UI.
+This exercises a different context from loading `popup.html` in a tab; it still
+does not simulate the user's toolbar click granting `activeTab`.
 
 If the extension card shows **Errors**, open it. Its **service worker** link opens
 background diagnostics; an inactive worker is normal. Right-click the popup and choose

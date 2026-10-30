@@ -3,6 +3,7 @@ import { cp, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium } from 'playwright';
+import { openToolbarPopup } from './browser-toolbar.mjs';
 const temp = await mkdtemp(join(tmpdir(), 'subtitle-youtube-'));
 let context;
 try {
@@ -116,6 +117,30 @@ try {
     data: { kind: 'playback', state: 'source-required' },
   });
   assert.equal(await page.locator('subtitle-translator-overlay').count(), 0);
+  const toolbar = await openToolbarPopup(context, worker);
+  const sourceStatus = await toolbar.evaluate(async () => {
+    document.querySelector('.popup-controls button').click();
+    const deadline = Date.now() + 5000;
+    while (
+      document.querySelector('[role="status"]').textContent.startsWith('Choose')
+    ) {
+      const error = document.querySelector('[role="alert"]');
+      if (error) throw new Error(error.textContent);
+      if (Date.now() > deadline) throw new Error('No confirmation guidance');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return document.querySelector('[role="status"]').textContent;
+  });
+  assert.match(sourceStatus, /Select a source caption track in YouTube/);
+  await toolbar.evaluate(() =>
+    document.querySelector('input[type="checkbox"]').click(),
+  );
+  await toolbar.evaluate(() =>
+    document.querySelector('.popup-controls button').click(),
+  );
+  await caption('Synthetic manual caption.\n[MOCK] Synthetic manual caption.');
+  await toolbar.close();
+  await send('playback.disable');
   await popup.getByRole('checkbox').check();
   await page.bringToFront();
   // Execute the actual click handler without moving the active tab away from the video.
