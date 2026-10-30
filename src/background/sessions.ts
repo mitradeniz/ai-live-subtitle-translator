@@ -56,6 +56,12 @@ export class SessionRegistry {
     }
   }
 
+  revokeAll(): void {
+    for (const session of this.#sessions.values())
+      this.#onRevoke(session.tabId);
+    this.#sessions.clear();
+  }
+
   revokeTab(tabId: number): void {
     this.#onRevoke(tabId);
     for (const [id, session] of this.#sessions)

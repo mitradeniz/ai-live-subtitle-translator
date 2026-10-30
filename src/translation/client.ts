@@ -2,7 +2,7 @@ import { sendRequest } from '../messaging/client';
 import type { CaptionTransform } from '../playback/cues';
 import { TranslationFailure } from './contracts';
 
-export function googleTransform(sessionId: string): CaptionTransform {
+export function providerTransform(sessionId: string): CaptionTransform {
   return async (cues, generation, signal) => {
     const jobId = crypto.randomUUID();
     let dispatched = false;

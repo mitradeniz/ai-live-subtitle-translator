@@ -9,6 +9,14 @@ export function GoogleSettings() {
   const [message, setMessage] = useState('');
   useEffect(() => {
     let active = true;
+    const refresh = () => {
+      void sendRequest({ type: 'google.status' })
+        .then((data) => {
+          if (active && data.kind === 'google-status') setEnabled(data.enabled);
+        })
+        .catch(() => {});
+    };
+    browser.storage.onChanged.addListener(refresh);
     const onRemoved = () => {
       void browser.permissions
         .contains({ origins: [GOOGLE_HOST] })
@@ -32,6 +40,7 @@ export function GoogleSettings() {
       });
     return () => {
       active = false;
+      browser.storage.onChanged.removeListener(refresh);
       browser.permissions.onRemoved.removeListener(onRemoved);
     };
   }, []);
@@ -49,7 +58,9 @@ export function GoogleSettings() {
       const data = await sendRequest({ type: 'google.enable' });
       if (data.kind !== 'google-status' || !data.enabled) throw new Error();
       setEnabled(true);
-      setMessage('Google enabled. Re-enable captions on the video page.');
+      setMessage(
+        'Google enabled. AI is inactive. Re-enable captions on the video page.',
+      );
     } catch {
       setMessage(
         'Could not enable Google. Reload the extension and try again.',

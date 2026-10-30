@@ -30,7 +30,9 @@ for (const field of [
 }
 assert.deepEqual(
   manifest.optional_host_permissions ?? [],
-  mock ? [] : ['https://translate.googleapis.com/*'],
+  mock
+    ? []
+    : ['https://translate.googleapis.com/*', 'https://api.openai.com/*'],
 );
 assert.equal(manifest.externally_connectable, undefined);
 assert.equal(manifest.update_url, undefined);
@@ -38,7 +40,7 @@ assert.equal(
   manifest.content_security_policy?.extension_pages,
   mock
     ? "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src 'none'"
-    : "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src https://translate.googleapis.com",
+    : "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src https://translate.googleapis.com https://api.openai.com",
 );
 
 const files = await readdir(output, { recursive: true, withFileTypes: true });

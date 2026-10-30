@@ -1,3 +1,4 @@
+import { AIProfileSchema } from '../translation/ai-profile.ts';
 import { z } from './schema.ts';
 import { PlaybackStateSchema } from './playback.ts';
 import {
@@ -80,6 +81,14 @@ export const RequestSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('playback.disable') }),
   z.strictObject({ ...envelope, type: z.literal('playback.status') }),
   z.strictObject({ ...envelope, type: z.literal('settings.read') }),
+  ...(['ai.status', 'ai.enable', 'ai.disable', 'ai.test'] as const).map(
+    (type) => z.strictObject({ ...envelope, type: z.literal(type) }),
+  ),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('ai.configure'),
+    profile: AIProfileSchema,
+  }),
   z.strictObject({ ...envelope, type: z.literal('google.status') }),
   z.strictObject({ ...envelope, type: z.literal('google.enable') }),
   z.strictObject({ ...envelope, type: z.literal('google.disable') }),
@@ -155,6 +164,19 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
         kind: z.literal('settings'),
         settings: SettingsSchema,
         googleEnabled: z.boolean().optional(),
+        aiEnabled: z.boolean().optional(),
+      }),
+      z.strictObject({
+        kind: z.literal('ai-status'),
+        profile: AIProfileSchema,
+        enabled: z.boolean(),
+        permitted: z.boolean(),
+        status: CredentialStatusSchema,
+      }),
+      z.strictObject({
+        kind: z.literal('ai-test'),
+        success: z.boolean(),
+        error: TranslationErrorSchema.optional(),
       }),
       z.strictObject({
         kind: z.literal('google-status'),

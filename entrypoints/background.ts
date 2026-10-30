@@ -1,3 +1,4 @@
+import { AI_HOST } from '../src/translation/ai-profile.ts';
 import { defineBackground } from 'wxt/utils/define-background';
 import { browser } from 'wxt/browser';
 import { createController } from '../src/background/controller.ts';
@@ -17,6 +18,12 @@ export default defineBackground(() => {
         import.meta.env.MODE === 'mock'
           ? Promise.resolve(false)
           : browser.permissions.contains({ origins: [GOOGLE_HOST] }),
+    },
+    {
+      permitted: () =>
+        import.meta.env.MODE === 'mock'
+          ? Promise.resolve(false)
+          : browser.permissions.contains({ origins: [AI_HOST] }),
     },
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
@@ -47,8 +54,16 @@ export default defineBackground(() => {
           typeof message === 'object' &&
           message !== null &&
           'type' in message &&
-          (message.type === 'google.disable' ||
-            message.type === 'settings.update')
+          [
+            'google.enable',
+            'google.disable',
+            'ai.configure',
+            'ai.enable',
+            'ai.disable',
+            'settings.update',
+            'credentials.set',
+            'credentials.delete',
+          ].includes(String(message.type))
         )
           await resetTranslations();
         sendResponse(response);
@@ -57,14 +72,19 @@ export default defineBackground(() => {
     },
   );
   browser.permissions.onRemoved.addListener(() => {
+    controller.cancelAll();
     void (async () => {
       if (!(await browser.permissions.contains({ origins: [GOOGLE_HOST] }))) {
-        controller.google.cancelAll();
         await controller.google.setEnabled(false);
-        await resetTranslations();
+        await controller.selection.disable('google');
       }
+      if (!(await browser.permissions.contains({ origins: [AI_HOST] })))
+        await controller.selection.disable('ai');
+      controller.cancelAll();
+      await resetTranslations();
     })().catch(() => {
-      controller.google.cancelAll();
+      controller.cancelAll();
+      void resetTranslations().catch(() => {});
     });
   });
   browser.tabs.onRemoved.addListener((tabId) => playback.invalidate(tabId));

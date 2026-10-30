@@ -7,7 +7,7 @@ import { CaptionPlayer } from '../src/playback/player';
 import type { CaptionTransform } from '../src/playback/cues';
 import { isYouTubeWatch, SOURCE_STOP } from '../src/youtube/source';
 import { YouTubePlayer } from '../src/youtube/player';
-import { googleTransform } from '../src/translation/client';
+import { providerTransform } from '../src/translation/client';
 
 export default defineContentScript({
   registration: 'runtime',
@@ -62,10 +62,10 @@ export default defineContentScript({
           transform = (await import('../src/testing/mock-translator'))
             .mockTranslate;
         } else if (
-          data.googleEnabled &&
+          (data.googleEnabled || data.aiEnabled) &&
           data.settings.displayMode !== 'original'
         ) {
-          transform = googleTransform(control.sessionId);
+          transform = providerTransform(control.sessionId);
         }
         if (
           ticket !== generation ||
@@ -99,7 +99,9 @@ export default defineContentScript({
           import.meta.env.MODE === 'mock'
             ? 'MOCK · Timing test · Not a translation'
             : transform
-              ? 'Google · Experimental · Captions sent to Google'
+              ? data.aiEnabled
+                ? 'OpenAI · Paid API · Captions sent to api.openai.com'
+                : 'Google · Experimental · Captions sent to Google'
               : '',
         );
         return 'enabled';

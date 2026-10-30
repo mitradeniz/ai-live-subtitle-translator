@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { sendRequest } from '../../src/messaging/client';
 import type { Settings } from '../../src/messaging/protocol';
 import { DevelopmentNotice } from '../../src/ui/DevelopmentNotice';
+import { AISettings } from '../../src/ui/AISettings';
 import { GoogleSettings } from '../../src/ui/GoogleSettings';
 
 export function App() {
@@ -211,7 +212,12 @@ export function App() {
           {error && <p role="alert">{error}</p>}
         </section>
         <aside className="preview-column">
-          {import.meta.env.MODE !== 'mock' && <GoogleSettings />}
+          {import.meta.env.MODE !== 'mock' && (
+            <>
+              <AISettings />
+              <GoogleSettings />
+            </>
+          )}
           <section
             className="glass-panel preview-panel"
             aria-labelledby="preview-title"

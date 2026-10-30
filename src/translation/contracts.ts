@@ -14,6 +14,9 @@ export const TranslationJobSchema = z.strictObject({
 });
 export type TranslationJob = z.infer<typeof TranslationJobSchema>;
 export const TranslationErrorSchema = z.enum([
+  'AI_KEY',
+  'AI_PROFILE',
+  'AI_BLOCKED',
   'OFF',
   'PERMISSION',
   'LANGUAGE',
@@ -27,17 +30,23 @@ export const TranslationErrorSchema = z.enum([
 ]);
 export type TranslationErrorCode = z.infer<typeof TranslationErrorSchema>;
 export const TRANSLATION_MESSAGES: Record<TranslationErrorCode, string> = {
-  OFF: 'Google translation is off. Showing original captions.',
-  PERMISSION: 'Google access was removed. Showing original captions.',
-  LANGUAGE: 'Unsupported Google language code. Showing original captions.',
-  LIMIT: 'Local Google request limit reached. Showing original captions.',
-  BUSY: 'Google is busy with another caption. Showing original captions.',
+  AI_KEY:
+    'AI key is missing or invalid. Enter it in settings. Showing original captions.',
+  AI_PROFILE:
+    'Unsupported AI profile. Check settings. Showing original captions.',
+  AI_BLOCKED:
+    'OpenAI rejected the key, account access, or quota. Requests stopped for this browser session. Check your account, then explicitly save the key to resume.',
+  OFF: 'Selected provider translation is off. Showing original captions.',
+  PERMISSION: 'Provider access was removed. Showing original captions.',
+  LANGUAGE: 'Unsupported provider language code. Showing original captions.',
+  LIMIT: 'Local provider request limit reached. Showing original captions.',
+  BUSY: 'The provider is busy with another caption. Showing original captions.',
   BLOCKED:
     'Google denied or throttled access. Translation stopped for this browser session.',
-  TIMEOUT: 'Google timed out. Showing original captions.',
-  NETWORK: 'Google could not be reached. Showing original captions.',
+  TIMEOUT: 'The provider timed out. Showing original captions.',
+  NETWORK: 'The provider could not be reached. Showing original captions.',
   RESPONSE:
-    'Google returned an unsupported response. Showing original captions.',
+    'The provider returned an unsupported response. Showing original captions.',
   CANCELLED: 'Translation cancelled. Showing original captions.',
 };
 export class TranslationFailure extends Error {

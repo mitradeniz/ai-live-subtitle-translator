@@ -1,3 +1,6 @@
+import { AICoordinator, type AIPorts } from './ai.ts';
+import { ProviderSelection } from './provider-selection.ts';
+import { DEFAULT_SETTINGS } from '../messaging/protocol.ts';
 import {
   RequestSchema,
   ResponseSchema,
@@ -19,14 +22,25 @@ export function createController(
   areas: StorageAreas,
   playback?: PlaybackHandler,
   googlePorts: GooglePorts = { permitted: async () => false },
+  aiPorts: AIPorts = { permitted: async () => false },
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
   const credentials = new CredentialStore(storage);
   const google = new GoogleCoordinator(storage, googlePorts);
-  const sessions = new SessionRegistry(extensionId, Date.now, (tabId) =>
-    google.cancelTab(tabId),
-  );
+  const ai = new AICoordinator(storage, credentials, aiPorts);
+  const selection = new ProviderSelection(storage);
+  let epoch = 0;
+  const cancelAll = () => {
+    epoch++;
+    google.cancelAll();
+    ai.cancelAll();
+    sessions.revokeAll();
+  };
+  const sessions = new SessionRegistry(extensionId, Date.now, (tabId) => {
+    google.cancelTab(tabId);
+    ai.cancelTab(tabId);
+  });
   let pending = 0;
 
   async function dispatch(
@@ -66,17 +80,24 @@ export function createController(
         request.type === 'content.cancel'
       ) {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
-        const valid = () =>
+        const ticket = epoch;
+        const valid = () => {
           sessions.assertBound(request.sessionId, sender.identity);
+          if (ticket !== epoch) throw new TranslationFailure('CANCELLED');
+        };
         valid();
         if (request.type === 'content.cancel') {
           google.cancel(request.sessionId, request.jobId);
+          ai.cancel(request.sessionId, request.jobId);
           response = { ok: true, data: { kind: 'saved' } };
         } else {
           const preferences = await settings.read();
-          valid();
           try {
-            const result = await google.translate(
+            valid();
+            const selected = await selection.read();
+            valid();
+            if (selected === 'none') throw new TranslationFailure('OFF');
+            const result = await (selected === 'ai' ? ai : google).translate(
               sender.identity.tabId,
               request.sessionId,
               request.job,
@@ -100,26 +121,100 @@ export function createController(
           }
         }
       } else if (
+        request.type === 'ai.status' ||
+        request.type === 'ai.configure' ||
+        request.type === 'ai.enable' ||
+        request.type === 'ai.disable' ||
+        request.type === 'ai.test'
+      ) {
+        if (sender.kind !== 'ui' || sender.page !== 'options')
+          throw new BoundaryError('FORBIDDEN');
+        if (request.type === 'ai.test') {
+          const ticket = epoch;
+          try {
+            await ai.translate(
+              -1,
+              'options-test',
+              {
+                jobId: crypto.randomUUID(),
+                generation: 0,
+                items: [{ id: 'test', revision: 0, text: 'Hello, world.' }],
+              },
+              {
+                ...DEFAULT_SETTINGS,
+                sourceLanguage: 'en',
+                targetLanguage: 'tr',
+              },
+              () => {
+                if (ticket !== epoch) throw new TranslationFailure('CANCELLED');
+              },
+            );
+            response = { ok: true, data: { kind: 'ai-test', success: true } };
+          } catch (error) {
+            if (!(error instanceof TranslationFailure)) throw error;
+            response = {
+              ok: true,
+              data: { kind: 'ai-test', success: false, error: error.code },
+            };
+          }
+        } else {
+          if (request.type !== 'ai.status') cancelAll();
+          const ticket = epoch;
+          if (request.type === 'ai.configure')
+            await ai.configure(request.profile);
+          if (request.type === 'ai.enable') {
+            if (!(await ai.permitted())) throw new BoundaryError('UNAVAILABLE');
+            await selection.set('ai', () => ticket === epoch);
+          }
+          if (request.type === 'ai.disable') await selection.disable('ai');
+          if (request.type !== 'ai.status' && ticket === epoch) cancelAll();
+          response = {
+            ok: true,
+            data: {
+              kind: 'ai-status',
+              profile: await ai.profile(),
+              enabled: (await selection.read()) === 'ai',
+              permitted: await ai.permitted(),
+              status: await credentials.status('ai'),
+            },
+          };
+        }
+      } else if (
         request.type === 'google.status' ||
         request.type === 'google.enable' ||
         request.type === 'google.disable'
       ) {
         if (sender.kind !== 'ui' || sender.page !== 'options')
           throw new BoundaryError('FORBIDDEN');
-        const enabled =
+        if (request.type !== 'google.status') cancelAll();
+        const ticket = epoch;
+        const consent =
           request.type === 'google.status'
             ? await google.enabled()
             : await google.setEnabled(request.type === 'google.enable');
+        if (request.type === 'google.enable' && consent)
+          await selection.set('google', () => ticket === epoch);
+        if (request.type === 'google.disable')
+          await selection.disable('google');
+        if (request.type !== 'google.status' && ticket === epoch) cancelAll();
+        const enabled = consent && (await selection.read()) === 'google';
         response = { ok: true, data: { kind: 'google-status', enabled } };
       } else if (request.type === 'content.settings') {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         sessions.assertBound(request.sessionId, sender.identity);
         const preferences = await settings.read();
-        const googleEnabled = await google.enabled();
+        const selected = await selection.read();
+        const googleEnabled = selected === 'google' && (await google.enabled());
+        const aiEnabled = selected === 'ai';
         sessions.assertBound(request.sessionId, sender.identity);
         response = {
           ok: true,
-          data: { kind: 'settings', settings: preferences, googleEnabled },
+          data: {
+            kind: 'settings',
+            settings: preferences,
+            googleEnabled,
+            aiEnabled,
+          },
         };
       } else {
         if (sender.kind !== 'ui') throw new BoundaryError('FORBIDDEN');
@@ -133,7 +228,7 @@ export function createController(
             };
             break;
           case 'settings.update':
-            google.cancelAll();
+            cancelAll();
             response = {
               ok: true,
               data: {
@@ -141,6 +236,7 @@ export function createController(
                 settings: await settings.update(request.preferences),
               },
             };
+            cancelAll();
             break;
           case 'settings.export':
             response = {
@@ -149,15 +245,20 @@ export function createController(
             };
             break;
           case 'credentials.set':
+            cancelAll();
             await credentials.set(
               request.credentialId,
               request.credential,
               request.rememberOnDevice,
             );
+            if (request.credentialId === 'ai') await ai.keyChanged();
+            cancelAll();
             response = { ok: true, data: { kind: 'saved' } };
             break;
           case 'credentials.delete':
+            cancelAll();
             await credentials.delete(request.credentialId);
+            cancelAll();
             response = { ok: true, data: { kind: 'deleted' } };
             break;
           case 'credentials.status':
@@ -181,5 +282,5 @@ export function createController(
       pending--;
     }
   }
-  return { dispatch, sessions, google };
+  return { dispatch, sessions, google, ai, selection, cancelAll };
 }

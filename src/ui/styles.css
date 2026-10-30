@@ -465,3 +465,20 @@ fieldset:disabled button {
     background: #151b29;
   }
 }
+
+.key-retention {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.key-retention input {
+  width: 16px;
+  min-height: 16px;
+  flex: 0 0 16px;
+  accent-color: #a9bbff;
+}
+.google-panel select {
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
