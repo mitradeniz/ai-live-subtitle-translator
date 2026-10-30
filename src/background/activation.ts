@@ -76,6 +76,7 @@ export function createPlaybackHandler(sessions: SessionRegistry) {
         frameId: 0,
         tab: { id: tabId, incognito: false },
       });
+      await sessions.flush();
       const state: unknown = await browser.tabs.sendMessage(
         tabId,
         {

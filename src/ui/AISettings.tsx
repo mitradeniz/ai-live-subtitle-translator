@@ -277,10 +277,11 @@ export function AISettings() {
         </div>
       </fieldset>
       <p className="field-help">
-        The test sends only “Hello, world.” to the saved AI provider, once per
-        click. Saving or opening this page never tests a key. Up to 10
-        requests/minute, 100 per browser session, one at a time, 2,048 output
-        tokens/request; no retries or automatic provider fallback. These are
+        The test sends only “Hello, world.” to the saved AI provider. One retry
+        is allowed after an explicit rate-limit response; network failures are
+        not retried automatically. Saving or opening this page never tests a
+        key. Up to 10 requests/minute, 100 per browser session, one at a time,
+        2,048 output tokens/request; no automatic provider fallback. These are
         request limits, not a billing cap. Check your provider’s pricing and
         account limits.
       </p>

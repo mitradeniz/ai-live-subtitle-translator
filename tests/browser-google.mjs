@@ -189,6 +189,13 @@ try {
       .waitFor();
     await page.waitForTimeout(1100);
     mode = 'malformed';
+    await options.evaluate(() =>
+      chrome.runtime.sendMessage({
+        version: 1,
+        requestId: 'clear-fault-cache',
+        type: 'cache.clear',
+      }),
+    );
     await send('playback.enable');
     await status('unsupported response');
     await caption('Hello from the timing lab.');
@@ -219,11 +226,11 @@ try {
     await page.waitForTimeout(1100);
     mode = 'throttle';
     await seek(1);
-    await status('denied or throttled');
+    await status('rate limit reached');
     const blockedCount = count;
     await page.waitForTimeout(1100);
     await seek(3);
-    await status('denied or throttled');
+    await status('cooling down');
     assert.equal(count, blockedCount);
   }
   assert.deepEqual(errors, []);

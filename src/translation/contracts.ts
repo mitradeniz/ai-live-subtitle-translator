@@ -10,10 +10,14 @@ export const TranslationItemSchema = z.strictObject({
 export const TranslationJobSchema = z.strictObject({
   jobId: z.uuid(),
   generation: z.number().int().nonnegative(),
+  priority: z.enum(['current', 'prefetch']).optional(),
   items: z.array(TranslationItemSchema).min(1).max(4),
 });
 export type TranslationJob = z.infer<typeof TranslationJobSchema>;
 export const TranslationErrorSchema = z.enum([
+  'THROTTLED',
+  'COOLDOWN',
+  'INTERRUPTED',
   'AUTH',
   'QUOTA',
   'PROVIDER_REQUEST',
@@ -33,6 +37,12 @@ export const TranslationErrorSchema = z.enum([
 ]);
 export type TranslationErrorCode = z.infer<typeof TranslationErrorSchema>;
 export const TRANSLATION_MESSAGES: Record<TranslationErrorCode, string> = {
+  THROTTLED:
+    'Provider rate limit reached. Waiting before further requests; original captions remain.',
+  COOLDOWN:
+    'Provider is cooling down after a failure. New cues can resume when the delay expires.',
+  INTERRUPTED:
+    'A request may have been accepted before interruption. This batch will not be resent automatically; original captions remain.',
   AUTH: 'Provider rejected the key or account access. Check the key, enabled API, restrictions and billing in settings; save the key to resume. Showing original captions.',
   QUOTA:
     'Provider quota or balance is unavailable. Check your provider account; save the key only after resolving it. Showing original captions.',
@@ -63,8 +73,10 @@ export const TRANSLATION_MESSAGES: Record<TranslationErrorCode, string> = {
 };
 export class TranslationFailure extends Error {
   readonly code: TranslationErrorCode;
-  constructor(code: TranslationErrorCode) {
+  readonly retryAfterMs: number | undefined;
+  constructor(code: TranslationErrorCode, retryAfterMs?: number) {
     super(TRANSLATION_MESSAGES[code]);
     this.code = code;
+    this.retryAfterMs = retryAfterMs;
   }
 }

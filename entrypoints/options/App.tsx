@@ -1,3 +1,4 @@
+import { CacheSettings } from '../../src/ui/CacheSettings';
 import { CloudSettings } from '../../src/ui/CloudSettings';
 import { ProviderSelector } from '../../src/ui/ProviderSelector';
 import { browser } from 'wxt/browser';
@@ -220,6 +221,7 @@ export function App() {
               <AISettings />
               <CloudSettings />
               <GoogleSettings />
+              <CacheSettings />
             </>
           )}
           <section

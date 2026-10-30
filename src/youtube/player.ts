@@ -1,3 +1,4 @@
+import { TimedWindow } from '../playback/timed-window.ts';
 import type { Settings } from '../messaging/protocol.ts';
 import {
   activeCues,
@@ -56,6 +57,7 @@ export class YouTubePlayer {
   #started = Date.now();
   #timed: readonly Cue[] = [];
   #nativeInUse = false;
+  #timedWindow: TimedWindow | undefined;
 
   constructor(
     video: HTMLVideoElement,
@@ -68,6 +70,15 @@ export class YouTubePlayer {
     this.#root = video.closest(SELECTORS.player) ?? video.parentElement!;
     this.#settings = settings;
     this.#transform = transform;
+    if (transform)
+      this.#timedWindow = new TimedWindow(
+        transform,
+        () => this.#sample(),
+        (error) =>
+          this.#overlay.setTranslationStatus(
+            error instanceof TranslationFailure ? error.message : '',
+          ),
+      );
     this.#valid = valid;
     this.#label = label;
     this.#native = new NativeTrackAdapter(video);
@@ -92,6 +103,8 @@ export class YouTubePlayer {
   }
   stopTranslation() {
     this.#transform = undefined;
+    this.#timedWindow?.reset();
+    this.#timedWindow = undefined;
     this.#label = 'Original captions';
     this.#clear();
     this.#overlay.setTranslationStatus(
@@ -100,6 +113,7 @@ export class YouTubePlayer {
     this.#sample();
   }
   #clear() {
+    this.#timedWindow?.reset();
     this.#generation.next();
     this.#revision.clear();
     this.#active = [];
@@ -169,7 +183,9 @@ export class YouTubePlayer {
         'true';
     if (usable) {
       this.#nativeInUse = true;
-      this.#timed = this.#native.snapshot();
+      const timed = this.#native.snapshot();
+      if (timed !== this.#timed) this.#timedWindow?.reset();
+      this.#timed = timed;
     } else {
       if (this.#nativeInUse) {
         this.#native.dispose();
@@ -232,7 +248,7 @@ export class YouTubePlayer {
       this.#generation.next();
       this.#active = units;
       this.#result = null;
-      if (units.length && this.#transform) {
+      if (!timed.length && units.length && this.#transform) {
         const signal = this.#generation.signal;
         void this.#transform(
           units,
@@ -255,6 +271,17 @@ export class YouTubePlayer {
               this.#overlay.setTranslationStatus(error.message);
           });
       }
+    }
+    if (timed.length && !this.#video.seeking) {
+      this.#timedWindow?.update(
+        timed,
+        this.#video.currentTime,
+        this.#video.paused,
+      );
+      this.#result =
+        this.#timedWindow
+          ?.texts(activeCues(timed, this.#video.currentTime))
+          ?.join('\n') ?? null;
     }
     this.#render();
   };
@@ -282,6 +309,7 @@ export class YouTubePlayer {
   dispose = () => {
     if (this.#closed) return;
     this.#closed = true;
+    this.#timedWindow?.reset();
     this.#generation.next();
     clearInterval(this.#poll);
     cancelAnimationFrame(this.#frame);

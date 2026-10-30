@@ -88,6 +88,9 @@ export const RequestSchema = z.discriminatedUnion('type', [
       'cloud.disable',
       'cloud.test',
       'provider.status',
+      'cache.status',
+      'cache.clear',
+      'data.clear',
     ] as const
   ).map((type) => z.strictObject({ ...envelope, type: z.literal(type) })),
   ...(['ai.status', 'ai.enable', 'ai.disable', 'ai.test'] as const).map(
@@ -97,6 +100,11 @@ export const RequestSchema = z.discriminatedUnion('type', [
     ...envelope,
     type: z.literal('ai.configure'),
     profile: AIProfileSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('cache.configure'),
+    persistent: z.boolean(),
   }),
   z.strictObject({ ...envelope, type: z.literal('google.status') }),
   z.strictObject({ ...envelope, type: z.literal('google.enable') }),
@@ -165,6 +173,10 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion('kind', [
+      z.strictObject({
+        kind: z.literal('cache-status'),
+        persistent: z.boolean(),
+      }),
       z.strictObject({
         kind: z.literal('playback'),
         state: PlaybackStateSchema,

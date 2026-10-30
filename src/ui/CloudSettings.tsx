@@ -210,8 +210,9 @@ export function CloudSettings() {
         </div>
       </fieldset>
       <p className="field-help">
-        Test: one “Hello, world.” English-to-Turkish request per click. No
-        automatic tests or retries. Up to four 1,000-character cues/request, 10
+        Test: “Hello, world.” English-to-Turkish, only when clicked. At most one
+        retry after an explicit rate-limit response; no automatic network retry
+        or key test. Up to four 1,000-character cues/request, 10
         requests/minute, 100/session. These limits are not a billing cap. Errors
         keep originals; fix the indicated issue or explicitly select another
         engine.

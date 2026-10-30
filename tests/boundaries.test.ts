@@ -354,7 +354,7 @@ test('content sender requires a nonopaque matching origin and complete browser i
   }
 });
 
-test('new document grant, expiration and worker restart invalidate old sessions', async () => {
+test('new document grant and expiration invalidate sessions; a checkpoint survives worker restart', async () => {
   let now = 0;
   const registry = new SessionRegistry(EXTENSION_ID, () => now);
   const content = contentSender();
@@ -376,9 +376,18 @@ test('new document grant, expiration and worker restart invalidate old sessions'
   const areas = fakeAreas();
   const before = createController(EXTENSION_ID, areas);
   const sessionId = before.sessions.grant(content);
+  await before.sessions.flush();
   const after = createController(EXTENSION_ID, areas);
+  assert.equal(
+    (await after.dispatch(request('content.settings', { sessionId }), content))
+      .ok,
+    true,
+  );
   assert.deepEqual(
-    await after.dispatch(request('content.settings', { sessionId }), content),
+    await after.dispatch(request('content.settings', { sessionId }), {
+      ...content,
+      documentId: 'new-document',
+    }),
     { ok: false, error: 'INVALID_SESSION' },
   );
 });

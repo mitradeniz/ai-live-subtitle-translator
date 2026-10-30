@@ -1,3 +1,5 @@
+import { WorkQueue } from './work-queue.ts';
+import { CLOUD_PROFILE } from '../translation/google-cloud.ts';
 import { AIProfileSchema, aiDefinition } from '../translation/ai-profile.ts';
 import { PaidCoordinator, type PaidPorts } from './paid.ts';
 import { ProviderSelection } from './provider-selection.ts';
@@ -37,20 +39,28 @@ export function createController(
     cloudPorts,
     'google-cloud',
   );
+  const work = new WorkQueue(storage);
   const selection = new ProviderSelection(storage);
   let epoch = 0;
   const cancelAll = () => {
     epoch++;
+    work.cancel();
     google.cancelAll();
     ai.cancelAll();
     cloud.cancelAll();
     sessions.revokeAll();
   };
-  const sessions = new SessionRegistry(extensionId, Date.now, (tabId) => {
-    google.cancelTab(tabId);
-    ai.cancelTab(tabId);
-    cloud.cancelTab(tabId);
-  });
+  const sessions = new SessionRegistry(
+    extensionId,
+    Date.now,
+    (tabId) => {
+      google.cancelTab(tabId);
+      ai.cancelTab(tabId);
+      cloud.cancelTab(tabId);
+      work.cancel(undefined, undefined, tabId);
+    },
+    storage,
+  );
   let pending = 0;
 
   async function dispatch(
@@ -65,6 +75,7 @@ export function createController(
       if (!parsed.success) throw new BoundaryError('INVALID_MESSAGE');
       const request = parsed.data;
       const sender = identifySender(browserSender, extensionId);
+      await sessions.flush();
       let response: Response;
       if (
         request.type === 'playback.enable' ||
@@ -92,11 +103,12 @@ export function createController(
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         const ticket = epoch;
         const valid = () => {
-          sessions.assertBound(request.sessionId, sender.identity);
           if (ticket !== epoch) throw new TranslationFailure('CANCELLED');
+          sessions.assertBound(request.sessionId, sender.identity);
         };
         valid();
         if (request.type === 'content.cancel') {
+          work.cancel(request.sessionId, request.jobId);
           google.cancel(request.sessionId, request.jobId);
           ai.cancel(request.sessionId, request.jobId);
           cloud.cancel(request.sessionId, request.jobId);
@@ -108,19 +120,78 @@ export function createController(
             const selected = await selection.read();
             valid();
             if (selected === 'none') throw new TranslationFailure('OFF');
-            const result = await (
+            if (
+              new Set(request.job.items.map((item) => item.id)).size !==
+              request.job.items.length
+            )
+              throw new TranslationFailure('RESPONSE');
+            if (preferences.displayMode === 'original')
+              throw new TranslationFailure('OFF');
+            const provider =
               selected === 'ai'
                 ? ai
                 : selected === 'google-cloud'
                   ? cloud
-                  : google
-            ).translate(
-              sender.identity.tabId,
-              request.sessionId,
-              request.job,
-              preferences,
+                  : google;
+            const profile =
+              selected === 'ai'
+                ? await ai.profile()
+                : selected === 'google-cloud'
+                  ? CLOUD_PROFILE
+                  : {
+                      endpoint:
+                        'https://translate.googleapis.com/translate_a/single',
+                      model: 'gtx',
+                    };
+            if (selected === 'google') {
+              if (!(await google.enabled()))
+                throw new TranslationFailure('OFF');
+            } else {
+              const paid = selected === 'ai' ? ai : cloud;
+              if (!(await paid.permitted()))
+                throw new TranslationFailure('PERMISSION');
+              if (
+                !(await credentials.readForOrigin(
+                  selected === 'ai' ? 'ai' : 'google-cloud',
+                  new URL(profile.endpoint).origin,
+                ))
+              )
+                throw new TranslationFailure('AI_KEY');
+            }
+            valid();
+            const result = await work.run({
+              provider: selected,
+              config: {
+                provider: selected,
+                configVersion: 1,
+                ...profile,
+                source: preferences.sourceLanguage,
+                target: preferences.targetLanguage,
+                options: { format: 'text' },
+              },
+              paid: selected !== 'google',
+              tabId: sender.identity.tabId,
+              sessionId: request.sessionId,
+              job: request.job,
               valid,
-            );
+              cancel: () =>
+                provider.cancel(request.sessionId, request.job.jobId),
+              perform: (check) =>
+                provider.translate(
+                  sender.identity.tabId,
+                  request.sessionId,
+                  request.job,
+                  preferences,
+                  check,
+                ),
+            });
+            valid();
+            if (
+              !(selected === 'google'
+                ? await google.enabled()
+                : await (selected === 'ai' ? ai : cloud).permitted())
+            )
+              throw new TranslationFailure('PERMISSION');
             valid();
             response = {
               ok: true,
@@ -137,6 +208,32 @@ export function createController(
             };
           }
         }
+      } else if (
+        request.type === 'cache.status' ||
+        request.type === 'cache.configure' ||
+        request.type === 'cache.clear' ||
+        request.type === 'data.clear'
+      ) {
+        if (sender.kind !== 'ui' || sender.page !== 'options')
+          throw new BoundaryError('FORBIDDEN');
+        if (request.type !== 'cache.status') cancelAll();
+        if (request.type === 'cache.configure')
+          await work.cache.configure(request.persistent);
+        if (request.type === 'cache.clear') await work.cache.clear();
+        if (request.type === 'data.clear') {
+          await work.clearData();
+          await credentials.delete('ai');
+          await credentials.delete('google-cloud');
+          await google.setEnabled(false);
+          await selection.set('none');
+          await storage.run(async ({ local }) => {
+            await local.remove(['ai-profile.v1', 'settings.v1']);
+          });
+        }
+        response = {
+          ok: true,
+          data: { kind: 'cache-status', persistent: await work.cache.policy() },
+        };
       } else if (request.type === 'provider.status') {
         if (sender.kind !== 'ui' || sender.page !== 'options')
           throw new BoundaryError('FORBIDDEN');
@@ -375,6 +472,7 @@ export function createController(
             break;
         }
       }
+      await sessions.flush();
       return ResponseSchema.parse(response);
     } catch (error) {
       return {
@@ -385,5 +483,5 @@ export function createController(
       pending--;
     }
   }
-  return { dispatch, sessions, google, ai, cloud, selection, cancelAll };
+  return { dispatch, sessions, google, ai, cloud, selection, cancelAll, work };
 }

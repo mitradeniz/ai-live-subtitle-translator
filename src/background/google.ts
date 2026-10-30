@@ -1,3 +1,4 @@
+import { RetryGate } from './retry-gate.ts';
 import { z } from '../messaging/schema.ts';
 import type { Settings } from '../messaging/protocol.ts';
 import {
@@ -38,10 +39,12 @@ export class GoogleCoordinator {
   #ports: GooglePorts;
   #job: Job | undefined;
   #epoch = 0;
+  #retry: RetryGate;
   #cancelled = new Set<string>();
   constructor(storage: TrustedStorage, ports: GooglePorts) {
     this.#storage = storage;
     this.#ports = ports;
+    this.#retry = new RetryGate(storage, 'google.retry.v1', ports.now);
   }
   async enabled(): Promise<boolean> {
     const consent = await this.#storage.run(async ({ local }) => {
@@ -154,21 +157,29 @@ export class GoogleCoordinator {
       const items = [];
       for (const item of job.items) {
         check();
-        await this.#reserve();
-        check();
-        if (!(await this.#ports.permitted()))
-          throw new TranslationFailure('PERMISSION');
-        check();
-        const text = await translateGoogle(
-          item.text,
-          settings.sourceLanguage,
-          settings.targetLanguage,
+        const text = await this.#retry.run(
+          async () => {
+            await this.#reserve();
+            check();
+            if (!(await this.#ports.permitted()))
+              throw new TranslationFailure('PERMISSION');
+            check();
+            const translated = await translateGoogle(
+              item.text,
+              settings.sourceLanguage,
+              settings.targetLanguage,
+              signal,
+              this.#ports.fetch,
+            );
+            check();
+            if (!(await this.#ports.permitted()))
+              throw new TranslationFailure('PERMISSION');
+            return translated;
+          },
+          false,
           signal,
-          this.#ports.fetch,
+          check,
         );
-        check();
-        if (!(await this.#ports.permitted()))
-          throw new TranslationFailure('PERMISSION');
         items.push({ id: item.id, revision: item.revision, text });
         // Separate requests preserve cue alignment; wait without dispatching on cancellation.
         if (items.length < job.items.length)

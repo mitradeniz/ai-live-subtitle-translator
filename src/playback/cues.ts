@@ -79,6 +79,7 @@ export type CaptionTransform = (
   cues: readonly CaptionUnit[],
   generation: number,
   signal: AbortSignal,
+  options?: { priority: 'current' | 'prefetch'; observed: boolean },
 ) => Promise<CaptionResult>;
 
 export class PlaybackGeneration {

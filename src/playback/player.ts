@@ -1,3 +1,4 @@
+import { TimedWindow } from './timed-window.ts';
 import type { Settings } from '../messaging/protocol.ts';
 import {
   activeCues,
@@ -14,7 +15,7 @@ export class CaptionPlayer {
   #adapter: NativeTrackAdapter;
   #overlay: CaptionOverlay;
   #settings: Settings;
-  #transform: CaptionTransform | undefined;
+  #window: TimedWindow | undefined;
   #isValid: () => boolean;
   #generation = new PlaybackGeneration();
   #cues: readonly Cue[] = [];
@@ -38,7 +39,15 @@ export class CaptionPlayer {
     this.#video = video;
     this.#source = video.currentSrc;
     this.#settings = settings;
-    this.#transform = transform;
+    if (transform)
+      this.#window = new TimedWindow(
+        transform,
+        () => this.#paint(),
+        (error) =>
+          this.#overlay.setTranslationStatus(
+            error instanceof TranslationFailure ? error.message : '',
+          ),
+      );
     this.#isValid = isValid;
     this.#adapter = new NativeTrackAdapter(video);
     this.#overlay = new CaptionOverlay(video, settings.fontSize, label);
@@ -71,7 +80,8 @@ export class CaptionPlayer {
   }
 
   stopTranslation() {
-    this.#transform = undefined;
+    this.#window?.reset();
+    this.#window = undefined;
     this.#overlay.setLabel('Original captions');
     this.#invalidate();
     this.#overlay.setTranslationStatus(
@@ -81,6 +91,7 @@ export class CaptionPlayer {
   }
 
   #invalidate = () => {
+    this.#window?.reset();
     this.#generation.next();
     this.#active = [];
     this.#result = null;
@@ -127,27 +138,15 @@ export class CaptionPlayer {
       this.#generation.next();
       this.#active = cues;
       this.#result = null;
-      if (cues.length && this.#transform) {
-        const generation = this.#generation.value;
-        const signal = this.#generation.signal;
-        void this.#transform(cues, generation, this.#generation.signal)
-          .then((result) => {
-            if (this.#closed || !this.#generation.accepts(result, this.#active))
-              return;
-            this.#result = result.items.map((item) => item.text);
-            this.#overlay.setTranslationStatus('');
-            this.#paint();
-          })
-          .catch((error: unknown) => {
-            if (
-              !this.#closed &&
-              !signal.aborted &&
-              error instanceof TranslationFailure
-            )
-              this.#overlay.setTranslationStatus(error.message);
-          });
-      }
     }
+    if (!this.#video.seeking)
+      this.#window?.update(
+        this.#cues,
+        this.#video.currentTime,
+        this.#video.paused,
+      );
+    this.#result = this.#window?.texts(cues) || null;
+
     const original = cues.map((cue) => cue.text).join('\n');
     const mock = this.#result?.join('\n');
     const mode = this.#settings.displayMode;
@@ -169,6 +168,7 @@ export class CaptionPlayer {
   dispose = () => {
     if (this.#closed) return;
     this.#closed = true;
+    this.#window?.reset();
     this.#generation.next();
     cancelAnimationFrame(this.#frame);
     clearInterval(this.#poll);

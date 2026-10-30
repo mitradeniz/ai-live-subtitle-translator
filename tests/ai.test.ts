@@ -225,7 +225,7 @@ test('response size, JSON and transport failures are redacted; no automatic retr
   for (const [reply, expected] of [
     [new Response('', { status: 401 }), 'AUTH'],
     [new Response('', { status: 403 }), 'AUTH'],
-    [new Response('', { status: 429 }), 'QUOTA'],
+    [new Response('', { status: 429 }), 'THROTTLED'],
     [new Response('', { status: 500 }), 'NETWORK'],
     [new Response('<html>'), 'RESPONSE'],
     [
@@ -405,12 +405,17 @@ test('request budget survives worker reconstruction; key replacement cannot eras
   await assert.rejects(h.translate(), code('LIMIT'));
 });
 
-test('authentication/throttling latch survives restart; explicit key save clears latch without restoring spent quota', async () => {
+test('authentication/quota latch survives restart; explicit key save clears latch without restoring spent quota', async () => {
   for (const status of [401, 403, 429]) {
     let count = 0;
     const h = harness(async () => {
       count++;
-      return new Response('', { status });
+      return new Response(
+        status === 429
+          ? JSON.stringify({ error: { code: 'insufficient_quota' } })
+          : '',
+        { status, headers: { 'content-type': 'application/json' } },
+      );
     });
     await h.keys.set('ai', keyRecord);
     await assert.rejects(

@@ -46,6 +46,7 @@ Build output and local caches are ignored by Git.
 | `pnpm test`                         | Unit tests for messages, credentials, sessions, cue timing, and cleanup        |
 | `pnpm check`                        | Typecheck, lint, format, unit tests, production build and artifact check       |
 | `pnpm test:browser`                 | Production credential/storage and UI browser tests                             |
+| `pnpm test:work`                    | Offline prefetch, cache, Retry-After and forced worker interruption checks     |
 | `pnpm test:providers`               | Offline Cloud/DeepSeek/Gemini contracts, switching and quota browser checks    |
 | `pnpm test:ai`                      | Offline-routed OpenAI contracts, UI, deletion and restart browser tests        |
 | `pnpm test:google`                  | Offline-routed Google provider, fallback and cancellation browser tests        |
@@ -139,15 +140,14 @@ Limits are deliberately conservative: one job globally, at most four cues per jo
 eight-second request timeout, at least one second between requests, 20 requests per
 fixed minute window and 200 per browser/extension session. Counters survive service
 worker restarts; browser restart or extension reload starts a new session. Each cue
-uses its own request to preserve alignment; there is no translation cache or automatic
-retry yet. Rolling text waits 300 ms before dispatch. Dense captions and overlapping
+uses its own request to preserve alignment; completed batches use the bounded cache described below. Transient failures have finite retries and cooldown. Observed rolling text waits 300 ms before dispatch; timed cues do not use this delay. Dense captions and overlapping
 cues may stay original when limits or timing prevent completion.
 
-HTTP 401/403/429 stops further Google requests for that browser session. The extension
+HTTP 401/403 stops further Google requests for that browser session. HTTP 429 observes Retry-After and a persistent cooldown; it does not bypass throttling. The extension
 does not bypass challenges, rotate hosts, use a proxy or fall back to a paid provider.
 Timeouts, invalid responses, missing permission and local limits have visible overlay
 messages. Source changes, seek, navigation and disable cancel work; stale responses
-cannot replace current captions. No caption text or response is persisted.
+cannot replace current captions. Completed translated batches are stored in a bounded session cache; device persistence is opt-in, as described below.
 
 ## Select a translation engine
 
@@ -174,8 +174,7 @@ Create or use your own Google Cloud project with billing and Cloud Translation A
 configured, following Google's [Basic setup guide](https://docs.cloud.google.com/translate/docs/setup).
 Enter the key under **Google Cloud · Your API key**, then **Save Cloud key**. Saving
 makes no network request. Select Google Cloud and approve `translation.googleapis.com`.
-**Run small Cloud paid test** sends only `Hello, world.` from English to Turkish, once
-per click. It may incur provider charges. Then activate captions on an English video
+**Run small Cloud paid test** sends only `Hello, world.` from English to Turkish when clicked, with at most one retry after an explicit rate-limit response. It may incur provider charges. Then activate captions on an English video
 with target `tr` and bilingual display. A valid test response is not a quality benchmark.
 
 The adapter uses [Basic v2 translate](https://docs.cloud.google.com/translate/docs/reference/rest/v2/translate),
@@ -240,7 +239,7 @@ most four 1,000-character cues/request, 10 requests/fixed minute, 100/browser-ex
 session, >=1s interval, 15s timeout, 64KiB response and 4,000 output characters/cue.
 AI generation is capped at 2,048 tokens/request. AI profiles share the AI budget;
 Cloud has its own budget. Limits survive worker restarts; browser/extension restart
-starts a new session. There is no retry, automatic provider fallback, lookahead or cache.
+starts a new session. There is no automatic provider fallback. Bounded lookahead, cache and retry behavior are described below.
 These safeguards are **not a billing cap**. Dense or short captions may stay original.
 
 Errors identify the next action without exposing provider messages:
@@ -255,12 +254,12 @@ Errors identify the next action without exposing provider messages:
 Key/access and quota failures stop that paid engine for the browser session. After
 fixing the problem, explicitly saving the key clears the stop but not spent request
 budgets. Disabling/re-enabling does not reset budgets. No live quota-exhaustion test
-is performed. A service-worker restart invalidates playback sessions; re-enable captions.
+is performed. A service-worker restart restores unexpired document-bound sessions. Interrupted paid work is not replayed automatically; extension reload still requires enabling captions again.
 
 **Delete AI key / Delete Cloud key** removes both session and device copies and
 cancels work. **Disable … and remove access** stops work and removes that host grant;
 the key remains until deleted. Selecting another engine does not automatically revoke
-previously granted hosts. Removing permissions in Chrome stops active translation.
+previously granted hosts. Removing permissions in Chrome stops active translation, including cache delivery.
 Already transmitted text and accepted provider charges cannot be retracted.
 
 Keys default to trusted session storage: worker sleep preserves them, browser restart
@@ -272,6 +271,66 @@ Exports contain only caption preferences, never keys, profiles or engine selecti
 Automated paid-provider checks use fake keys and offline responses. Live account
 access, translation quality and latency remain owner checks for OpenAI, Google Cloud,
 DeepSeek and Gemini. No project server, proxy, shared key or purchased domain is needed.
+
+## Scheduling, cache and interrupted requests
+
+Native timed tracks prioritize the current cues and may prepare up to **20 seconds**
+ahead while playing. The window holds at most **12 cues**, dispatching at most **four
+cues / 2,000 characters** per batch, with current cues separate from future batches.
+Paused playback sends only current cues. Prefetch can consume quota for captions you
+later skip. The visible YouTube fallback has no future-caption lookahead; its 300 ms
+stabilization remains separate. Rapidly revised text can still miss translation.
+
+The background queue holds at most 16 jobs across tabs and two per tab, with one
+active job per provider. Waiting current-cue jobs precede prefetch jobs. Completed
+identical batches are reused; duplicate job IDs share one operation. Provider rate
+budgets still apply, including tests/retries. Queue work expires after 25 seconds;
+seek, track changes, disable, tab closure and settings changes discard stale results.
+
+`Retry-After` accepts delay seconds or an HTTP date; the extension never shortens
+that delay. In-operation waits above five seconds become cooldown instead of keeping
+an old cue waiting. Keyless transient failures get at most two retries, with exponential
+backoff and jitter. Paid requests get at most one retry after an explicit rate-limit
+response, and **no automatic retry on network/timeout uncertainty**. Three consecutive
+transient failures open a minimum 30-second cooldown. Malformed output, invalid keys,
+quota/balance denial and permission failures do not retry. New relevant cues can resume
+after cooldown; no heartbeat or keepalive loop runs in the background.
+
+**Translation cache** in settings defaults to trusted session storage: at most 128
+batches / 256 KiB, expiring after 30 minutes. **Remember translations** opts into a
+separate device cache with the same bounds and a 24-hour expiry. Expired entries are
+ignored and pruned when accessed; least-recently-used entries are evicted. Device
+translations survive browser restart; session translations do not. No private/incognito
+session is supported or persisted. Cached translations are not encrypted or anonymous.
+
+Cache identity includes endpoint, provider/config version, model, languages, ordered
+batch text/context, prompt/glossary version and output options. Keys, source URLs and
+raw provider responses are excluded. Changing provider, model, language or context
+cannot reuse an incompatible result. **Clear translation cache** clears both stores
+and stops active translation. **Delete saved data and keys** additionally removes keys,
+preferences, AI profile and playback sessions, turns translation off and disables
+persistent caching. Host grants remain until removed through provider controls/Chrome.
+Spent provider budgets and minimal uncertain-request guards remain for this session
+to avoid turning a clear action into repeated paid dispatches.
+
+Before dispatch, bounded job metadata is checkpointed in trusted session storage:
+identity hash, tab/session, job ID, generation, attempt count and expiry, without a
+key or caption payload. Playback sessions retain browser-derived document/frame/origin
+binding and a 30-minute expiry. Content can reconnect once with the same job ID after
+a messaging interruption; it cannot grant itself a session. A completed result can be
+returned from cache. Uncertain paid batches are suppressed for 30 minutes even with a
+new job ID; subsequent unrelated cues can proceed. An interrupted keyless job may be
+resumed once (within its provider retry/rate limits). Closed tabs and expired work are
+dropped. Browser restart/extension reload clears session state. **Exactly-once provider
+billing is not guaranteed**: a service may accept a request before the worker stops.
+
+Run `pnpm test:work` for a reproducible, entirely offline fixture with sentinel keys.
+It measures cold caption/cache-seek timing and a Retry-After gap, tests 2x playback,
+repeated seeks, disconnect/reconnect and worker termination during a paid request.
+It stops the worker through Chromium's browser-level service-worker control and detaches
+immediately; an attached worker inspector can change lifecycle behavior. This forced
+termination check is not a claim that natural idle suspension was measured. Fixture
+response timings are not live-provider latency or billing guarantees.
 
 ## YouTube preview
 
@@ -376,6 +435,7 @@ pnpm test:youtube
 pnpm test:google
 pnpm test:ai
 pnpm test:providers
+pnpm test:work
 ```
 
 Tests use fresh temporary profiles, never your personal browser. The security suite

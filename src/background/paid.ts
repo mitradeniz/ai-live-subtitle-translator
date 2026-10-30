@@ -1,3 +1,4 @@
+import { RetryGate } from './retry-gate.ts';
 import {
   CLOUD_PROFILE,
   CLOUD_ENDPOINT,
@@ -40,6 +41,7 @@ export class PaidCoordinator {
   #ports: PaidPorts;
   #credentialId: 'ai' | 'google-cloud';
   #quota: string;
+  #retry: RetryGate;
   #epoch = 0;
   #job:
     | {
@@ -61,6 +63,7 @@ export class PaidCoordinator {
     this.#ports = ports;
     this.#credentialId = credentialId;
     this.#quota = `${credentialId}.quota.v1`;
+    this.#retry = new RetryGate(storage, `${credentialId}.retry.v1`, ports.now);
   }
   async profile() {
     if (this.#credentialId === 'google-cloud') return CLOUD_PROFILE;
@@ -205,25 +208,35 @@ export class PaidCoordinator {
       );
       check();
       if (!key) throw new TranslationFailure('AI_KEY');
-      await this.#reserve();
-      check();
-      if (!(await this.permitted())) throw new TranslationFailure('PERMISSION');
-      check();
-      const args = [
-        key,
-        job,
-        settings.sourceLanguage,
-        settings.targetLanguage,
+      const result = await this.#retry.run(
+        async () => {
+          await this.#reserve();
+          check();
+          if (!(await this.permitted()))
+            throw new TranslationFailure('PERMISSION');
+          check();
+          const args = [
+            key,
+            job,
+            settings.sourceLanguage,
+            settings.targetLanguage,
+            current.abort.signal,
+            this.#ports.fetch,
+          ] as const;
+          const translated =
+            profile.endpoint === CLOUD_ENDPOINT
+              ? await translateCloud(...args)
+              : await translateAI(profile, ...args);
+          check();
+          if (!(await this.permitted()))
+            throw new TranslationFailure('PERMISSION');
+          check();
+          return translated;
+        },
+        true,
         current.abort.signal,
-        this.#ports.fetch,
-      ] as const;
-      const result =
-        profile.endpoint === CLOUD_ENDPOINT
-          ? await translateCloud(...args)
-          : await translateAI(profile, ...args);
-      check();
-      if (!(await this.permitted())) throw new TranslationFailure('PERMISSION');
-      check();
+        check,
+      );
       return result;
     } catch (error) {
       if (

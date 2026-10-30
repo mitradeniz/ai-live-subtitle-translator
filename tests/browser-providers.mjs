@@ -250,8 +250,16 @@ try {
     null,
   );
   await page.waitForTimeout(1100);
+  await options.evaluate(() =>
+    chrome.runtime.sendMessage({
+      version: 1,
+      requestId: 'clear-hold-cache',
+      type: 'cache.clear',
+    }),
+  );
   cloudMode = 'hold';
   await seek(3);
+  await activate();
   const deadline = Date.now() + 5000;
   while (!release) {
     if (Date.now() > deadline) throw new Error('No delayed Cloud request');
@@ -326,10 +334,19 @@ try {
   await feedback(cloud, 'quota or balance');
   assert.equal(counts.cloud, stopped);
   assert.equal(counts.google, 0);
+  await options.evaluate(() =>
+    chrome.runtime.sendMessage({
+      version: 1,
+      requestId: 'clear-quota-cache',
+      type: 'cache.clear',
+    }),
+  );
+  await seek(4.5);
   await activate();
   await overlayStatus('quota or balance');
-  await caption('Hello from the timing lab.');
+  await caption('Pause here. The caption should stay.');
   await select('google');
+  await seek(1);
   await activate();
   await caption('Hello from the timing lab.\nGoogle deneme');
   assert.equal(counts.google, 1);

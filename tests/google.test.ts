@@ -95,7 +95,7 @@ test('provider validates status, JSON, response size, timeout and cancellation w
           return new Response('', { status });
         },
       ),
-      code('BLOCKED'),
+      code(status === 429 ? 'THROTTLED' : 'BLOCKED'),
     );
     assert.equal(calls, 1);
   }
@@ -226,7 +226,7 @@ test('multiple cues use individual requests and preserve IDs/revisions/generatio
   });
 });
 
-test('request budgets survive reconstruction; throttling latches for browser session', async () => {
+test('request budgets survive reconstruction; authentication denial latches for browser session', async () => {
   let calls = 0;
   const h = harness(async () => {
     calls++;
@@ -242,7 +242,7 @@ test('request budgets survive reconstruction; throttling latches for browser ses
     code('LIMIT'),
   );
   assert.equal(calls, 20);
-  const blocked = harness(async () => new Response('', { status: 429 }));
+  const blocked = harness(async () => new Response('', { status: 403 }));
   await blocked.google.setEnabled(true);
   await assert.rejects(
     blocked.google.translate(1, 's', job(), DEFAULT_SETTINGS, () => {}),

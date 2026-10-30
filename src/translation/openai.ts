@@ -65,7 +65,12 @@ export function parseAIResponse(raw: unknown, job: TranslationJob) {
       throw new TranslationFailure('RESPONSE');
     ids.add(item.id);
   }
-  return { generation: job.generation, items };
+  return {
+    generation: job.generation,
+    items: job.items.map((source) =>
+      items.find((item) => item.id === source.id)!,
+    ),
+  };
 }
 
 export async function translateAI(

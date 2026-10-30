@@ -1,9 +1,10 @@
 import { sendRequest } from '../messaging/client';
 import type { CaptionTransform } from '../playback/cues';
 import { TranslationFailure } from './contracts';
+import { waitFor } from './retry';
 
 export function providerTransform(sessionId: string): CaptionTransform {
-  return async (cues, generation, signal) => {
+  return async (cues, generation, signal, options) => {
     const jobId = crypto.randomUUID();
     let dispatched = false;
     const cancel = () => {
@@ -14,32 +15,31 @@ export function providerTransform(sessionId: string): CaptionTransform {
     };
     signal.addEventListener('abort', cancel, { once: true });
     try {
-      // Stabilize rolling captions before sending text off the device.
-      await new Promise<void>((resolve, reject) => {
-        const abort = () => {
-          clearTimeout(timer);
-          reject(new TranslationFailure('CANCELLED'));
-        };
-        const timer = setTimeout(() => {
-          signal.removeEventListener('abort', abort);
-          resolve();
-        }, 300);
-        signal.addEventListener('abort', abort, { once: true });
-        if (signal.aborted) abort();
-      });
+      // Observed text has no future cue window; stabilize only that path.
+      if (options?.observed !== false) await waitFor(300, signal);
       if (signal.aborted) throw new TranslationFailure('CANCELLED');
       if (cues.length > 4 || cues.some((cue) => cue.text.length > 1000))
         throw new TranslationFailure('LIMIT');
-      dispatched = true;
-      const data = await sendRequest({
-        type: 'content.translate',
+      const command = {
+        type: 'content.translate' as const,
         sessionId,
         job: {
           jobId,
           generation,
+          priority: options?.priority ?? ('current' as const),
           items: cues.map(({ id, revision, text }) => ({ id, revision, text })),
         },
-      });
+      };
+      dispatched = true;
+      let data;
+      try {
+        data = await sendRequest(command);
+      } catch {
+        // One reconnect with the same job identity. Persisted trusted state decides
+        // whether replay is safe; no loop keeps the worker alive.
+        await waitFor(400, signal);
+        data = await sendRequest(command);
+      }
       if (signal.aborted) throw new TranslationFailure('CANCELLED');
       if (data.kind !== 'translation') throw new TranslationFailure('RESPONSE');
       if (!data.result.ok) throw new TranslationFailure(data.result.error);

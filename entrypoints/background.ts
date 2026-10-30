@@ -75,6 +75,9 @@ export default defineBackground(() => {
             'settings.update',
             'credentials.set',
             'credentials.delete',
+            'cache.clear',
+            'cache.configure',
+            'data.clear',
           ].includes(String(message.type))
         )
           await resetTranslations();
@@ -101,9 +104,18 @@ export default defineBackground(() => {
       void resetTranslations().catch(() => {});
     });
   });
-  browser.tabs.onRemoved.addListener((tabId) => playback.invalidate(tabId));
+  browser.tabs.onRemoved.addListener((tabId) => {
+    void controller.sessions.ready
+      .then(async () => {
+        playback.invalidate(tabId);
+        await controller.work.dropTab(tabId);
+      })
+      .catch(() => {});
+  });
   browser.tabs.onUpdated.addListener((tabId, change) => {
     if (change.status === 'loading' || change.url !== undefined)
-      playback.invalidate(tabId);
+      void controller.sessions.ready
+        .then(() => playback.invalidate(tabId))
+        .catch(() => {});
   });
 });

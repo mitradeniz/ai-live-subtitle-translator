@@ -248,7 +248,15 @@ try {
   await options.setViewportSize({ width: 1440, height: 1000 });
   await page.waitForTimeout(1100);
   mode = 'malformed';
+  await options.evaluate(() =>
+    chrome.runtime.sendMessage({
+      version: 1,
+      requestId: 'clear-fault-cache',
+      type: 'cache.clear',
+    }),
+  );
   await seek(3);
+  await send('playback.enable');
   await status('unsupported response');
   await caption('Hello from the timing lab.');
   await page.waitForTimeout(1100);

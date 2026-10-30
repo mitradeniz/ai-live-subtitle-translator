@@ -151,7 +151,7 @@ test('paid errors distinguish key/access, quota/balance, language and configurat
     [403, {}, 'AUTH'],
     [403, { error: { errors: [{ reason: 'dailyLimitExceeded' }] } }, 'QUOTA'],
     [402, {}, 'QUOTA'],
-    [429, {}, 'QUOTA'],
+    [429, {}, 'THROTTLED'],
     [400, { error: { message: 'Unsupported target language' } }, 'LANGUAGE'],
     [400, {}, 'PROVIDER_REQUEST'],
     [500, {}, 'NETWORK'],

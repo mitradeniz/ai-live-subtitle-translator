@@ -1,3 +1,4 @@
+import { retryAfter } from './retry.ts';
 import { GOOGLE_ORIGIN, TranslationFailure } from './contracts.ts';
 
 // A deliberately small language allowlist. This is not Google's official API.
@@ -84,8 +85,13 @@ export async function translateGoogle(
     });
     if (!response.ok) {
       await response.body?.cancel();
+      if (response.status === 429)
+        throw new TranslationFailure(
+          'THROTTLED',
+          retryAfter(response.headers.get('retry-after')),
+        );
       throw new TranslationFailure(
-        [401, 403, 429].includes(response.status) ? 'BLOCKED' : 'NETWORK',
+        [401, 403].includes(response.status) ? 'BLOCKED' : 'NETWORK',
       );
     }
     if (

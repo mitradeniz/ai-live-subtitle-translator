@@ -1,3 +1,4 @@
+import { retryAfter } from './retry.ts';
 import {
   TranslationFailure,
   TranslationJobSchema,
@@ -113,6 +114,15 @@ export async function paidJSON(
     if (!response.ok) {
       const raw = await readBoundedJSON(response, combined).catch(() => null);
       combined.throwIfAborted();
+      const quota =
+        /insufficient_quota|billing|balance|dailyLimitExceeded|quotaExceeded|RESOURCE_EXHAUSTED/i.test(
+          JSON.stringify(raw),
+        );
+      if (response.status === 429 && !quota)
+        throw new TranslationFailure(
+          'THROTTLED',
+          retryAfter(response.headers.get('retry-after')),
+        );
       throw new TranslationFailure(httpError(response.status, raw));
     }
     return await readBoundedJSON(response, combined);

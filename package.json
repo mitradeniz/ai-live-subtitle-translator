@@ -28,7 +28,8 @@
     "test:youtube": "pnpm build:mock && pnpm check:build:mock && node tests/browser-youtube.mjs",
     "test:google": "pnpm build && pnpm check:build && node tests/browser-google.mjs",
     "test:ai": "pnpm build && pnpm check:build && node tests/browser-ai.mjs",
-    "test:providers": "pnpm build && pnpm check:build && node tests/browser-providers.mjs"
+    "test:providers": "pnpm build && pnpm check:build && node tests/browser-providers.mjs",
+    "test:work": "pnpm build && pnpm check:build && node tests/browser-work.mjs"
   },
   "dependencies": {
     "react": "19.3.1",
