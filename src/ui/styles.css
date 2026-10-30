@@ -398,6 +398,12 @@ fieldset:disabled button {
   width: 360px;
   padding: 24px;
 }
+.popup-document,
+.popup-document body,
+.popup-document #root {
+  width: 360px;
+  min-height: 0;
+}
 .popup .notice {
   margin-bottom: 18px;
 }

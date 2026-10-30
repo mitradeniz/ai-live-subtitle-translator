@@ -80,6 +80,22 @@ try {
   const { page, worker, id } = await optionsPage(context);
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
+  await popup.getByRole('button', { name: 'Open settings' }).waitFor();
+  assert.equal(
+    await popup.evaluate(() =>
+      performance
+        .getEntriesByType('resource')
+        .some((entry) => /\/client-[\w-]+\.js/.test(entry.name)),
+    ),
+    false,
+    'Popup must not eagerly load credential/message schemas',
+  );
+  assert.ok(
+    await popup.evaluate(
+      () => document.body.getBoundingClientRect().height < 600,
+    ),
+    'Popup must size to content instead of the browser viewport',
+  );
   await popup.getByRole('button', { name: 'Open settings' }).click();
   await page.bringToFront();
   await page.getByLabel('Target language').fill('de');

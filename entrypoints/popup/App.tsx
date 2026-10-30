@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { browser } from 'wxt/browser';
 import { DevelopmentNotice } from '../../src/ui/DevelopmentNotice';
-import { sendRequest } from '../../src/messaging/client';
 import type { PlaybackOperation } from '../../src/messaging/playback';
 
 export function App() {
@@ -15,6 +14,7 @@ export function App() {
     setBusy(true);
     setError(null);
     try {
+      const { sendRequest } = await import('../../src/messaging/client');
       const data = await sendRequest({ type });
       if (data.kind !== 'playback') throw new Error('Unexpected response');
       const messages = {
