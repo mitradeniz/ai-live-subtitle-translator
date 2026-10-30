@@ -16,6 +16,15 @@ export const PreferencesSchema = z.strictObject({
   targetLanguage: language.refine((value) => value !== 'auto'),
   displayMode: z.enum(['bilingual', 'translated', 'original']),
   fontSize: z.number().int().min(16).max(48),
+  contrast: z.enum(['glass', 'solid']).default('glass'),
+  position: z.enum(['bottom', 'top']).default('bottom'),
+  uiLanguage: z.enum(['en', 'tr']).default('en'),
+});
+export const AppearanceSchema = PreferencesSchema.pick({
+  displayMode: true,
+  fontSize: true,
+  contrast: true,
+  position: true,
 });
 export const SettingsSchema = PreferencesSchema.extend({
   schemaVersion: z.literal(1),
@@ -27,6 +36,9 @@ export const DEFAULT_SETTINGS: Settings = {
   targetLanguage: 'tr',
   displayMode: 'bilingual',
   fontSize: 24,
+  contrast: 'glass',
+  position: 'bottom',
+  uiLanguage: 'en',
 };
 
 export const CredentialIdSchema = z.enum(['ai', 'google-cloud']);
@@ -88,6 +100,9 @@ export const RequestSchema = z.discriminatedUnion('type', [
       'cloud.disable',
       'cloud.test',
       'provider.status',
+      'controls.read',
+      'site.status',
+      'site.activate',
       'cache.status',
       'cache.clear',
       'data.clear',
@@ -105,6 +120,29 @@ export const RequestSchema = z.discriminatedUnion('type', [
     ...envelope,
     type: z.literal('cache.configure'),
     persistent: z.boolean(),
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('controls.select'),
+    provider: z.enum(['none', 'google', 'google-cloud', 'ai']),
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('controls.update'),
+    preferences: PreferencesSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('site.configure'),
+    enabled: z.boolean(),
+    originalConfirmed: z.boolean(),
+  }),
+  z.strictObject({ ...envelope, type: z.literal('content.stop'), sessionId }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('content.appearance'),
+    sessionId,
+    appearance: AppearanceSchema,
   }),
   z.strictObject({ ...envelope, type: z.literal('google.status') }),
   z.strictObject({ ...envelope, type: z.literal('google.enable') }),
@@ -173,6 +211,17 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('site-status'), enabled: z.boolean() }),
+      z.strictObject({
+        kind: z.literal('controls'),
+        selected: z.enum(['none', 'google', 'google-cloud', 'ai']),
+        aiHost: z.enum([
+          'https://api.openai.com/*',
+          'https://api.deepseek.com/*',
+          'https://generativelanguage.googleapis.com/*',
+        ]),
+      }),
+
       z.strictObject({
         kind: z.literal('cache-status'),
         persistent: z.boolean(),

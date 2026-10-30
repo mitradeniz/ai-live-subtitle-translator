@@ -1,9 +1,11 @@
+import { useI18n } from './useI18n';
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
 import { GOOGLE_HOST } from '../translation/contracts';
 
 export function GoogleSettings() {
+  const { t } = useI18n();
   const [enabled, setEnabled] = useState(false);
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState('');
@@ -92,29 +94,35 @@ export function GoogleSettings() {
       className="glass-panel google-panel"
       aria-labelledby="google-title"
     >
-      <h2 id="google-title">Google · Experimental</h2>
+      <h2 id="google-title">{t('Google · Experimental')}</h2>
       <p>
-        No API key or Google Cloud account. Uses an undocumented service that
-        can change or stop working.
+        {t(
+          'No API key or Google Cloud account. Uses an undocumented service that can change or stop working.',
+        )}
       </p>
       <p>
-        Enabling sends caption text and language choices to{' '}
-        <strong>translate.googleapis.com</strong> when you activate captions. No
-        audio, video, website cookies or credentials are sent.
+        {t('Enabling sends caption text and language choices to')}{' '}
+        <strong>{t('translate.googleapis.com')}</strong>
+        {t(
+          ' when you activate captions. No audio, video, website cookies or credentials are sent.',
+        )}
       </p>
       <p className="field-help">
-        Up to 20 requests/minute, 200 per browser session; one request at a
-        time. Errors keep original captions. Turning this off stops pending work
-        and removes access. It cannot retract text already sent.
+        {t(
+          'Up to 20 requests/minute, 200 per browser session; one request at a time. Errors keep original captions. Turning this off stops pending work and removes access. It cannot retract text already sent.',
+        )}
       </p>
-      <p>Google is {enabled ? 'enabled' : 'off'}.</p>
+      <p>
+        {t('Google is ')}
+        {enabled ? t('enabled') : t('off')}.
+      </p>
       <div className="actions">
         <button
           type="button"
           disabled={busy || enabled}
           onClick={() => void enable()}
         >
-          Enable experimental Google
+          {t('Enable experimental Google')}
         </button>
         <button
           type="button"
@@ -122,10 +130,10 @@ export function GoogleSettings() {
           disabled={busy}
           onClick={() => void disable()}
         >
-          Disable Google and remove access
+          {t('Disable Google and remove access')}
         </button>
       </div>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status">{t(message)}</p>}
     </section>
   );
 }

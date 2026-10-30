@@ -101,6 +101,14 @@ export class SessionRegistry {
     }
   }
 
+  revokeOrigin(origin: string): void {
+    for (const [id, session] of this.#sessions)
+      if (session.origin === origin) {
+        this.#onRevoke(session.tabId);
+        this.#sessions.delete(id);
+      }
+    this.#persist();
+  }
   revokeAll(): void {
     for (const session of this.#sessions.values())
       this.#onRevoke(session.tabId);

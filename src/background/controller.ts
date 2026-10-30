@@ -1,3 +1,5 @@
+import { SitePreferences, YOUTUBE_ORIGIN, type SitePorts } from './sites.ts';
+import { isYouTubeWatch } from '../youtube/source.ts';
 import { WorkQueue } from './work-queue.ts';
 import { CLOUD_PROFILE } from '../translation/google-cloud.ts';
 import { AIProfileSchema, aiDefinition } from '../translation/ai-profile.ts';
@@ -27,6 +29,11 @@ export function createController(
   googlePorts: GooglePorts = { permitted: async () => false },
   aiPorts: PaidPorts = { permitted: async () => false },
   cloudPorts: PaidPorts = { permitted: async () => false },
+  sitePorts: SitePorts = {
+    permitted: async () => false,
+    changed: async () => {},
+    activate: async () => {},
+  },
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
@@ -40,6 +47,7 @@ export function createController(
     'google-cloud',
   );
   const work = new WorkQueue(storage);
+  const sites = new SitePreferences(storage, sitePorts);
   const selection = new ProviderSelection(storage);
   let epoch = 0;
   const cancelAll = () => {
@@ -94,6 +102,89 @@ export function createController(
               request.type === 'playback.enable' &&
                 request.youtubeSourceConfirmed,
             ),
+          },
+        };
+      } else if (request.type === 'content.appearance') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        sessions.assertBound(request.sessionId, sender.identity);
+        const prior = await settings.read();
+        sessions.assertBound(request.sessionId, sender.identity);
+        if (prior.displayMode !== request.appearance.displayMode) {
+          work.cancel();
+          google.cancelAll();
+          ai.cancelAll();
+          cloud.cancelAll();
+        }
+        response = {
+          ok: true,
+          data: {
+            kind: 'settings',
+            settings: await settings.updateAppearance(request.appearance, () =>
+              sessions.assertBound(request.sessionId, sender.identity),
+            ),
+          },
+        };
+      } else if (request.type === 'content.stop') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        sessions.assertBound(request.sessionId, sender.identity);
+        await sites.pause(sender.identity.tabId);
+        sessions.revokeTab(sender.identity.tabId);
+        response = { ok: true, data: { kind: 'saved' } };
+      } else if (request.type === 'site.activate') {
+        if (
+          sender.kind !== 'content' ||
+          sender.identity.origin !== YOUTUBE_ORIGIN ||
+          sender.identity.frameId !== 0 ||
+          !isYouTubeWatch((browserSender as { url: string }).url)
+        )
+          throw new BoundaryError('FORBIDDEN');
+        await sites.activate(sender.identity.tabId, sender.identity.documentId);
+        response = { ok: true, data: { kind: 'saved' } };
+      } else if (
+        request.type === 'site.status' ||
+        request.type === 'site.configure'
+      ) {
+        if (sender.kind !== 'ui') throw new BoundaryError('FORBIDDEN');
+        if (request.type === 'site.configure') {
+          await sites.configure(request.enabled, request.originalConfirmed);
+          await sites.changed();
+        }
+        response = {
+          ok: true,
+          data: { kind: 'site-status', enabled: await sites.enabled() },
+        };
+      } else if (
+        request.type === 'controls.read' ||
+        request.type === 'controls.select'
+      ) {
+        if (sender.kind !== 'ui') throw new BoundaryError('FORBIDDEN');
+        if (request.type === 'controls.select') {
+          cancelAll();
+          const ticket = epoch;
+          if (request.provider === 'google') {
+            if (!(await google.setEnabled(true)))
+              throw new BoundaryError('UNAVAILABLE');
+          } else if (
+            request.provider === 'ai' ||
+            request.provider === 'google-cloud'
+          ) {
+            if (!(await (request.provider === 'ai' ? ai : cloud).permitted()))
+              throw new BoundaryError('UNAVAILABLE');
+          }
+          await selection.set(request.provider, () => ticket === epoch);
+        }
+        const selected = await selection.read();
+        const profile = await ai.profile();
+        response = {
+          ok: true,
+          data: {
+            kind: 'controls',
+            selected:
+              selected === 'google' && !(await google.enabled())
+                ? 'none'
+                : selected,
+            aiHost:
+              `${new URL(profile.endpoint).origin}/*` as 'https://api.openai.com/*',
           },
         };
       } else if (
@@ -222,6 +313,8 @@ export function createController(
         if (request.type === 'cache.clear') await work.cache.clear();
         if (request.type === 'data.clear') {
           await work.clearData();
+          await sites.configure(false, false);
+          await sites.changed();
           await credentials.delete('ai');
           await credentials.delete('google-cloud');
           await google.setEnabled(false);
@@ -418,7 +511,11 @@ export function createController(
         };
       } else {
         if (sender.kind !== 'ui') throw new BoundaryError('FORBIDDEN');
-        if (sender.page !== 'options' && request.type !== 'settings.read')
+        if (
+          sender.page !== 'options' &&
+          request.type !== 'settings.read' &&
+          request.type !== 'controls.update'
+        )
           throw new BoundaryError('FORBIDDEN');
         switch (request.type) {
           case 'settings.read':
@@ -428,7 +525,18 @@ export function createController(
             };
             break;
           case 'settings.update':
-            cancelAll();
+          case 'controls.update': {
+            const prior = await settings.read();
+            const languageChanged =
+              prior.sourceLanguage !== request.preferences.sourceLanguage ||
+              prior.targetLanguage !== request.preferences.targetLanguage;
+            if (languageChanged) cancelAll();
+            else if (prior.displayMode !== request.preferences.displayMode) {
+              work.cancel();
+              google.cancelAll();
+              ai.cancelAll();
+              cloud.cancelAll();
+            }
             response = {
               ok: true,
               data: {
@@ -436,8 +544,9 @@ export function createController(
                 settings: await settings.update(request.preferences),
               },
             };
-            cancelAll();
+            if (languageChanged) cancelAll();
             break;
+          }
           case 'settings.export':
             response = {
               ok: true,
@@ -483,5 +592,15 @@ export function createController(
       pending--;
     }
   }
-  return { dispatch, sessions, google, ai, cloud, selection, cancelAll, work };
+  return {
+    dispatch,
+    sessions,
+    google,
+    ai,
+    cloud,
+    selection,
+    sites,
+    cancelAll,
+    work,
+  };
 }

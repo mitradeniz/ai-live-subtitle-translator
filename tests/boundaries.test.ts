@@ -26,6 +26,9 @@ const preferences = {
   targetLanguage: 'de',
   displayMode: 'translated',
   fontSize: 32,
+  contrast: 'glass',
+  position: 'bottom',
+  uiLanguage: 'en',
 };
 const keyName = 'credential.v1.ai';
 const deferred = () => {

@@ -31,6 +31,7 @@ try {
     'https://translation.googleapis.com/*',
     'https://api.deepseek.com/*',
     'https://generativelanguage.googleapis.com/*',
+    'https://www.youtube.com/*',
   ]);
   // This test copy supplies grants; real Chrome grant/removal remains an owner check.
   manifest.host_permissions = [
@@ -117,12 +118,14 @@ try {
     id = new URL(worker.url()).hostname;
     options = await context.newPage();
     await options.goto(`chrome-extension://${id}/options.html`);
+    await options.locator('details.api-settings > summary').click();
     // A restored worker may predate Playwright routing; recreate it after routes are installed.
     const startup = await context.newCDPSession(options);
     await startup.send('ServiceWorker.enable');
     await startup.send('ServiceWorker.stopAllWorkers');
     await startup.detach();
     await options.reload();
+    await options.locator('details.api-settings > summary').click();
     await options
       .getByRole('button', { name: 'Save AI profile and key' })
       .waitFor();
@@ -292,6 +295,7 @@ try {
   await cdp.send('ServiceWorker.stopAllWorkers');
   await cdp.detach();
   await options.reload();
+  await options.locator('details.api-settings > summary').click();
   await aiPanel()
     .getByText(/Saved key: this session only/)
     .waitFor();

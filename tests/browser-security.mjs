@@ -45,6 +45,7 @@ async function optionsPage(opened) {
   const id = new URL(worker.url()).hostname;
   const page = await opened.newPage();
   await page.goto(`chrome-extension://${id}/options.html`);
+  await page.locator('details.api-settings > summary').click();
   try {
     await page.getByLabel('Target language').waitFor();
   } catch {

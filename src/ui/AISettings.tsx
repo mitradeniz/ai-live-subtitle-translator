@@ -1,3 +1,4 @@
+import { useI18n } from './useI18n';
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
@@ -11,6 +12,7 @@ import {
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
 
 export function AISettings() {
+  const { t } = useI18n();
   const [profile, setProfile] = useState<AIProfile>(DEFAULT_AI_PROFILE);
   const [dirty, setDirty] = useState(false);
   const definition = aiDefinition(profile);
@@ -103,19 +105,20 @@ export function AISettings() {
   }
   return (
     <section className="glass-panel google-panel" aria-labelledby="ai-title">
-      <h2 id="ai-title">AI · Your API key</h2>
+      <h2 id="ai-title">{t('AI · Your API key')}</h2>
       <p>
-        Paid API usage on your own account. Caption text, language choices and
-        up to four current cues as context go directly to{' '}
-        <strong>{new URL(profile.endpoint).hostname}</strong>. No audio, video
-        or website cookies are sent.
+        {t(
+          'Paid API usage on your own account. Caption text, language choices and up to four current cues as context go directly to',
+        )}{' '}
+        <strong>{new URL(profile.endpoint).hostname}</strong>
+        {t('. No audio, video or website cookies are sent.')}
       </p>
       <fieldset disabled={busy}>
-        <legend className="visually-hidden">AI profile</legend>
+        <legend className="visually-hidden">{t('AI profile')}</legend>
         <label>
-          AI provider
+          {t('AI provider')}
           <select
-            aria-label="AI provider"
+            aria-label={t('AI provider')}
             value={profile.endpoint}
             onChange={(event) => {
               const next = AI_PROFILES.find(
@@ -142,11 +145,11 @@ export function AISettings() {
           </select>
         </label>
         <label>
-          Supported HTTPS endpoint
+          {t('Supported HTTPS endpoint')}
           <input readOnly value={profile.endpoint} />
         </label>
         <label>
-          Model
+          {t('Model')}
           <select
             value={profile.model}
             onChange={(event) => {
@@ -168,12 +171,12 @@ export function AISettings() {
           </select>
         </label>
         <p className="field-help">
-          Reviewed profiles only; no custom endpoints. Saving a different AI
-          provider deletes the old origin-bound key. Enter a key for the
-          selected provider. Save before enabling or testing.
+          {t(
+            'Reviewed profiles only; no custom endpoints. Saving a different AI provider deletes the old origin-bound key. Enter a key for the selected provider. Save before enabling or testing.',
+          )}
         </p>
         <label>
-          API key
+          {t('API key')}
           <input
             type="password"
             value={key}
@@ -182,7 +185,7 @@ export function AISettings() {
             spellCheck={false}
             autoCapitalize="none"
             onChange={(event) => setKey(event.target.value)}
-            placeholder="Enter a key to save or replace it"
+            placeholder={t('Enter a key to save or replace it')}
           />
         </label>
         <label className="key-retention">
@@ -191,27 +194,27 @@ export function AISettings() {
             checked={remember}
             onChange={(event) => setRemember(event.target.checked)}
           />{' '}
-          Remember this new key on this device
+          {t('Remember this new key on this device')}
         </label>
         <p className="field-help">
-          Default: session storage, cleared on browser restart or extension
-          reload/update. Remembered keys survive restart until deleted; device
-          storage is not encrypted by this extension. This checkbox applies when
-          saving a new key.
+          {t(
+            'Default: session storage, cleared on browser restart or extension reload/update. Remembered keys survive restart until deleted; device storage is not encrypted by this extension. This checkbox applies when saving a new key.',
+          )}
         </p>
         <p>
-          Saved key:{' '}
+          {t('Saved key:')}{' '}
           {retention === 'device'
-            ? 'remembered on this device'
+            ? t('remembered on this device')
             : retention === 'session'
-              ? 'this session only'
-              : 'none'}
-          . AI is {enabled ? 'selected' : 'off'}; host access is{' '}
-          {permitted ? 'granted' : 'not granted'}.
+              ? t('this session only')
+              : t('none')}
+          {t('. AI is ')}
+          {enabled ? t('selected') : t('off')}
+          {t('; host access is')} {permitted ? t('granted') : t('not granted')}.
         </p>
         <div className="actions">
           <button type="button" onClick={() => void run(save)}>
-            Save AI profile and key
+            {t('Save AI profile and key')}
           </button>
           <button
             type="button"
@@ -229,14 +232,16 @@ export function AISettings() {
               })
             }
           >
-            Delete AI key
+            {t('Delete AI key')}
           </button>
           <button
             type="button"
             disabled={dirty || (enabled && permitted)}
             onClick={() => void enable()}
           >
-            Use {definition.name} for captions
+            {t('Use ')}
+            {definition.name}
+            {t(' for captions')}
           </button>
           <button
             type="button"
@@ -254,7 +259,7 @@ export function AISettings() {
               })
             }
           >
-            Run small paid test
+            {t('Run small paid test')}
           </button>
           <button
             type="button"
@@ -272,20 +277,16 @@ export function AISettings() {
               })
             }
           >
-            Disable AI and remove access
+            {t('Disable AI and remove access')}
           </button>
         </div>
       </fieldset>
       <p className="field-help">
-        The test sends only “Hello, world.” to the saved AI provider. One retry
-        is allowed after an explicit rate-limit response; network failures are
-        not retried automatically. Saving or opening this page never tests a
-        key. Up to 10 requests/minute, 100 per browser session, one at a time,
-        2,048 output tokens/request; no automatic provider fallback. These are
-        request limits, not a billing cap. Check your provider’s pricing and
-        account limits.
+        {t(
+          'The test sends only “Hello, world.” to the saved AI provider. One retry is allowed after an explicit rate-limit response; network failures are not retried automatically. Saving or opening this page never tests a key. Up to 10 requests/minute, 100 per browser session, one at a time, 2,048 output tokens/request; no automatic provider fallback. These are request limits, not a billing cap. Check your provider’s pricing and account limits.',
+        )}
       </p>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status">{t(message)}</p>}
     </section>
   );
 }

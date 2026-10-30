@@ -1,3 +1,4 @@
+import { useI18n } from './useI18n';
 import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
@@ -5,6 +6,7 @@ import { CLOUD_HOST, CLOUD_ORIGIN } from '../translation/google-cloud';
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
 
 export function CloudSettings() {
+  const { t } = useI18n();
   const [key, setKey] = useState('');
   const [remember, setRemember] = useState(false);
   const [retention, setRetention] = useState<string | null>(null);
@@ -71,21 +73,23 @@ export function CloudSettings() {
   }
   return (
     <section className="glass-panel google-panel" aria-labelledby="cloud-title">
-      <h2 id="cloud-title">Google Cloud · Your API key</h2>
+      <h2 id="cloud-title">{t('Google Cloud · Your API key')}</h2>
       <p>
-        Official Translation Basic v2, billed to your Google Cloud project.
-        Enable Cloud Translation API and billing in that project. This key is
-        separate from Gemini and experimental keyless Google.
+        {t(
+          'Official Translation Basic v2, billed to your Google Cloud project. Enable Cloud Translation API and billing in that project. This key is separate from Gemini and experimental keyless Google.',
+        )}
       </p>
       <p>
-        Caption text and language choices go to{' '}
-        <strong>translation.googleapis.com</strong>. No audio, video or website
-        cookies. No AI prompt context.
+        {t('Caption text and language choices go to')}{' '}
+        <strong>{t('translation.googleapis.com')}</strong>
+        {t('. No audio, video or website cookies. No AI prompt context.')}
       </p>
       <fieldset disabled={busy}>
-        <legend className="visually-hidden">Google Cloud credentials</legend>
+        <legend className="visually-hidden">
+          {t('Google Cloud credentials')}
+        </legend>
         <label>
-          Google Cloud API key
+          {t('Google Cloud API key')}
           <input
             type="password"
             value={key}
@@ -102,22 +106,23 @@ export function CloudSettings() {
             checked={remember}
             onChange={(event) => setRemember(event.target.checked)}
           />{' '}
-          Remember this new Cloud key on this device
+          {t('Remember this new Cloud key on this device')}
         </label>
         <p className="field-help">
-          Session storage by default: cleared on browser restart or extension
-          reload/update. Remembered keys survive until deleted; device storage
-          is not encrypted by this extension.
+          {t(
+            'Session storage by default: cleared on browser restart or extension reload/update. Remembered keys survive until deleted; device storage is not encrypted by this extension.',
+          )}
         </p>
         <p>
-          Saved key:{' '}
+          {t('Saved key:')}{' '}
           {retention === 'device'
-            ? 'remembered on this device'
+            ? t('remembered on this device')
             : retention === 'session'
-              ? 'this session only'
-              : 'none'}
-          . Cloud is {enabled ? 'selected' : 'off'}; host access is{' '}
-          {permitted ? 'granted' : 'not granted'}.
+              ? t('this session only')
+              : t('none')}
+          {t('. Cloud is ')}
+          {enabled ? t('selected') : t('off')}
+          {t('; host access is')} {permitted ? t('granted') : t('not granted')}.
         </p>
         <div className="actions">
           <button
@@ -143,7 +148,7 @@ export function CloudSettings() {
               })
             }
           >
-            Save Cloud key
+            {t('Save Cloud key')}
           </button>
           <button
             type="button"
@@ -161,14 +166,14 @@ export function CloudSettings() {
               })
             }
           >
-            Delete Cloud key
+            {t('Delete Cloud key')}
           </button>
           <button
             type="button"
             disabled={enabled && permitted}
             onClick={enable}
           >
-            Use Google Cloud for captions
+            {t('Use Google Cloud for captions')}
           </button>
           <button
             type="button"
@@ -186,7 +191,7 @@ export function CloudSettings() {
               })
             }
           >
-            Run small Cloud paid test
+            {t('Run small Cloud paid test')}
           </button>
           <button
             type="button"
@@ -205,19 +210,16 @@ export function CloudSettings() {
               })
             }
           >
-            Disable Cloud and remove access
+            {t('Disable Cloud and remove access')}
           </button>
         </div>
       </fieldset>
       <p className="field-help">
-        Test: “Hello, world.” English-to-Turkish, only when clicked. At most one
-        retry after an explicit rate-limit response; no automatic network retry
-        or key test. Up to four 1,000-character cues/request, 10
-        requests/minute, 100/session. These limits are not a billing cap. Errors
-        keep originals; fix the indicated issue or explicitly select another
-        engine.
+        {t(
+          'Test: “Hello, world.” English-to-Turkish, only when clicked. At most one retry after an explicit rate-limit response; no automatic network retry or key test. Up to four 1,000-character cues/request, 10 requests/minute, 100/session. These limits are not a billing cap. Errors keep originals; fix the indicated issue or explicitly select another engine.',
+        )}
       </p>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status">{t(message)}</p>}
     </section>
   );
 }

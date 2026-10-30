@@ -1,15 +1,23 @@
+import { useI18n } from './useI18n';
 export function DevelopmentNotice() {
+  const { t, locale } = useI18n();
   return (
-    <section className="notice" aria-label="Development status">
+    <section className="notice" aria-label={t('Development status')}>
       <p className="status">
         {import.meta.env.MODE === 'mock'
-          ? 'MOCK · Test build'
-          : 'Early development'}
+          ? locale === 'tr'
+            ? 'MOCK · Test sürümü'
+            : 'MOCK · Test build'
+          : t('Early development')}
       </p>
       <p>
         {import.meta.env.MODE === 'mock'
-          ? 'This test build repeats available captions with a [MOCK] prefix. It does not translate.'
-          : 'Native tracks and YouTube captions are experimental. Choose experimental Google, Google Cloud or AI in settings. Paid engines require your own key and explicit selection.'}
+          ? locale === 'tr'
+            ? 'Bu test sürümü altyazıları [MOCK] önekiyle tekrarlar. Çeviri yapmaz.'
+            : 'This test build repeats available captions with a [MOCK] prefix. It does not translate.'
+          : t(
+              'Caption support is experimental. Choose Google or your own AI provider in settings.',
+            )}
       </p>
     </section>
   );

@@ -12,10 +12,11 @@ import { providerTransform } from '../src/translation/client';
 export default defineContentScript({
   registration: 'runtime',
   noScriptStartedPostMessage: true,
-  // No matches: only explicit activeTab injection, never automatic site access.
+  // Runtime injection requires activeTab or an explicitly granted supported site.
   main(ctx) {
     let player: CaptionPlayer | YouTubePlayer | undefined;
     let generation = 0;
+    let sessionId: string | undefined;
     const onMessage: Parameters<
       typeof browser.runtime.onMessage.addListener
     >[0] = (raw: unknown, sender, respond) => {
@@ -28,6 +29,35 @@ export default defineContentScript({
       const message = PlaybackControlSchema.safeParse(raw);
       if (!message.success) return;
       const control = message.data;
+      if (control.type === 'playback.preferences') {
+        const target = player;
+        if (!target?.active || !sessionId) {
+          respond('disabled');
+          return;
+        }
+        void sendRequest({ type: 'content.settings', sessionId }).then(
+          (data) => {
+            if (target === player && data.kind === 'settings')
+              target.applySettings(data.settings);
+            respond('enabled');
+          },
+          () => {
+            if (target === player) target.stopTranslation();
+            respond('enabled');
+          },
+        );
+        return true;
+      }
+      if (control.type === 'playback.site-stop') {
+        if (isYouTubeWatch(location.href)) {
+          player?.dispose();
+          player = undefined;
+          sessionId = undefined;
+          generation++;
+        }
+        respond(player?.active ? 'enabled' : 'disabled');
+        return;
+      }
       if (control.type === 'playback.translation-reset') {
         player?.stopTranslation();
         respond('enabled');
@@ -42,10 +72,12 @@ export default defineContentScript({
       player?.dispose();
       player = undefined;
       if (control.type === 'playback.stop') {
+        sessionId = undefined;
         document.dispatchEvent(new CustomEvent(SOURCE_STOP));
         respond('disabled');
         return;
       }
+      sessionId = control.sessionId;
       void (async () => {
         const data = await sendRequest({
           type: 'content.settings',
@@ -61,10 +93,7 @@ export default defineContentScript({
             throw new Error('Test fixture only');
           transform = (await import('../src/testing/mock-translator'))
             .mockTranslate;
-        } else if (
-          (data.googleEnabled || data.aiEnabled || data.cloudEnabled) &&
-          data.settings.displayMode !== 'original'
-        ) {
+        } else if (data.googleEnabled || data.aiEnabled || data.cloudEnabled) {
           transform = providerTransform(control.sessionId);
         }
         if (
@@ -101,6 +130,21 @@ export default defineContentScript({
             : transform
               ? (data.providerLabel ?? '')
               : '',
+          (appearance) => {
+            void sendRequest({
+              type: 'content.appearance',
+              sessionId: control.sessionId,
+              appearance,
+            }).catch(() => {
+              player?.stopTranslation();
+            });
+          },
+          () => {
+            void sendRequest({
+              type: 'content.stop',
+              sessionId: control.sessionId,
+            }).catch(() => {});
+          },
         );
         return 'enabled';
       })().then(respond, () => {

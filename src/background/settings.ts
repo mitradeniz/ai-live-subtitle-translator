@@ -1,5 +1,6 @@
 import {
   DEFAULT_SETTINGS,
+  AppearanceSchema,
   PreferencesSchema,
   SettingsSchema,
   type Settings,
@@ -50,6 +51,22 @@ export class SettingsStore {
         throw new BoundaryError('UNSUPPORTED_SETTINGS_VERSION');
       }
       const settings: Settings = { schemaVersion: 1, ...parsed.data };
+      await local.set({ [SETTINGS_KEY]: settings });
+      return settings;
+    });
+  }
+
+  updateAppearance(input: unknown, valid: () => void): Promise<Settings> {
+    const appearance = AppearanceSchema.safeParse(input);
+    if (!appearance.success) throw new BoundaryError('INVALID_MESSAGE');
+    return this.#storage.run(async ({ local }) => {
+      // Merge inside the storage transaction so a concurrent UI language change
+      // cannot be overwritten by a content script's older settings snapshot.
+      const raw = (await local.get(SETTINGS_KEY))[SETTINGS_KEY];
+      const current = SettingsSchema.safeParse(raw);
+      if (!current.success) throw new BoundaryError('UNAVAILABLE');
+      valid();
+      const settings = { ...current.data, ...appearance.data };
       await local.set({ [SETTINGS_KEY]: settings });
       return settings;
     });

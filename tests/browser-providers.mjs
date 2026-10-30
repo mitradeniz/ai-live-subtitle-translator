@@ -32,7 +32,10 @@ try {
     await readFile(join(extension, 'manifest.json'), 'utf8'),
   );
   assert.equal(manifest.host_permissions, undefined);
-  assert.deepEqual(manifest.optional_host_permissions, hosts);
+  assert.deepEqual(manifest.optional_host_permissions, [
+    ...hosts,
+    'https://www.youtube.com/*',
+  ]);
   // Required grants only in this throwaway copy; real permission prompts remain owner checks.
   manifest.host_permissions = ['http://127.0.0.1/*', ...hosts];
   await writeFile(join(extension, 'manifest.json'), JSON.stringify(manifest));
@@ -163,6 +166,7 @@ try {
   const id = new URL(worker.url()).hostname;
   const options = await context.newPage();
   await options.goto(`chrome-extension://${id}/options.html`);
+  await options.locator('details.api-settings > summary').click();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
   const page = await context.newPage();
@@ -172,7 +176,7 @@ try {
   );
   const cloud = options.locator('[aria-labelledby="cloud-title"]');
   const ai = options.locator('[aria-labelledby="ai-title"]');
-  const engine = options.locator('[aria-labelledby="engine-title"]');
+  const engine = options.locator('.preferences-panel');
   const feedback = async (panel, text) => {
     try {
       await panel.getByRole('status').filter({ hasText: text }).waitFor();

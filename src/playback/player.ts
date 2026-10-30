@@ -7,7 +7,7 @@ import {
   type Cue,
 } from './cues.ts';
 import { NativeTrackAdapter } from './native-track.ts';
-import { CaptionOverlay } from './overlay.ts';
+import { CaptionOverlay, type Appearance } from './overlay.ts';
 import { TranslationFailure } from '../translation/contracts.ts';
 
 export class CaptionPlayer {
@@ -15,6 +15,7 @@ export class CaptionPlayer {
   #adapter: NativeTrackAdapter;
   #overlay: CaptionOverlay;
   #settings: Settings;
+  #label: string;
   #window: TimedWindow | undefined;
   #isValid: () => boolean;
   #generation = new PlaybackGeneration();
@@ -35,10 +36,13 @@ export class CaptionPlayer {
     transform?: CaptionTransform,
     isValid: () => boolean = () => true,
     label = '',
+    onAppearance: (appearance: Appearance) => void = () => {},
+    onDisable: () => void = () => {},
   ) {
     this.#video = video;
     this.#source = video.currentSrc;
     this.#settings = settings;
+    this.#label = label;
     if (transform)
       this.#window = new TimedWindow(
         transform,
@@ -50,7 +54,14 @@ export class CaptionPlayer {
       );
     this.#isValid = isValid;
     this.#adapter = new NativeTrackAdapter(video);
-    this.#overlay = new CaptionOverlay(video, settings.fontSize, label);
+    this.#overlay = new CaptionOverlay(video, settings.fontSize, label, {
+      settings,
+      change: onAppearance,
+      disable: () => {
+        onDisable();
+        this.dispose();
+      },
+    });
     video.addEventListener('emptied', this.dispose);
     video.addEventListener('enterpictureinpicture', this.dispose);
     for (const name of ['seeking', 'ratechange'])
@@ -79,10 +90,18 @@ export class CaptionPlayer {
     return !this.#closed;
   }
 
+  applySettings(settings: Settings) {
+    const modeChanged = settings.displayMode !== this.#settings.displayMode;
+    this.#settings = settings;
+    this.#overlay.appearance(settings);
+    if (modeChanged) this.#invalidate();
+    this.#paint();
+  }
+
   stopTranslation() {
     this.#window?.reset();
     this.#window = undefined;
-    this.#overlay.setLabel('Original captions');
+    this.#label = 'Original captions';
     this.#invalidate();
     this.#overlay.setTranslationStatus(
       'Translation stopped. Open the extension popup and choose Enable captions again.',
@@ -139,7 +158,7 @@ export class CaptionPlayer {
       this.#active = cues;
       this.#result = null;
     }
-    if (!this.#video.seeking)
+    if (!this.#video.seeking && this.#settings.displayMode !== 'original')
       this.#window?.update(
         this.#cues,
         this.#video.currentTime,
@@ -147,6 +166,12 @@ export class CaptionPlayer {
       );
     this.#result = this.#window?.texts(cues) || null;
 
+    const state = !this.#cues.length
+      ? 'No accessible caption text'
+      : !cues.length
+        ? 'Waiting for next caption'
+        : '';
+    this.#overlay.setLabel([this.#label, state].filter(Boolean).join(' · '));
     const original = cues.map((cue) => cue.text).join('\n');
     const mock = this.#result?.join('\n');
     const mode = this.#settings.displayMode;

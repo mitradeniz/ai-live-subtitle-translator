@@ -25,6 +25,14 @@ export const PlaybackControlSchema = z.discriminatedUnion('type', [
   z.strictObject({ version: z.literal(1), type: z.literal('playback.stop') }),
   z.strictObject({
     version: z.literal(1),
+    type: z.literal('playback.site-stop'),
+  }),
+  z.strictObject({
+    version: z.literal(1),
+    type: z.literal('playback.preferences'),
+  }),
+  z.strictObject({
+    version: z.literal(1),
     type: z.literal('playback.translation-reset'),
   }),
   z.strictObject({

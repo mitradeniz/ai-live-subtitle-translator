@@ -29,7 +29,9 @@
     "test:google": "pnpm build && pnpm check:build && node tests/browser-google.mjs",
     "test:ai": "pnpm build && pnpm check:build && node tests/browser-ai.mjs",
     "test:providers": "pnpm build && pnpm check:build && node tests/browser-providers.mjs",
-    "test:work": "pnpm build && pnpm check:build && node tests/browser-work.mjs"
+    "test:work": "pnpm build && pnpm check:build && node tests/browser-work.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "test:controls": "pnpm build && pnpm check:build && node tests/browser-controls.mjs"
   },
   "dependencies": {
     "react": "19.3.1",

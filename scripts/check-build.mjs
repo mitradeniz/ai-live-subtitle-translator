@@ -19,7 +19,7 @@ assert.equal(
   mock ? '[TEST] Subtitle timing lab' : 'AI Live Subtitle Translator',
 );
 assert.equal(manifest.incognito, 'not_allowed');
-// Only user-triggered activeTab access; no persistent hosts or automatic injection.
+// No required hosts or static injection; automatic YouTube access is optional.
 for (const field of [
   'host_permissions',
   'optional_permissions',
@@ -38,6 +38,7 @@ assert.deepEqual(
         'https://translation.googleapis.com/*',
         'https://api.deepseek.com/*',
         'https://generativelanguage.googleapis.com/*',
+        'https://www.youtube.com/*',
       ],
 );
 assert.equal(manifest.externally_connectable, undefined);
@@ -53,10 +54,11 @@ const files = await readdir(output, { recursive: true, withFileTypes: true });
 for (const file of files.filter((entry) => entry.isFile())) {
   assert.match(
     file.name,
-    /\.(?:html|js|css|json)$/,
+    /\.(?:html|js|css|json|png)$/,
     `Unexpected file ${file.name}`,
   );
   assert.ok(!file.name.startsWith('.'), `Unexpected hidden file ${file.name}`);
+  if (file.name.endsWith('.png')) continue;
   const source = await readFile(resolve(file.parentPath, file.name), 'utf8');
   for (const marker of [
     'SENTINEL_NOT_A_REAL',
@@ -101,3 +103,14 @@ assert.equal(
 console.log(
   'Production build: MV3 entrypoints, local scripts, CSP, and user-triggered permissions verified.',
 );
+
+for (const size of [16, 32, 48, 128]) {
+  const name = `icons/icon-${size}.png`;
+  assert.equal(manifest.icons[size], name);
+  if (size <= 32) assert.equal(manifest.action.default_icon[size], name);
+  const png = await readFile(`${output}/${name}`);
+  assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+  assert.equal(png.readUInt32BE(16), size);
+  assert.equal(png.readUInt32BE(20), size);
+}
+await readFile(`${output}/content-scripts/auto.js`);

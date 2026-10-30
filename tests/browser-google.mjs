@@ -23,6 +23,7 @@ try {
     'https://translation.googleapis.com/*',
     'https://api.deepseek.com/*',
     'https://generativelanguage.googleapis.com/*',
+    'https://www.youtube.com/*',
   ]);
   assert.equal(manifest.host_permissions, undefined);
   // Temporary grants only: no activeTab gesture or optional-permission dialog automation is claimed.
@@ -92,6 +93,7 @@ try {
   const id = new URL(worker.url()).hostname;
   const options = await context.newPage();
   await options.goto(`chrome-extension://${id}/options.html`);
+  await options.locator('details.api-settings > summary').click();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
   const page = await context.newPage();
@@ -180,6 +182,7 @@ try {
       .click();
     // Required test grants cannot be removed. Reload UI to read logical provider state.
     await options.reload();
+    await options.locator('details.api-settings > summary').click();
     await options
       .getByRole('button', { name: 'Enable experimental Google' })
       .click();

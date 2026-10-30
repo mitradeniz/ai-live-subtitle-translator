@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+import { useI18n } from '../../src/ui/useI18n';
+const ViewingControls = lazy(() =>
+  import('../../src/ui/ViewingControls').then((module) => ({
+    default: module.ViewingControls,
+  })),
+);
 import { browser } from 'wxt/browser';
 import { DevelopmentNotice } from '../../src/ui/DevelopmentNotice';
 import type { PlaybackOperation } from '../../src/messaging/playback';
 
 export function App() {
+  const { t, locale } = useI18n();
+  const [showControls, setShowControls] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState(
     'Choose a video page, then enable captions.',
@@ -53,8 +61,11 @@ export function App() {
 
   return (
     <main className="popup">
-      <p className="eyebrow">AI Live Subtitle Translator</p>
-      <h1>Subtitles, in your language.</h1>
+      <div className="popup-brand">
+        <img src="/icons/icon-32.png" width="32" height="32" alt="" />
+        <p className="eyebrow">AI Live Subtitle Translator</p>
+      </div>
+      <h1>{t('Subtitles, in your language.')}</h1>
       <DevelopmentNotice />
       <label className="source-confirm">
         <input
@@ -63,7 +74,9 @@ export function App() {
           onChange={(event) => setYouTubeSourceConfirmed(event.target.checked)}
         />
         <span>
-          For YouTube: I selected an original caption track, not Auto-translate.
+          {t(
+            'For YouTube: I selected an original caption track, not Auto-translate.',
+          )}
         </span>
       </label>
       <div className="popup-controls">
@@ -73,8 +86,10 @@ export function App() {
           onClick={() => void control('playback.enable')}
         >
           {import.meta.env.MODE === 'mock'
-            ? 'Enable mock captions'
-            : 'Enable captions'}
+            ? locale === 'tr'
+              ? 'Test altyazısını etkinleştir'
+              : 'Enable mock captions'
+            : t('Enable captions')}
         </button>
         <button
           disabled={busy}
@@ -82,22 +97,33 @@ export function App() {
           type="button"
           onClick={() => void control('playback.disable')}
         >
-          Disable captions
+          {t('Disable captions')}
         </button>
       </div>
       <p className="popup-status" role="status">
-        {status}
+        {t(status)}
       </p>
+      <details
+        className="popup-details"
+        onToggle={(event) => setShowControls(event.currentTarget.open)}
+      >
+        <summary>{t('Viewing controls')}</summary>
+        {showControls && (
+          <Suspense fallback={<p>{t('Loading preferences…')}</p>}>
+            <ViewingControls compact />
+          </Suspense>
+        )}
+      </details>
       <button
         className="secondary"
         type="button"
         onClick={() => void openOptions()}
       >
-        Open settings <span aria-hidden="true">↗</span>
+        {t('Open settings')} <span aria-hidden="true">↗</span>
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       <p className="footnote">
-        Version {browser.runtime.getManifest().version}
+        {t('Version')} {browser.runtime.getManifest().version}
       </p>
     </main>
   );

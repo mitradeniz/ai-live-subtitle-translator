@@ -8,7 +8,7 @@ import {
   type Cue,
 } from '../playback/cues.ts';
 import { NativeTrackAdapter } from '../playback/native-track.ts';
-import { CaptionOverlay } from '../playback/overlay.ts';
+import { CaptionOverlay, type Appearance } from '../playback/overlay.ts';
 import { TranslationFailure } from '../translation/contracts.ts';
 import {
   ObservedRevision,
@@ -65,6 +65,8 @@ export class YouTubePlayer {
     transform: CaptionTransform | undefined,
     valid: () => boolean,
     label: string,
+    onAppearance: (appearance: Appearance) => void = () => {},
+    onDisable: () => void = () => {},
   ) {
     this.#video = video;
     this.#root = video.closest(SELECTORS.player) ?? video.parentElement!;
@@ -82,7 +84,14 @@ export class YouTubePlayer {
     this.#valid = valid;
     this.#label = label;
     this.#native = new NativeTrackAdapter(video);
-    this.#overlay = new CaptionOverlay(video, settings.fontSize, label);
+    this.#overlay = new CaptionOverlay(video, settings.fontSize, label, {
+      settings,
+      change: onAppearance,
+      disable: () => {
+        onDisable();
+        this.dispose();
+      },
+    });
     this.#observer = new MutationObserver(() => {
       if (!video.seeking) this.#waitMutation = false;
       this.#scan();
@@ -101,6 +110,14 @@ export class YouTubePlayer {
   get active() {
     return !this.#closed;
   }
+  applySettings(settings: Settings) {
+    const modeChanged = settings.displayMode !== this.#settings.displayMode;
+    this.#settings = settings;
+    this.#overlay.appearance(settings);
+    if (modeChanged) this.#clear();
+    this.#sample();
+  }
+
   stopTranslation() {
     this.#transform = undefined;
     this.#timedWindow?.reset();
@@ -248,7 +265,12 @@ export class YouTubePlayer {
       this.#generation.next();
       this.#active = units;
       this.#result = null;
-      if (!timed.length && units.length && this.#transform) {
+      if (
+        !timed.length &&
+        units.length &&
+        this.#transform &&
+        this.#settings.displayMode !== 'original'
+      ) {
         const signal = this.#generation.signal;
         void this.#transform(
           units,
@@ -272,7 +294,11 @@ export class YouTubePlayer {
           });
       }
     }
-    if (timed.length && !this.#video.seeking) {
+    if (
+      timed.length &&
+      !this.#video.seeking &&
+      this.#settings.displayMode !== 'original'
+    ) {
       this.#timedWindow?.update(
         timed,
         this.#video.currentTime,

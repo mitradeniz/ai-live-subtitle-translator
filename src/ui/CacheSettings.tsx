@@ -1,6 +1,8 @@
+import { useI18n } from './useI18n';
 import { useEffect, useState } from 'react';
 import { sendRequest } from '../messaging/client';
 export function CacheSettings() {
+  const { t } = useI18n();
   const [persistent, setPersistent] = useState(false);
   const [busy, setBusy] = useState(true);
   const [message, setMessage] = useState('');
@@ -43,41 +45,42 @@ export function CacheSettings() {
   }
   return (
     <section className="glass-panel google-panel" aria-labelledby="cache-title">
-      <h2 id="cache-title">Translation cache</h2>
+      <h2 id="cache-title">{t('Translation cache')}</h2>
       <p>
-        Timed tracks may send up to 20 seconds of upcoming captions to the
-        selected provider while playing. This can use quota for captions you
-        skip. Visible YouTube captions have no lookahead.
+        {t(
+          'Timed tracks may send up to 20 seconds of upcoming captions to the selected provider while playing. This can use quota for captions you skip. Visible YouTube captions have no lookahead.',
+        )}
       </p>
       <p>
-        Translations stay in this browser session by default, up to 128 batches
-        and 256 KiB, expiring after 30 minutes. Private browsing is unsupported.
+        {t(
+          'Translations stay in this browser session by default, up to 128 batches and 256 KiB, expiring after 30 minutes. Private browsing is unsupported.',
+        )}
       </p>
       <fieldset disabled={busy}>
-        <legend className="visually-hidden">Cache controls</legend>
+        <legend className="visually-hidden">{t('Cache controls')}</legend>
         <label className="key-retention">
           <input
             type="checkbox"
             checked={persistent}
             onChange={(event) => setPersistent(event.target.checked)}
           />
-          Remember translations for up to 24 hours on this device
+          {t('Remember translations for up to 24 hours on this device')}
         </label>
         <p className="field-help">
-          Optional device cache also holds at most 128 batches / 256 KiB.
-          Translated text is not encrypted or anonymous. Expired entries are
-          ignored and removed on access. No keys are cached.
+          {t(
+            'Optional device cache also holds at most 128 batches / 256 KiB. Translated text is not encrypted or anonymous. Expired entries are ignored and removed on access. No keys are cached.',
+          )}
         </p>
         <div className="actions">
           <button type="button" onClick={() => void action('cache.configure')}>
-            Save cache preference
+            {t('Save cache preference')}
           </button>
           <button
             type="button"
             className="secondary"
             onClick={() => void action('cache.clear')}
           >
-            Clear translation cache
+            {t('Clear translation cache')}
           </button>
           <button
             type="button"
@@ -85,17 +88,19 @@ export function CacheSettings() {
             onClick={() => {
               if (
                 window.confirm(
-                  'Delete saved keys, preferences, translations and playback sessions? Provider request budgets and uncertain-request guards remain until this browser session ends.',
+                  t(
+                    'Delete saved keys, preferences, translations and playback sessions? Provider request budgets and uncertain-request guards remain until this browser session ends.',
+                  ),
                 )
               )
                 void action('data.clear');
             }}
           >
-            Delete saved data and keys
+            {t('Delete saved data and keys')}
           </button>
         </div>
       </fieldset>
-      {message && <p role="status">{message}</p>}
+      {message && <p role="status">{t(message)}</p>}
     </section>
   );
 }

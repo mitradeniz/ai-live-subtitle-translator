@@ -5,7 +5,7 @@ An open-source browser extension being developed for video subtitle translation.
 **Current status:** a development build that displays accessible native HTML5 text
 tracks after you enable it on a page, plus an experimental YouTube visible-caption
 fallback. Includes saved preferences, JSON export, and
-a dark glass settings interface. **Experimental keyless Google translation is available after explicit opt-in.
+a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
 Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; real-key verification is pending.** A separate, clearly labeled local test build
 repeats captions with a mock prefix for testing. YouTube live caption delivery varies; see the limitations below.
 
@@ -64,10 +64,19 @@ Build output and local caches are ignored by Git.
 3. The overlay follows the video clock. **Disable captions** removes the overlay
    and restores native track modes. Caption text is rendered as plain text, including
    any markup-like strings present in the source.
-4. **Open settings** opens the dark preferences page. Save the target language,
-   display mode and font size, or export saved preferences as JSON without credentials.
-   Save and re-enable captions to apply changes. Production keeps original text when the selected provider is off, unavailable, or still translating.
-   The appearance preview uses fixed sample text.
+4. **Viewing controls** in the popup, or **Open settings**, offers source/target
+   language, engine, original/translated/bilingual display, font size, contrast,
+   top/bottom position and English/Turkish interface language. **Save preferences**
+   applies appearance changes during playback. Language or provider changes stop
+   translation: enable captions again from the video page. Original text stays
+   available when a provider is off, unavailable or still responding.
+5. Hover or Tab to the controls above the video captions to change display mode,
+   text size, contrast or position, or disable captions. Focus remains visible;
+   captions use automatic text direction for Arabic/Hebrew and other RTL text.
+   The controls also work inside supported fullscreen containers.
+6. In settings, expand **API keys and privacy** to configure accounts, delete keys
+   or clear cached translations. **Export saved preferences** excludes credentials.
+   No paid engine is selected or tested automatically.
 
 After source edits, rebuild, click **Reload** on the extension card, refresh the video
 page, and enable captions again. Reopen the settings tab to see UI changes. Managed
@@ -363,9 +372,27 @@ Selectors and the internal source-metadata API can change without notice.
 
 If text is inaccessible, the extension reports that state and makes no translation
 requests. Try another captioned video in your browser and report the result. Videos
-without captions cannot be transcribed by this build. Next-video SPA navigation,
-video replacement and source lifecycle changes stop the current overlay; explicitly
-re-enable on the next video. Fullscreen/PiP limits described below still apply.
+without captions cannot be transcribed by this build. Next-video SPA navigation and video replacement stop the current overlay. With
+manual activation, enable again on the next video. The optional automatic setting
+can start a fresh, document-bound session after navigation or player replacement. Fullscreen/PiP limits described below still apply.
+
+## Automatic captions on YouTube
+
+This is off by default and available only for `https://www.youtube.com/*` in the
+normal build. In settings, confirm that you use original YouTube captions, then
+choose **Allow YouTube and turn on** and accept Chrome's site permission. The
+extension can then start on watch pages after refresh, next-video navigation or
+video replacement. Choose your translation engine first: activation may send
+captions to that provider and use your quota. Auto-translate/unknown source tracks
+remain blocked, even when this setting is on.
+
+**Disable captions** in the popup or overlay pauses automatic activation for that
+tab until refresh or manual enabling. **Turn off and remove access** in settings
+stops affected playback and unregisters the automatic script. You can also revoke
+YouTube site access through Chrome's extension controls. Permission denial is
+recoverable by trying again; permission is rechecked before activation and when the
+worker starts. No other site has persistent or automatic access. The mock build
+retains manual activation only.
 
 ## Current playback limits
 
@@ -386,20 +413,22 @@ re-enable on the next video. Fullscreen/PiP limits described below still apply.
 - Navigation (including changed SPA URLs), video source/replacement, extension context
   invalidation, or a 30-minute local session limit stops playback. Same-URL SPA changes
   that retain the same video/source need a later site-specific adapter.
-- Worker restarts invalidate background session tokens. Already authorized local
-  rendering uses its settings snapshot until cleanup/disable/expiry; it makes no
-  background keepalive requests. Re-enabling obtains a new document-bound session.
+- Worker restarts recover valid document-bound sessions from session storage.
+  Browser restart or extension reload clears them. There is no worker keepalive;
+  automatic site observers send messages only when the URL/video changes.
 
 ## Permissions and data
 
 The production manifest requests only `storage`, `activeTab`, and `scripting`. It
-has no install-time host grants, automatically registered content scripts,
-web-accessible resources, or external message handlers. Injection runs in the
-isolated world and targets the user-selected tab's main document. Incognito is disabled.
+has no install-time host grants, static content scripts, web-accessible resources,
+or external message handlers. On explicit YouTube opt-in, it registers a packaged
+runtime content script for that exact optional origin; opt-out unregisters it.
+Injection runs in the isolated world and targets the authorized main document. Incognito is disabled.
 Executable code is bundled locally. Production CSP permits connections only to
 `https://translate.googleapis.com`, `https://api.openai.com`, `https://translation.googleapis.com`,
 `https://api.deepseek.com` and `https://generativelanguage.googleapis.com`. Only the selected
-provider’s optional host permission is requested on opt-in.
+provider’s optional host permission is requested on selection. YouTube site access
+is a separate optional grant for automatic captions.
 The mock build has no optional provider host and blocks remote connections. The
 page's native track loader may load its own caption resources when a track is enabled.
 No project backend, domain, shared key, or analytics is used. Cloud and AI modes require your own provider account/key and API quota. On YouTube only, a
@@ -409,13 +438,18 @@ event. It reads no caption text, caption URLs, credentials or cookies and makes 
 This page-controlled channel is untrusted data, never an authorization mechanism.
 
 Messages are schema-validated and authorized from browser-supplied sender metadata.
-Only the popup can request activation; it cannot supply a tab or document ID. The
+Only the popup can request manual activation; it cannot supply a tab or document ID.
+The automatic watcher can request activation only from a browser-identified YouTube
+watch document after explicit site consent and a current host grant. The
 toolbar popup is identified by its exact extension ID, origin and packaged URL;
 Chrome may omit document metadata for this non-tab view. Content scripts still
 require a complete tab/frame/document identity and an active document lifecycle. The
 background uses Chrome's tab and injection results and binds a session to tab, frame,
 document and origin. Content scripts receive safe preferences only. Only the options
-page may mutate settings, export or manage credentials. No runtime message returns a key.
+page may export or manage credentials. Popup/options may change viewing preferences
+and select a reviewed engine. An already bound content session can update only
+bounded appearance fields or stop itself; it cannot change languages, providers,
+endpoints or keys. No runtime message returns a key.
 
 Local and session storage are restricted to trusted extension contexts before data
 access. The credential abstraction defaults to session storage, with explicit device
@@ -436,6 +470,7 @@ pnpm test:google
 pnpm test:ai
 pnpm test:providers
 pnpm test:work
+pnpm test:controls
 ```
 
 Tests use fresh temporary profiles, never your personal browser. The security suite
@@ -481,6 +516,16 @@ If the extension card shows **Errors**, open it. Its **service worker** link ope
 background diagnostics; an inactive worker is normal. Right-click the popup and choose
 **Inspect**, or open DevTools in settings, for UI errors. Report browser/build version,
 action, expected behavior, and redacted error text. Do not share keys or browser profiles.
+
+The controls suite (`pnpm test:controls`) uses only routed synthetic responses. It
+checks keyboard navigation, live appearance changes, focus retention, Turkish UI,
+RTL/plain text, and YouTube registration/refresh/navigation/manual-stop/opt-out.
+Its temporary copy has scoped fixture/YouTube/provider grants; actual Chrome
+permission denial/revocation prompts remain manual checks.
+
+The glass translation mark is original repository artwork in `assets/logo.svg`.
+Chrome uses the committed PNG sizes under `public/icons/`. After changing the SVG,
+run `pnpm icons` with the pinned Playwright Chromium installed, then rebuild.
 
 ## License
 

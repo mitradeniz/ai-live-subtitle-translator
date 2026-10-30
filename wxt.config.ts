@@ -19,6 +19,12 @@ export default defineConfig({
         ? 'Local caption timing test. Mock output is not translation.'
         : 'Early development. Optional Google, Google Cloud and user-key AI caption translation.',
     minimum_chrome_version: '151',
+    icons: {
+      16: 'icons/icon-16.png',
+      32: 'icons/icon-32.png',
+      48: 'icons/icon-48.png',
+      128: 'icons/icon-128.png',
+    },
     permissions: ['storage', 'activeTab', 'scripting'],
     optional_host_permissions:
       mode === 'mock'
@@ -29,10 +35,12 @@ export default defineConfig({
             'https://translation.googleapis.com/*',
             'https://api.deepseek.com/*',
             'https://generativelanguage.googleapis.com/*',
+            'https://www.youtube.com/*',
           ],
     incognito: 'not_allowed',
     action: {
       default_title: 'AI Live Subtitle Translator',
+      default_icon: { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png' },
     },
     content_security_policy: {
       extension_pages:

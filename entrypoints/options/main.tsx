@@ -1,3 +1,4 @@
+import { LanguageProvider } from '../../src/ui/i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
@@ -8,6 +9,8 @@ if (!root) throw new Error('Options root element is missing.');
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
   </StrictMode>,
 );
