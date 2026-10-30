@@ -1,0 +1,43 @@
+{
+  "name": "ai-live-subtitle-translator",
+  "description": "Browser extension for video subtitle translation. Early development build.",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@11.28.10",
+  "engines": {
+    "node": ">=24.22.2 <25",
+    "pnpm": "11.28.10"
+  },
+  "scripts": {
+    "postinstall": "wxt prepare",
+    "build": "wxt build -b chrome --mv3",
+    "typecheck": "wxt prepare && tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "check:build": "node scripts/check-build.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build && pnpm check:build"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@wxt-dev/module-react": "1.2.2",
+    "eslint": "10.13.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.7",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "wxt": "0.21.5"
+  }
+}

@@ -1,0 +1,10 @@
+packages:
+  - .
+engineStrict: true
+saveExact: true
+storeDir: .pnpm-store
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+verifyDepsBeforeRun: error
+strictDepBuilds: true
+allowBuilds: {}
