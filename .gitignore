@@ -1,0 +1,31 @@
+# Local planning, research, and working notes (not published)
+/.local-notes/
+
+# Dependencies and package-manager cache
+node_modules/
+.pnpm-store/
+
+# WXT/Vite generated files and extension packages
+.wxt/
+.output/
+dist/
+.vite/
+web-ext-artifacts/
+*.tsbuildinfo
+
+# Test coverage, browser-test output, and local browser profiles
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.browser-profiles/
+
+# Local environment and credentials; keep sanitized examples trackable
+.env
+.env.*
+!.env.example
+
+# Logs and operating-system files
+*.log
+.DS_Store
+Thumbs.db
