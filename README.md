@@ -2,9 +2,9 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status:** a loadable development build with a popup and options page.
-Subtitle detection and translation are not implemented. There are no API-key
-fields, saved settings, or translation-provider connections yet.
+**Current status:** a loadable development build with a popup, saved subtitle
+preferences, and settings export. Subtitle detection and translation are not
+implemented. API-key setup and provider connections are not available in the UI.
 
 ## Requirements
 
@@ -29,15 +29,17 @@ If you use another Node version manager, select Node 24.22.2 before running the
 remaining commands. The install hook generates WXT's TypeScript configuration.
 The production unpacked extension is written to `.output/chrome-mv3/`.
 
-| Command             | Purpose                                                     |
-| ------------------- | ----------------------------------------------------------- |
-| `pnpm build`        | Build the production Chrome MV3 extension                   |
-| `pnpm typecheck`    | Generate WXT types and check strict TypeScript              |
-| `pnpm lint`         | Run ESLint with no warnings allowed                         |
-| `pnpm format`       | Format source and public documentation                      |
-| `pnpm format:check` | Check formatting without writing                            |
-| `pnpm check:build`  | Inspect the generated entrypoints, CSP, and permissions     |
-| `pnpm check`        | Run typecheck, lint, formatting, build, and artifact checks |
+| Command             | Purpose                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `pnpm build`        | Build the production Chrome MV3 extension                               |
+| `pnpm typecheck`    | Generate WXT types and check strict TypeScript                          |
+| `pnpm lint`         | Run ESLint with no warnings allowed                                     |
+| `pnpm format`       | Format source and public documentation                                  |
+| `pnpm format:check` | Check formatting without writing                                        |
+| `pnpm check:build`  | Inspect the generated entrypoints, CSP, and permissions                 |
+| `pnpm test`         | Run storage, message authorization, and session boundary tests          |
+| `pnpm test:browser` | Build and test the extension in isolated Chromium profiles              |
+| `pnpm check`        | Run typecheck, lint, formatting, unit tests, build, and artifact checks |
 
 Dependency versions and the lockfile are committed. pnpm enforces a one-day
 release-age minimum and fails on unreviewed dependency build scripts. Dependency
@@ -52,8 +54,10 @@ packages. Build output and local caches are ignored by Git.
 3. Pin **AI Live Subtitle Translator** from Chrome's extensions menu and open it.
    The popup should say **Early development** and explain that translation is
    not implemented.
-4. Click **Open settings**. A new tab should show **Settings** and
-   **No settings to configure yet**. You can also reach it through the extension's
+4. Click **Open settings** to adjust the target language code, display mode, and
+   font size. **Save preferences** persists them locally; **Export saved preferences**
+   downloads the saved values as JSON without credentials. These preferences do not
+   enable translation yet. You can also reach settings through the extension's
    **Details → Extension options** entry.
 
 After editing code, run `pnpm build`, click **Reload** on the extension card in
@@ -69,15 +73,48 @@ remove any personal information first. Managed browsers may restrict developer m
 
 ## Permissions and data
 
-The production manifest requests no API or host permissions and declares no
-content scripts. All executable code is packaged locally. Its content security
-policy restricts scripts to the extension and blocks network connections.
-This build does not read captions, store credentials, or contact external services.
-No project server, domain, or provider account is needed to try it.
+The production manifest requests only `storage`, for local preferences and the
+credential-store foundation. It has no host permissions or content scripts;
+incognito use is disabled. Executable code is packaged locally, and CSP blocks
+network connections. No project server, domain, or provider account is needed.
+
+Messages are schema-validated and authorized from browser-supplied sender metadata.
+Only the options page can change settings or manage credentials. A content-script
+session must match its browser tab, frame, document, and origin. There is no runtime
+message that returns an API key or grants itself a session. Sessions expire and
+are invalidated when the background worker restarts.
+
+Both local and session storage are restricted to trusted extension contexts before
+the background reads or writes them. The credential abstraction defaults to session
+storage, with explicit device retention and deletion. Session keys disappear on
+browser restart or extension reload/update; worker restarts preserve them. Device
+storage is **not an encrypted vault**. Settings export excludes credentials.
+This build has no live provider integration or API-key entry form; tests use fake keys.
 
 The build-inspection command is a narrow regression check, not a security audit
 or proof of browser compatibility. Browser verification remains separate from a
 successful build.
+
+## Browser security checks
+
+Install Playwright's Chromium once, then run the separate browser suite:
+
+```sh
+pnpm exec playwright install chromium
+pnpm test:browser
+```
+
+The suite uses fresh temporary profiles, never your personal profile. It checks
+preferences/export, forced worker restart, browser restart, and credential deletion
+against the production build. To test content-script isolation before a real site
+adapter exists, it adds a loopback-only probe to a temporary copy of the extension.
+That probe and its site access are never added to the production manifest. All
+credentials are sentinel values; no translation services are contacted. Temporary
+profiles and the loopback server are cleaned up when the test exits normally.
+
+Browser checks use Chromium 151 through pinned Playwright 1.62.1. They verify a
+specific set of boundaries, not security certification or compatibility with every
+browser. `pnpm check` runs the browser-independent checks; the browser suite is separate.
 
 ## License
 

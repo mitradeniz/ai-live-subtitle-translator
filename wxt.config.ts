@@ -14,6 +14,8 @@ export default defineConfig({
     description:
       'Early development build. Subtitle translation is not available yet.',
     minimum_chrome_version: '151',
+    permissions: ['storage'],
+    incognito: 'not_allowed',
     action: {
       default_title: 'AI Live Subtitle Translator',
     },

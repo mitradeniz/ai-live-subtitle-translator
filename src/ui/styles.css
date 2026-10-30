@@ -118,3 +118,52 @@ button:focus-visible {
   margin-top: 12px;
   color: #a02020;
 }
+
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 20px 0;
+}
+label {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+input,
+select {
+  font: inherit;
+  padding: 10px;
+  border: 1px solid #849b93;
+  border-radius: 6px;
+  color: inherit;
+  background: #fff;
+}
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #416eaa;
+  outline-offset: 2px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.actions button {
+  width: auto;
+}
+button:disabled,
+fieldset:disabled button {
+  opacity: 0.6;
+  cursor: wait;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

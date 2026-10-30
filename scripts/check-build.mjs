@@ -12,9 +12,10 @@ assert.equal(manifest.action?.default_popup, 'popup.html');
 assert.equal(manifest.options_ui?.page, 'options.html');
 assert.equal(manifest.options_ui?.open_in_tab, true);
 
-// This scaffold needs no privileged API, site access, or injected code.
+assert.deepEqual(manifest.permissions, ['storage']);
+assert.equal(manifest.incognito, 'not_allowed');
+// Settings and credentials need storage, but no site access or injected code.
 for (const field of [
-  'permissions',
   'host_permissions',
   'optional_permissions',
   'optional_host_permissions',
@@ -53,5 +54,5 @@ for (const name of ['popup.html', 'options.html']) {
 }
 await readFile(`${output}/background.js`);
 console.log(
-  'Production build: MV3 entrypoints, local scripts, CSP, and no permissions verified.',
+  'Production build: MV3 entrypoints, local scripts, CSP, and storage-only permissions verified.',
 );
