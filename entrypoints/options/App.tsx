@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { sendRequest } from '../../src/messaging/client';
 import type { Settings } from '../../src/messaging/protocol';
 import { DevelopmentNotice } from '../../src/ui/DevelopmentNotice';
+import { GoogleSettings } from '../../src/ui/GoogleSettings';
 
 export function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -43,7 +44,7 @@ export function App() {
       });
       if (data.kind !== 'settings') throw new Error('Unexpected response');
       setSettings(data.settings);
-      setStatus('Preferences saved. Translation is not available yet.');
+      setStatus('Preferences saved. Re-enable captions to apply changes.');
     } catch {
       setError('Could not save preferences. No translation has been enabled.');
     } finally {
@@ -138,8 +139,9 @@ export function App() {
                   />
                 </label>
                 <p id="language-help" className="field-help">
-                  Language code, such as tr, en, or pt-BR. Saved for future
-                  translation.
+                  Language code, such as tr, en, or pt-BR. Experimental Google
+                  supports a limited set; unsupported codes keep original
+                  captions.
                 </p>
                 <label>
                   Display mode
@@ -209,6 +211,7 @@ export function App() {
           {error && <p role="alert">{error}</p>}
         </section>
         <aside className="preview-column">
+          {import.meta.env.MODE !== 'mock' && <GoogleSettings />}
           <section
             className="glass-panel preview-panel"
             aria-labelledby="preview-title"

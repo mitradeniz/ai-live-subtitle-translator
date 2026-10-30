@@ -25,7 +25,8 @@
     "check:build:mock": "node scripts/check-build.mjs --mock",
     "fixture": "node scripts/fixture-server.mjs",
     "test:playback": "pnpm build && pnpm check:build && pnpm build:mock && pnpm check:build:mock && node tests/browser-playback.mjs",
-    "test:youtube": "pnpm build:mock && pnpm check:build:mock && node tests/browser-youtube.mjs"
+    "test:youtube": "pnpm build:mock && pnpm check:build:mock && node tests/browser-youtube.mjs",
+    "test:google": "pnpm build && pnpm check:build && node tests/browser-google.mjs"
   },
   "dependencies": {
     "react": "19.3.1",

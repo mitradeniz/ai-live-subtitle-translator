@@ -9,7 +9,7 @@ export function DevelopmentNotice() {
       <p>
         {import.meta.env.MODE === 'mock'
           ? 'This test build repeats available captions with a [MOCK] prefix. It does not translate.'
-          : 'Native tracks and visible YouTube captions are supported experimentally. Real translation is not available yet.'}
+          : 'Native tracks and YouTube captions are experimental. Enable keyless Google in settings to translate. It is off by default.'}
       </p>
     </section>
   );

@@ -419,6 +419,12 @@ fieldset:disabled button {
   font-size: 11px;
   line-height: 1.5;
 }
+.google-panel {
+  padding: 24px;
+}
+.google-panel h2 {
+  margin-top: 0;
+}
 .source-confirm input {
   width: 15px;
   min-height: 15px;

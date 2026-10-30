@@ -7,6 +7,7 @@ import {
 } from './cues.ts';
 import { NativeTrackAdapter } from './native-track.ts';
 import { CaptionOverlay } from './overlay.ts';
+import { TranslationFailure } from '../translation/contracts.ts';
 
 export class CaptionPlayer {
   #video: HTMLVideoElement;
@@ -69,6 +70,15 @@ export class CaptionPlayer {
     return !this.#closed;
   }
 
+  stopTranslation() {
+    this.#transform = undefined;
+    this.#invalidate();
+    this.#overlay.setTranslationStatus(
+      'Translation stopped. Re-enable captions to use updated preferences.',
+    );
+    this.#paint();
+  }
+
   #invalidate = () => {
     this.#generation.next();
     this.#active = [];
@@ -118,15 +128,22 @@ export class CaptionPlayer {
       this.#result = null;
       if (cues.length && this.#transform) {
         const generation = this.#generation.value;
+        const signal = this.#generation.signal;
         void this.#transform(cues, generation, this.#generation.signal)
           .then((result) => {
             if (this.#closed || !this.#generation.accepts(result, this.#active))
               return;
             this.#result = result.items.map((item) => item.text);
+            this.#overlay.setTranslationStatus('');
             this.#paint();
           })
-          .catch(() => {
-            /* Original text remains available on cancellation/failure. */
+          .catch((error: unknown) => {
+            if (
+              !this.#closed &&
+              !signal.aborted &&
+              error instanceof TranslationFailure
+            )
+              this.#overlay.setTranslationStatus(error.message);
           });
       }
     }

@@ -5,10 +5,9 @@ An open-source browser extension being developed for video subtitle translation.
 **Current status:** a development build that displays accessible native HTML5 text
 tracks after you enable it on a page, plus an experimental YouTube visible-caption
 fallback. Includes saved preferences, JSON export, and
-a dark glass settings interface. **Real translation, provider connections, and
-API-key setup are not implemented.** A separate, clearly labeled local test build
-repeats captions with a mock prefix for testing. YouTube live caption delivery still
-needs owner verification; see the limitations below.
+a dark glass settings interface. **Experimental keyless Google translation is available after explicit opt-in.
+AI providers and API-key setup are not implemented.** A separate, clearly labeled local test build
+repeats captions with a mock prefix for testing. YouTube live caption delivery varies; see the limitations below.
 
 ## Requirements
 
@@ -47,6 +46,7 @@ Build output and local caches are ignored by Git.
 | `pnpm test`                         | Unit tests for messages, credentials, sessions, cue timing, and cleanup        |
 | `pnpm check`                        | Typecheck, lint, format, unit tests, production build and artifact check       |
 | `pnpm test:browser`                 | Production credential/storage and UI browser tests                             |
+| `pnpm test:google`                  | Offline-routed Google provider, fallback and cancellation browser tests        |
 | `pnpm test:youtube`                 | Test YouTube source/visible-caption behavior against routed synthetic fixtures |
 | `pnpm test:playback`                | Build both variants and run the synthetic playback browser suite               |
 
@@ -63,8 +63,7 @@ Build output and local caches are ignored by Git.
    any markup-like strings present in the source.
 4. **Open settings** opens the dark preferences page. Save the target language,
    display mode and font size, or export saved preferences as JSON without credentials.
-   Save and re-enable captions to apply changes. Production uses original text while
-   translation is unavailable, regardless of the saved translation display preference.
+   Save and re-enable captions to apply changes. Production keeps original text when Google is off, unavailable, or still translating.
    The appearance preview uses fixed sample text.
 
 After source edits, rebuild, click **Reload** on the extension card, refresh the video
@@ -103,8 +102,51 @@ navigating stops the overlay; enable it again to resume. Reload resets the fixtu
 Use **Container fullscreen** for the supported overlay path. Stop the server with Ctrl+C.
 
 The normal build has no mock translator implementation or mock controls. Both variants
-bundle scripts locally, use MV3, and make no translation-service requests. The mock
+bundle scripts locally and use MV3. Only the normal build can use Google after opt-in. The mock
 build is a test artifact and is not intended for store distribution.
+
+## Experimental keyless Google
+
+Use the **normal build** (`.output/chrome-mv3`), not **[TEST] Subtitle timing lab**.
+Open settings, choose target `tr` and bilingual display, and save. Under **Google ·
+Experimental**, read the disclosure and click **Enable experimental Google**. Accept
+Chrome's request for `translate.googleapis.com` access, then re-enable captions on
+the video page. For the original local fixture (`pnpm fixture`), pause at one second:
+`Hello from the timing lab.` should gain a Turkish line, such as
+`Zamanlama laboratuvarından merhaba.` Google output can vary.
+
+This sends caption text and source/target language choices to Google using an
+undocumented endpoint. No API key, Google Cloud account, website cookies, video or
+audio is used. Google Cloud's official paid/API-key service is a separate integration
+and is not implemented. This mode has no availability guarantee; technical success
+is not a store approval or confirmation of distribution rights. Google terms and
+store disclosures need review before distribution.
+
+**Disable Google and remove access** cancels work, clears translated overlays and
+removes the host grant. Removing site access in Chrome has the same stop behavior.
+Text already sent cannot be retracted. Re-enabling Google requires reactivating
+captions. Original-only display sends no text. Preferences export does not export
+provider consent; importing preferences must never imply consent.
+
+The current language allowlist is `en`, `tr`, `de`, `fr`, `es`, `it`, `pt`, `ja`, `ko`,
+`ar`, `ru`, `zh-CN`, and `zh-TW`, plus automatic source detection. Regional codes such
+as `en-US` and `pt-BR` map to their base language; `zh-Hans`/`zh-Hant` map to simplified/
+traditional Chinese. Unsupported codes show an error and retain originals.
+
+Limits are deliberately conservative: one job globally, at most four cues per job,
+1,000 characters per cue, 32 KiB response, 4,000 translated characters per cue,
+eight-second request timeout, at least one second between requests, 20 requests per
+fixed minute window and 200 per browser/extension session. Counters survive service
+worker restarts; browser restart or extension reload starts a new session. Each cue
+uses its own request to preserve alignment; there is no translation cache or automatic
+retry yet. Rolling text waits 300 ms before dispatch. Dense captions and overlapping
+cues may stay original when limits or timing prevent completion.
+
+HTTP 401/403/429 stops further Google requests for that browser session. The extension
+does not bypass challenges, rotate hosts, use a proxy or fall back to a paid provider.
+Timeouts, invalid responses, missing permission and local limits have visible overlay
+messages. Source changes, seek, navigation and disable cancel work; stale responses
+cannot replace current captions. No caption text or response is persisted.
 
 ## YouTube preview
 
@@ -124,8 +166,7 @@ so the first changed line can be missed. YouTube's own captions remain untouched
 
 For mock evaluation, load the existing `.output/chrome-mv3-mock` build. It repeats
 available text with `[MOCK]`; it does not translate. No fixture server or terminal
-command is needed for this YouTube test. The ordinary production build shows only
-original captions and status. No caption endpoint fetching is implemented.
+command is needed for this YouTube test. The ordinary production build can translate available captions when Google is enabled in settings. No caption endpoint fetching is implemented.
 
 During investigation, two public videos played and exposed source metadata but no
 native text tracks. Two bounded credential-free timed-caption probes returned empty
@@ -168,10 +209,12 @@ re-enable on the next video. Fullscreen/PiP limits described below still apply.
 ## Permissions and data
 
 The production manifest requests only `storage`, `activeTab`, and `scripting`. It
-has no persistent/optional host grants, automatically registered content scripts,
+has no install-time host grants, automatically registered content scripts,
 web-accessible resources, or external message handlers. Injection runs in the
 isolated world and targets the user-selected tab's main document. Incognito is disabled.
-Executable code is bundled locally; extension CSP blocks remote connections. The
+Executable code is bundled locally. Production CSP permits connections only to
+`https://translate.googleapis.com`; its optional host permission is requested on opt-in.
+The mock build has no optional provider host and blocks remote connections. The
 page's native track loader may load its own caption resources when a track is enabled.
 No project backend, domain, provider account, or analytics is used. On YouTube only, a
 packaged MAIN-world reader supplies bounded source metadata (video ID, language,
@@ -203,6 +246,7 @@ pnpm exec playwright install chromium
 pnpm test:browser
 pnpm test:playback
 pnpm test:youtube
+pnpm test:google
 ```
 
 Tests use fresh temporary profiles, never your personal browser. The security suite
@@ -226,6 +270,12 @@ The security and YouTube suites also open a real toolbar popup with
 `chrome.action.openPopup()` to check its sender metadata and source-confirmation UI.
 This exercises a different context from loading `popup.html` in a tab; it still
 does not simulate the user's toolbar click granting `activeTab`.
+
+The Google suite is offline by default and routes synthetic provider responses.
+Its temporary copy has fixture and provider host grants; Chrome's optional-host
+confirmation/removal dialog remains a manual check on the normal build. The explicit
+`node tests/browser-google.mjs --live` variant permits one real request containing
+the original synthetic fixture caption. It is not part of routine checks or CI.
 
 If the extension card shows **Errors**, open it. Its **service worker** link opens
 background diagnostics; an inactive worker is normal. Right-click the popup and choose

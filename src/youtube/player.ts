@@ -8,6 +8,7 @@ import {
 } from '../playback/cues.ts';
 import { NativeTrackAdapter } from '../playback/native-track.ts';
 import { CaptionOverlay } from '../playback/overlay.ts';
+import { TranslationFailure } from '../translation/contracts.ts';
 import {
   ObservedRevision,
   SOURCE_REQUEST,
@@ -88,6 +89,14 @@ export class YouTubePlayer {
   }
   get active() {
     return !this.#closed;
+  }
+  stopTranslation() {
+    this.#transform = undefined;
+    this.#clear();
+    this.#overlay.setTranslationStatus(
+      'Translation stopped. Re-enable captions to use updated preferences.',
+    );
+    this.#sample();
   }
   #clear() {
     this.#generation.next();
@@ -223,6 +232,7 @@ export class YouTubePlayer {
       this.#active = units;
       this.#result = null;
       if (units.length && this.#transform) {
+        const signal = this.#generation.signal;
         void this.#transform(
           units,
           this.#generation.value,
@@ -232,9 +242,17 @@ export class YouTubePlayer {
             if (this.#closed || !this.#generation.accepts(result, this.#active))
               return;
             this.#result = result.items.map((item) => item.text).join('\n');
+            this.#overlay.setTranslationStatus('');
             this.#render();
           })
-          .catch(() => {});
+          .catch((error: unknown) => {
+            if (
+              !this.#closed &&
+              !signal.aborted &&
+              error instanceof TranslationFailure
+            )
+              this.#overlay.setTranslationStatus(error.message);
+          });
       }
     }
     this.#render();

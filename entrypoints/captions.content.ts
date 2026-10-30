@@ -7,6 +7,7 @@ import { CaptionPlayer } from '../src/playback/player';
 import type { CaptionTransform } from '../src/playback/cues';
 import { isYouTubeWatch, SOURCE_STOP } from '../src/youtube/source';
 import { YouTubePlayer } from '../src/youtube/player';
+import { googleTransform } from '../src/translation/client';
 
 export default defineContentScript({
   registration: 'runtime',
@@ -27,6 +28,11 @@ export default defineContentScript({
       const message = PlaybackControlSchema.safeParse(raw);
       if (!message.success) return;
       const control = message.data;
+      if (control.type === 'playback.translation-reset') {
+        player?.stopTranslation();
+        respond('enabled');
+        return;
+      }
       if (control.type === 'playback.inspect') {
         respond(player?.active ? 'enabled' : 'disabled');
         return;
@@ -55,6 +61,11 @@ export default defineContentScript({
             throw new Error('Test fixture only');
           transform = (await import('../src/testing/mock-translator'))
             .mockTranslate;
+        } else if (
+          data.googleEnabled &&
+          data.settings.displayMode !== 'original'
+        ) {
+          transform = googleTransform(control.sessionId);
         }
         if (
           ticket !== generation ||
@@ -87,7 +98,9 @@ export default defineContentScript({
           () => ctx.isValid,
           import.meta.env.MODE === 'mock'
             ? 'MOCK · Timing test · Not a translation'
-            : '',
+            : transform
+              ? 'Google · Experimental · Captions sent to Google'
+              : '',
         );
         return 'enabled';
       })().then(respond, () => {

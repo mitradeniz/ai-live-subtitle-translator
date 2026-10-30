@@ -2,6 +2,7 @@ export class CaptionOverlay {
   readonly host = document.createElement('subtitle-translator-overlay');
   #caption = document.createElement('div');
   #label = document.createElement('div');
+  #status = document.createElement('div');
   #video: HTMLVideoElement;
   #text = '';
 
@@ -21,7 +22,8 @@ export class CaptionOverlay {
     this.#caption.dir = 'auto';
     this.#label.className = 'label';
     this.#label.textContent = label;
-    wrap.append(this.#label, this.#caption);
+    this.#status.className = 'label provider-status';
+    wrap.append(this.#label, this.#status, this.#caption);
     shadow.append(style, wrap);
     this.layout();
   }
@@ -47,6 +49,9 @@ export class CaptionOverlay {
   }
   setLabel(text: string) {
     if (this.#label.textContent !== text) this.#label.textContent = text;
+  }
+  setTranslationStatus(text: string) {
+    this.#status.textContent = text;
   }
 
   dispose() {

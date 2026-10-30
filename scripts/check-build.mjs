@@ -23,17 +23,22 @@ assert.equal(manifest.incognito, 'not_allowed');
 for (const field of [
   'host_permissions',
   'optional_permissions',
-  'optional_host_permissions',
   'content_scripts',
   'web_accessible_resources',
 ]) {
   assert.equal(manifest[field]?.length ?? 0, 0, `Unexpected ${field}`);
 }
+assert.deepEqual(
+  manifest.optional_host_permissions ?? [],
+  mock ? [] : ['https://translate.googleapis.com/*'],
+);
 assert.equal(manifest.externally_connectable, undefined);
 assert.equal(manifest.update_url, undefined);
 assert.equal(
   manifest.content_security_policy?.extension_pages,
-  "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src 'none'",
+  mock
+    ? "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src 'none'"
+    : "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src https://translate.googleapis.com",
 );
 
 const files = await readdir(output, { recursive: true, withFileTypes: true });

@@ -298,7 +298,11 @@ test('session token is bound to browser tab, frame, document and origin', async 
   const message = request('content.settings', { sessionId });
   assert.deepEqual(await controller.dispatch(message, content), {
     ok: true,
-    data: { kind: 'settings', settings: DEFAULT_SETTINGS },
+    data: {
+      kind: 'settings',
+      settings: DEFAULT_SETTINGS,
+      googleEnabled: false,
+    },
   });
   for (const sender of [
     { ...content, tab: { id: 8, incognito: false } },

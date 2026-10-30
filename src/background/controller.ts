@@ -11,16 +11,22 @@ import { SessionRegistry } from './sessions.ts';
 import { SettingsStore } from './settings.ts';
 import { TrustedStorage, type StorageAreas } from './storage.ts';
 import type { PlaybackHandler } from '../messaging/playback.ts';
+import { GoogleCoordinator, type GooglePorts } from './google.ts';
+import { TranslationFailure } from '../translation/contracts.ts';
 
 export function createController(
   extensionId: string,
   areas: StorageAreas,
   playback?: PlaybackHandler,
+  googlePorts: GooglePorts = { permitted: async () => false },
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
   const credentials = new CredentialStore(storage);
-  const sessions = new SessionRegistry(extensionId);
+  const google = new GoogleCoordinator(storage, googlePorts);
+  const sessions = new SessionRegistry(extensionId, Date.now, (tabId) =>
+    google.cancelTab(tabId),
+  );
   let pending = 0;
 
   async function dispatch(
@@ -55,14 +61,65 @@ export function createController(
             ),
           },
         };
+      } else if (
+        request.type === 'content.translate' ||
+        request.type === 'content.cancel'
+      ) {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        const valid = () =>
+          sessions.assertBound(request.sessionId, sender.identity);
+        valid();
+        if (request.type === 'content.cancel') {
+          google.cancel(request.sessionId, request.jobId);
+          response = { ok: true, data: { kind: 'saved' } };
+        } else {
+          const preferences = await settings.read();
+          valid();
+          try {
+            const result = await google.translate(
+              sender.identity.tabId,
+              request.sessionId,
+              request.job,
+              preferences,
+              valid,
+            );
+            valid();
+            response = {
+              ok: true,
+              data: { kind: 'translation', result: { ok: true, ...result } },
+            };
+          } catch (error) {
+            if (!(error instanceof TranslationFailure)) throw error;
+            response = {
+              ok: true,
+              data: {
+                kind: 'translation',
+                result: { ok: false, error: error.code },
+              },
+            };
+          }
+        }
+      } else if (
+        request.type === 'google.status' ||
+        request.type === 'google.enable' ||
+        request.type === 'google.disable'
+      ) {
+        if (sender.kind !== 'ui' || sender.page !== 'options')
+          throw new BoundaryError('FORBIDDEN');
+        const enabled =
+          request.type === 'google.status'
+            ? await google.enabled()
+            : await google.setEnabled(request.type === 'google.enable');
+        response = { ok: true, data: { kind: 'google-status', enabled } };
       } else if (request.type === 'content.settings') {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         sessions.assertBound(request.sessionId, sender.identity);
         const preferences = await settings.read();
+        const googleEnabled = await google.enabled();
         sessions.assertBound(request.sessionId, sender.identity);
         response = {
           ok: true,
-          data: { kind: 'settings', settings: preferences },
+          data: { kind: 'settings', settings: preferences, googleEnabled },
         };
       } else {
         if (sender.kind !== 'ui') throw new BoundaryError('FORBIDDEN');
@@ -76,6 +133,7 @@ export function createController(
             };
             break;
           case 'settings.update':
+            google.cancelAll();
             response = {
               ok: true,
               data: {
@@ -123,5 +181,5 @@ export function createController(
       pending--;
     }
   }
-  return { dispatch, sessions };
+  return { dispatch, sessions, google };
 }

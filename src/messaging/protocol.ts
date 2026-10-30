@@ -1,5 +1,9 @@
 import { z } from './schema.ts';
 import { PlaybackStateSchema } from './playback.ts';
+import {
+  TranslationJobSchema,
+  TranslationErrorSchema,
+} from '../translation/contracts.ts';
 
 const language = z
   .string()
@@ -76,6 +80,21 @@ export const RequestSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('playback.disable') }),
   z.strictObject({ ...envelope, type: z.literal('playback.status') }),
   z.strictObject({ ...envelope, type: z.literal('settings.read') }),
+  z.strictObject({ ...envelope, type: z.literal('google.status') }),
+  z.strictObject({ ...envelope, type: z.literal('google.enable') }),
+  z.strictObject({ ...envelope, type: z.literal('google.disable') }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('content.translate'),
+    sessionId,
+    job: TranslationJobSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('content.cancel'),
+    sessionId,
+    jobId: z.uuid(),
+  }),
   z.strictObject({
     ...envelope,
     type: z.literal('settings.update'),
@@ -132,7 +151,38 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
         kind: z.literal('playback'),
         state: PlaybackStateSchema,
       }),
-      z.strictObject({ kind: z.literal('settings'), settings: SettingsSchema }),
+      z.strictObject({
+        kind: z.literal('settings'),
+        settings: SettingsSchema,
+        googleEnabled: z.boolean().optional(),
+      }),
+      z.strictObject({
+        kind: z.literal('google-status'),
+        enabled: z.boolean(),
+      }),
+      z.strictObject({
+        kind: z.literal('translation'),
+        result: z.discriminatedUnion('ok', [
+          z.strictObject({
+            ok: z.literal(true),
+            generation: z.number().int().nonnegative(),
+            items: z
+              .array(
+                z.strictObject({
+                  id: z.string().min(1).max(128),
+                  revision: z.number().int().nonnegative(),
+                  text: z.string().min(1).max(4000),
+                }),
+              )
+              .min(1)
+              .max(4),
+          }),
+          z.strictObject({
+            ok: z.literal(false),
+            error: TranslationErrorSchema,
+          }),
+        ]),
+      }),
       z.strictObject({
         kind: z.literal('export'),
         exported: SettingsExportSchema,

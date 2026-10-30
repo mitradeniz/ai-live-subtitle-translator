@@ -7,9 +7,15 @@ export class SessionRegistry {
   readonly #sessions = new Map<string, Session>();
   readonly #extensionId: string;
   readonly #now: () => number;
-  constructor(extensionId: string, now: () => number = Date.now) {
+  readonly #onRevoke: (tabId: number) => void;
+  constructor(
+    extensionId: string,
+    now: () => number = Date.now,
+    onRevoke: (tabId: number) => void = () => {},
+  ) {
     this.#extensionId = extensionId;
     this.#now = now;
+    this.#onRevoke = onRevoke;
   }
 
   // Background-only activation hook. No runtime message grants a session.
@@ -22,8 +28,10 @@ export class SessionRegistry {
       if (
         session.tabId === sender.identity.tabId &&
         session.frameId === sender.identity.frameId
-      )
+      ) {
+        this.#onRevoke(session.tabId);
         this.#sessions.delete(id);
+      }
     }
     if (this.#sessions.size >= 128) throw new BoundaryError('BUSY');
     const id = crypto.randomUUID();
@@ -49,12 +57,16 @@ export class SessionRegistry {
   }
 
   revokeTab(tabId: number): void {
+    this.#onRevoke(tabId);
     for (const [id, session] of this.#sessions)
       if (session.tabId === tabId) this.#sessions.delete(id);
   }
 
   #prune(): void {
     for (const [id, session] of this.#sessions)
-      if (session.expiresAt <= this.#now()) this.#sessions.delete(id);
+      if (session.expiresAt <= this.#now()) {
+        this.#onRevoke(session.tabId);
+        this.#sessions.delete(id);
+      }
   }
 }
