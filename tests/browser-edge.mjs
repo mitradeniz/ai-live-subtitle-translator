@@ -171,7 +171,7 @@ try {
   await everywhere.click();
   await popup
     .getByText(
-      'The logo stays on across sites until you turn it off. Translation starts only on click.',
+      'The logo stays on across sites until you turn it off. Showing it does not translate anything.',
     )
     .waitFor();
   assert.equal((await message('page.site-status')).data.allSites, true);
