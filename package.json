@@ -1,7 +1,7 @@
 {
   "name": "ai-live-subtitle-translator",
-  "description": "Browser extension for video subtitle translation. Early development build.",
-  "version": "0.1.0",
+  "description": "Limited preview of a browser extension for caption translation.",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -34,7 +34,11 @@
     "test:controls": "pnpm build && pnpm check:build && node tests/browser-controls.mjs",
     "check:repository": "node scripts/check-repository.mjs",
     "test:packaged": "node scripts/test-packaged.mjs",
-    "test:gate": "pnpm build && pnpm check:build && node tests/browser-gate.mjs"
+    "test:gate": "pnpm build && pnpm check:build && node tests/browser-gate.mjs",
+    "release:package": "wxt zip -b chrome --mv3 && node scripts/check-release.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "test:release": "node tests/browser-release.mjs",
+    "check:reproducible": "node scripts/check-reproducible.mjs"
   },
   "dependencies": {
     "react": "19.3.1",

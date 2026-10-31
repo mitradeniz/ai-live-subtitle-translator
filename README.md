@@ -2,12 +2,59 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status:** a development build that displays accessible native HTML5 text
+**Current status: 0.1.1-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus an experimental YouTube visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
 Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; real-key verification is pending.** A separate, clearly labeled local test build
 repeats captions with a mock prefix for testing. YouTube live caption delivery varies; see the limitations below.
+
+## Versioned owner preview
+
+Read the [support matrix](docs/SUPPORT.md), [release notes](docs/RELEASE_NOTES.md),
+[privacy notice](docs/PRIVACY.md) and [security contact](SECURITY.md). Paid-provider
+live checks and hosted CI remain incomplete; this is an owner preview, not a store release.
+
+After the pinned setup below, build and verify the extension-only archive:
+
+```sh
+pnpm release:package
+pnpm exec playwright install chromium
+pnpm test:release
+pnpm check:reproducible
+```
+
+Packaging/verification requires the `unzip` command (macOS includes it; install it
+on Linux if absent). WXT creates the ZIP; verification checks its exact root
+inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
+files sit beside the archive, outside it:
+
+- `.output/ai-live-subtitle-translator-0.1.1-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.1.1-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.1.1-preview.1-chrome.inventory.json`
+
+`check:reproducible` installs from the existing local pnpm store into a fresh temporary
+source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
+a completed initial install. This verifies same-toolchain/platform reproducibility,
+not identical binaries across different operating systems or dependency versions.
+
+For a clean owner install, create a separate Chrome profile, extract the ZIP into a
+stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
+select the extracted folder containing `manifest.json`. Check the displayed version
+is **0.1.1-preview.1**. Keep any older test extension disabled in that profile. Open
+its popup and **Open settings**; no engine or key should be configured. Unpacked
+extensions at different paths may have different IDs/storage. See normal usage below.
+To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
+file from the directory containing both files. A checksum detects accidental changes;
+it is not a signature or store approval.
+
+No upload or publishing command is included. Eventual submission needs an
+owner-controlled [publisher account](https://developer.chrome.com/docs/webstore/publish)
+and a public URL for the [privacy notice](https://developer.chrome.com/docs/webstore/program-policies/user-data-faq).
+A [static GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+can use its provided domain; no project backend or purchased domain is needed.
+Hosting is not enabled. [Draft listing copy](docs/STORE_LISTING.md) and screenshots
+from the actual settings UI are prepared locally, without inventing a live URL.
 
 ## Requirements
 

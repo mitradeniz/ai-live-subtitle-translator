@@ -14,7 +14,14 @@ pnpm check:build:mock
 pnpm exec playwright install --with-deps chromium
 pnpm test:packaged
 pnpm audit --audit-level=high
+pnpm release:package
+pnpm test:release
+pnpm check:reproducible
 ```
+
+Archive verification additionally needs the system `unzip` command.
+`check:reproducible` compares a fresh offline frozen install/build against the
+current ZIP using the existing pnpm store; no node_modules or browser profile is reused.
 
 `test:packaged` uses the two existing builds, isolated browser profiles, sentinel
 credentials and mocked provider responses. It never enables the Google suite's
@@ -36,7 +43,7 @@ regressions and review of the generated artifact. Caption/model output must stay
 plain text. Tests must not intentionally consume paid quota or require CI secrets.
 
 GitHub Actions runs frozen installs, static checks, unit tests, both builds,
-advisory checks and packaged browser tests. Actions are pinned to full commit
+advisory checks and packaged browser tests, followed by ZIP verification and a clean install test. Actions are pinned to full commit
 SHAs; checkout does not persist credentials. PR jobs have read-only repository
 permissions, no project secrets and no publish step. Do not change these jobs to
 `pull_request_target` or execute PR code in a privileged workflow.

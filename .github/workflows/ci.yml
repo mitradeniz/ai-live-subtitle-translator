@@ -36,3 +36,9 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Test packaged extensions with synthetic providers
         run: pnpm test:packaged
+      - name: Package and verify preview archive
+        run: pnpm release:package
+      - name: Test clean installation from archive
+        run: pnpm test:release
+      - name: Verify clean-install reproducibility
+        run: pnpm check:reproducible

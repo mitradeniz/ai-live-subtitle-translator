@@ -7,6 +7,12 @@ const mock = process.argv.includes('--mock');
 const output = resolve(mock ? '.output/chrome-mv3-mock' : '.output/chrome-mv3');
 const manifest = JSON.parse(await readFile(`${output}/manifest.json`, 'utf8'));
 
+const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+assert.equal(manifest.version, pkg.version);
+assert.equal(
+  manifest.version_name,
+  `${pkg.version}-${mock ? 'mock' : 'preview.1'}`,
+);
 assert.equal(manifest.manifest_version, 3);
 assert.equal(manifest.minimum_chrome_version, '151');
 assert.equal(manifest.background?.service_worker, 'background.js');
@@ -75,6 +81,10 @@ for (const file of files.filter((entry) => entry.isFile())) {
     'provider.example.test',
     'boundary-probe',
     '.local-notes',
+    '/@vite/client',
+    '@react-refresh',
+    'ws://localhost',
+    'http://localhost:',
   ]) {
     assert.ok(!source.includes(marker), `Test/private marker in ${file.name}`);
   }
@@ -83,6 +93,9 @@ for (const file of files.filter((entry) => entry.isFile())) {
       '[MOCK]',
       'MOCK · Timing test',
       'Enable mock captions',
+      '127.0.0.1:4173',
+      'pattern.webm',
+      'Hello from the timing lab.',
     ]) {
       assert.ok(
         !source.includes(marker),

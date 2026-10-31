@@ -1,4 +1,5 @@
 import { defineConfig } from 'wxt';
+import packageJson from './package.json';
 import { buildNotices } from './scripts/build-notices';
 const notices = buildNotices();
 
@@ -6,6 +7,10 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   hooks: { 'build:done': async (wxt) => notices.write(wxt.config.outDir) },
   imports: false,
+  zip: {
+    artifactTemplate: '{{name}}-{{versionName}}-{{browser}}.zip',
+    zipSources: false,
+  },
   vite: () => ({
     plugins: [notices.plugin],
     build: {
@@ -14,6 +19,8 @@ export default defineConfig({
     },
   }),
   manifest: ({ mode }) => ({
+    version: packageJson.version,
+    version_name: `${packageJson.version}-${mode === 'mock' ? 'mock' : 'preview.1'}`,
     name:
       mode === 'mock'
         ? '[TEST] Subtitle timing lab'
@@ -21,7 +28,7 @@ export default defineConfig({
     description:
       mode === 'mock'
         ? 'Local caption timing test. Mock output is not translation.'
-        : 'Early development. Optional Google, Google Cloud and user-key AI caption translation.',
+        : 'Limited preview. Optional Google, Google Cloud and user-key AI caption translation.',
     minimum_chrome_version: '151',
     icons: {
       16: 'icons/icon-16.png',

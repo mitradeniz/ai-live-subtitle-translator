@@ -42,7 +42,7 @@ export function App() {
         </div>
         <span className="build-badge">
           <span className="status-dot" />
-          {t('Early development')}
+          {t('Limited preview')}
         </span>
       </nav>
       <header className="page-heading">
@@ -91,7 +91,9 @@ export function App() {
       <footer className="settings-footer">
         <span>AI Live Subtitle Translator</span>
         <span>
-          {t('Version')} {browser.runtime.getManifest().version}
+          {t('Version')}{' '}
+          {browser.runtime.getManifest().version_name ??
+            browser.runtime.getManifest().version}
         </span>
       </footer>
     </main>

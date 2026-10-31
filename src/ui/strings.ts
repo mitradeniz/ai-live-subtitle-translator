@@ -172,6 +172,7 @@ Object.assign(turkish, {
   'Delete AI key': 'AI anahtarını sil',
   'Delete Cloud key': 'Cloud anahtarını sil',
   'Delete saved data and keys': 'Kayıtlı verileri ve anahtarları sil',
+  'Limited preview': 'Sınırlı önizleme',
   'Development status': 'Geliştirme durumu',
   'Disable AI and remove access': 'AI’ı kapat ve erişimi kaldır',
   'Disable Cloud and remove access': 'Cloud’u kapat ve erişimi kaldır',

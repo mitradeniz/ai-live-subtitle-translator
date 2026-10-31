@@ -8,7 +8,7 @@ export function DevelopmentNotice() {
           ? locale === 'tr'
             ? 'MOCK · Test sürümü'
             : 'MOCK · Test build'
-          : t('Early development')}
+          : t('Limited preview')}
       </p>
       <p>
         {import.meta.env.MODE === 'mock'

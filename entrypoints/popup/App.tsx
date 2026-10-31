@@ -123,7 +123,9 @@ export function App() {
       </button>
       {error && <p role="alert">{t(error)}</p>}
       <p className="footnote">
-        {t('Version')} {browser.runtime.getManifest().version}
+        {t('Version')}{' '}
+        {browser.runtime.getManifest().version_name ??
+          browser.runtime.getManifest().version}
       </p>
     </main>
   );

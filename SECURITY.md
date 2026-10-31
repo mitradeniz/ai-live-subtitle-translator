@@ -37,15 +37,15 @@ Do not post keys, authorization headers, personal captions, signed URLs or full
 browser profiles in issues. For ordinary bugs, include build/browser version,
 reproduction steps using synthetic captions, expected behavior and redacted errors.
 
-A dedicated private vulnerability-reporting route has not been established. If
-this repository's Security tab offers **Report a vulnerability**, use that private
-channel. Otherwise, request a private contact route without publishing exploit
-details or sensitive data. No reporting email or response SLA is implied here.
+Report suspected vulnerabilities privately to **mitradenizkaratas@gmail.com**.
+This owner-designated address also accepts privacy questions. Send a minimal
+reproduction using synthetic data, affected version and impact; never send API
+keys, browser profiles or personal captions. No response-time SLA is promised.
 
 A security fix should include a focused regression test, inspection of both built
 variants and retesting of affected browser behavior. Review dependency advisories
 and upstream changes rather than automatically applying forced upgrades. Before
-distribution, maintainers must establish a private reporting route, publish accurate
+distribution, maintainers must publish accurate
 privacy disclosures, verify applicable store/provider terms and complete the
 remaining real-browser/account checks. Build an archive from the inspected normal
 extension output only; never archive the repository or the mock test build.
