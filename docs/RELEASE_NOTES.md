@@ -15,8 +15,13 @@
   Blur is removed when the system asks for reduced transparency.
 - Redraw the extension icon as a glass lens over an aurora tile, with a simplified
   16/32 px variant.
+- Add **Swap languages** to the player menu. It exchanges the saved source and
+  target languages, shows the current pair and is disabled for auto-detect. Like
+  a target-language change there, it stops translation until it is turned on again.
+- Document distribution in Edge, Opera and Brave (same Chromium package, not yet
+  tested) and why there is no Firefox build yet.
 
-No permissions, network destinations, stored data or translation behavior changed.
+No permissions, network destinations or stored data types changed.
 
 # 0.2.0-preview.1 — 2026-10-31
 

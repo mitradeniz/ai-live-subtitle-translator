@@ -56,6 +56,30 @@ can use its provided domain; no project backend or purchased domain is needed.
 Hosting is not enabled. [Draft listing copy](docs/STORE_LISTING.md) and screenshots
 from the actual settings UI are prepared locally, without inventing a live URL.
 
+## Other browsers
+
+The package is a standard Manifest V3 Chromium extension. The same verified ZIP
+can be loaded unpacked or submitted to other Chromium stores; there is no separate
+build per Chromium browser. These browsers have not been tested by the project yet,
+so record the exact browser version when you check one (see the
+[support matrix](docs/SUPPORT.md)).
+
+| Browser        | Distribution                                                                                                                                   | Notes                                                                                             |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Microsoft Edge | [Edge Add-ons](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/create-dev-account) via Partner Center, no registration fee | Needs an Edge release on Chromium 151 or later                                                    |
+| Opera          | [Opera add-ons](https://help.opera.com/en/extensions/)                                                                                         | Needs a Chromium 151+ base; confirm at submission that the store accepts this Manifest V3 package |
+| Brave          | Installs extensions from the Chrome Web Store; no separate store                                                                               | Load unpacked for testing, as in Chrome                                                           |
+| Firefox        | Not supported yet                                                                                                                              | See below                                                                                         |
+
+A Firefox build is not provided. Firefox does not implement
+`storage.StorageArea.setAccessLevel()`, which this extension requires so that
+content scripts cannot read saved settings or remembered API keys; storage
+initialization fails closed without it. Firefox also needs background scripts
+instead of a service worker, and document-bound sessions need Firefox 153 or later.
+A port must keep those guarantees and add an add-on ID and the
+[data collection declaration](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
+that addons.mozilla.org requires for new extensions.
+
 ## Requirements
 
 - Node.js 24.22.2 (LTS), pinned in `.nvmrc`.
