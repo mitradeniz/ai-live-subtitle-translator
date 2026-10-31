@@ -31,7 +31,10 @@
     "test:providers": "pnpm build && pnpm check:build && node tests/browser-providers.mjs",
     "test:work": "pnpm build && pnpm check:build && node tests/browser-work.mjs",
     "icons": "node scripts/generate-icons.mjs",
-    "test:controls": "pnpm build && pnpm check:build && node tests/browser-controls.mjs"
+    "test:controls": "pnpm build && pnpm check:build && node tests/browser-controls.mjs",
+    "check:repository": "node scripts/check-repository.mjs",
+    "test:packaged": "node scripts/test-packaged.mjs",
+    "test:gate": "pnpm build && pnpm check:build && node tests/browser-gate.mjs"
   },
   "dependencies": {
     "react": "19.3.1",

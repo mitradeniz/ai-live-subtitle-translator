@@ -1,9 +1,13 @@
 import { defineConfig } from 'wxt';
+import { buildNotices } from './scripts/build-notices';
+const notices = buildNotices();
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
+  hooks: { 'build:done': async (wxt) => notices.write(wxt.config.outDir) },
   imports: false,
   vite: () => ({
+    plugins: [notices.plugin],
     build: {
       target: 'chrome151',
       modulePreload: { polyfill: false },

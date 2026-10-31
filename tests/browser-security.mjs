@@ -280,9 +280,9 @@ try {
   );
   assert.equal(result.local, 'denied');
   assert.equal(result.session, 'denied');
-  for (const key of ['settings', 'export', 'status', 'delete'])
+  for (const key of ['settings', 'export', 'status', 'delete', 'mutate'])
     assert.deepEqual(result[key], { ok: false, error: 'FORBIDDEN' });
-  for (const key of ['read', 'forged'])
+  for (const key of ['read', 'forged', 'fetch', 'oversized'])
     assert.deepEqual(result[key], { ok: false, error: 'INVALID_MESSAGE' });
   assert.deepEqual(result.sessionRequest, {
     ok: false,

@@ -75,7 +75,9 @@ Build output and local caches are ignored by Git.
 5. Hover or Tab to the controls above the video captions to change display mode,
    text size, contrast or position, or disable captions. Focus remains visible;
    captions use automatic text direction for Arabic/Hebrew and other RTL text.
-   The controls also work inside supported fullscreen containers.
+   The controls also work inside supported fullscreen containers. After choosing
+   **Original only**, resume translation from the popup or settings; a page control
+   cannot authorize restarting provider traffic.
 6. In settings, expand **API keys and privacy** to configure accounts, delete keys
    or clear cached translations. **Export saved preferences** excludes credentials.
    No paid engine is selected or tested automatically.
@@ -474,6 +476,7 @@ pnpm test:ai
 pnpm test:providers
 pnpm test:work
 pnpm test:controls
+pnpm test:gate
 ```
 
 Tests use fresh temporary profiles, never your personal browser. The security suite
@@ -529,6 +532,16 @@ permission denial/revocation prompts remain manual checks.
 The glass translation mark is original repository artwork in `assets/logo.svg`.
 Chrome uses the committed PNG sizes under `public/icons/`. After changing the SVG,
 run `pnpm icons` with the pinned Playwright Chromium installed, then rebuild.
+
+The packaged gate suite exercises Chromium redirect and CSP enforcement, response
+size limits, malformed model output, repeated authentication failures, and storage
+initialization failure in a fresh worker. It uses a temporary copy with scoped host
+grants and a test-only initialization fault; no real API request is sent.
+
+For the complete CI-equivalent command sequence and dependency review process,
+see [CONTRIBUTING](CONTRIBUTING.md). Read [SECURITY](SECURITY.md) before reporting
+sensitive issues. Builds include third-party notices and a dependency inventory
+collected from emitted modules; see [license provenance](third-party/README.md).
 
 ## License
 

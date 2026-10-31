@@ -1,0 +1,38 @@
+name: Extension checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: extension-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Install pinned package manager
+        run: npm install --global pnpm@11.28.10
+      - name: Install frozen dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check tracked inventory
+        run: pnpm check:repository
+      - name: Check types, lint, formatting, unit tests and production artifact
+        run: pnpm check
+      - name: Build and inspect separate mock artifact
+        run: pnpm build:mock && pnpm check:build:mock
+      - name: Advisory gate
+        run: pnpm audit --audit-level=high
+      - name: Install pinned Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Test packaged extensions with synthetic providers
+        run: pnpm test:packaged

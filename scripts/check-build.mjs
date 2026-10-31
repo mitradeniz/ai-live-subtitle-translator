@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { resolve, relative } from 'node:path';
+import { createHash } from 'node:crypto';
 
 const mock = process.argv.includes('--mock');
 const output = resolve(mock ? '.output/chrome-mv3-mock' : '.output/chrome-mv3');
@@ -52,9 +53,18 @@ assert.equal(
 
 const files = await readdir(output, { recursive: true, withFileTypes: true });
 for (const file of files.filter((entry) => entry.isFile())) {
+  const path = relative(output, resolve(file.parentPath, file.name)).replaceAll(
+    '\\',
+    '/',
+  );
+  assert.match(
+    path,
+    /^(?:manifest\.json|dependency-provenance\.json|THIRD_PARTY_NOTICES\.txt|LICENSE\.txt|(?:popup|options)\.html|(?:background|youtube-source)\.js|chunks\/[\w.-]+\.js|assets\/[\w.-]+\.css|content-scripts\/(?:auto|captions)\.js|icons\/icon-(?:16|32|48|128)\.png)$/,
+    `Unexpected packaged path ${path}`,
+  );
   assert.match(
     file.name,
-    /\.(?:html|js|css|json|png)$/,
+    /(?:\.(?:html|js|css|json|png)|^THIRD_PARTY_NOTICES\.txt|^LICENSE\.txt)$/,
     `Unexpected file ${file.name}`,
   );
   assert.ok(!file.name.startsWith('.'), `Unexpected hidden file ${file.name}`);
@@ -80,6 +90,48 @@ for (const file of files.filter((entry) => entry.isFile())) {
       );
     }
 }
+
+const notices = await readFile(`${output}/THIRD_PARTY_NOTICES.txt`, 'utf8');
+const provenance = JSON.parse(
+  await readFile(`${output}/dependency-provenance.json`, 'utf8'),
+);
+assert.ok(Array.isArray(provenance) && provenance.length >= 4);
+const seen = new Set();
+for (const item of provenance) {
+  assert.deepEqual(Object.keys(item).sort(), [
+    'license',
+    'licenseSha256',
+    'name',
+    'version',
+  ]);
+  const key = `${item.name}@${item.version}`;
+  assert.ok(!seen.has(key));
+  seen.add(key);
+  const header = `${key} (${item.license})\n${'='.repeat(72)}\n`;
+  assert.ok(notices.includes(header), `Missing notice for ${key}`);
+  // Each complete notice is delimited by the next package header.
+  const remaining = notices.split(header)[1];
+  const next = provenance.find(
+    (other) =>
+      notices.indexOf(`${other.name}@${other.version} (${other.license})\n`) >
+      notices.indexOf(header),
+  );
+  const text = next
+    ? remaining.split(`\n\n${next.name}@${next.version} (${next.license})\n`)[0]
+    : remaining;
+  assert.equal(
+    createHash('sha256').update(text).digest('hex'),
+    item.licenseSha256,
+  );
+  assert.ok(
+    !['minimatch', 'eslint', 'playwright', 'vite'].includes(item.name),
+    'Unexpected development dependency in distribution',
+  );
+}
+assert.equal(
+  await readFile(`${output}/LICENSE.txt`, 'utf8'),
+  await readFile('LICENSE', 'utf8'),
+);
 
 for (const name of ['popup.html', 'options.html']) {
   const html = await readFile(`${output}/${name}`, 'utf8');
