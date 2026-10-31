@@ -263,13 +263,8 @@ export class PageTools {
     });
     this.#dock.append(this.#button, this.#panel);
     this.#shadow.append(css, this.#dock, this.#show);
-    const playerStyle = document.createElement('style');
-    playerStyle.textContent =
-      '.player-shortcut{position:fixed;pointer-events:auto;width:38px;height:38px;padding:0;font:700 16px system-ui;color:#f3f6ff;border:1px solid #d4e4ff85;border-radius:10px;background:linear-gradient(145deg,#7187a9e8,#152139f2);box-shadow:inset 0 1px #ffffff65,0 3px 12px #0005}.player-shortcut:hover{background:#36476a}';
-    this.#shadow.append(playerStyle);
     if (prefs.captions)
       this.#playerShortcut = new PlayerShortcut(
-        this.#shadow,
         this.t('Video translation settings'),
         () => {
           this.#dock.hidden = false;

@@ -80,7 +80,10 @@ player that reasserts native captions, and unresponsive status reads. This does 
 verify DeepLearning.AI's signed-in player or any other course site's account state.
 
 With page tools enabled, a glass button inside the largest visible main-document
-video opens translation tools without starting a request. It is positioned above
-native controls rather than inserted into a site's private toolbar. Main-document
+video opens translation tools without starting a request. It occupies a slot beside
+CC/settings in recognized HTML control rows (Video.js, JW, Shaka, Vidstack-style
+rows and semantic toolbars). Selectors are compatibility hints, not a promise of
+universal player support. Unknown layouts and browser-native controls use the
+page-edge menu. The button follows native toolbar hiding and replacement. Main-document
 HTML5 tracks and supported container fullscreen are required; iframe/shadow-root
 players, video-element fullscreen and Picture-in-Picture remain unsupported.

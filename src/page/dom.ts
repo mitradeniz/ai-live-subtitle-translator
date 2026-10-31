@@ -1,6 +1,6 @@
 // Page text is untrusted. Preserve nodes/listeners and never parse provider HTML.
 export const EXCLUDED =
-  'script,style,noscript,template,svg,math,video,audio,pre,code,kbd,samp,textarea,input,select,button,form,[contenteditable]:not([contenteditable="false"]),[hidden],[aria-hidden="true"],[translate="no"],.notranslate,translator-page-tools,subtitle-translator-overlay,[data-page-translation]';
+  'script,style,noscript,template,svg,math,video,audio,pre,code,kbd,samp,textarea,input,select,button,form,[contenteditable]:not([contenteditable="false"]),[hidden],[aria-hidden="true"],[translate="no"],.notranslate,translator-player-shortcut,translator-page-tools,subtitle-translator-overlay,[data-page-translation]';
 export function safeText(node: Text): boolean {
   const parent = node.parentElement;
   if (
@@ -103,7 +103,7 @@ export class PageText {
         if (
           change.target instanceof Element &&
           change.target.closest(
-            '[data-page-translation],translator-page-tools,subtitle-translator-overlay',
+            '[data-page-translation],translator-player-shortcut,translator-page-tools,subtitle-translator-overlay',
           )
         )
           return false;
@@ -116,7 +116,7 @@ export class PageText {
             !(
               node instanceof Element &&
               node.matches(
-                '[data-page-translation],translator-page-tools,subtitle-translator-overlay',
+                '[data-page-translation],translator-player-shortcut,translator-page-tools,subtitle-translator-overlay',
               )
             ),
         );

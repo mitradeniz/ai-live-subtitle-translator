@@ -4,7 +4,8 @@
   bound status waits and prevent overlapping popup polls.
 - Avoid repeated native track-mode writes and event-driven player feedback loops.
   Discover page text in small batches on large, changing documents.
-- Add an in-video glass shortcut to translation tools while page tools are enabled.
+- Add a glass shortcut beside CC/settings in recognized player control bars while
+  page tools are enabled; hide it with the bar and reconnect after replacement.
   Opening it does not translate; starting captions remains an explicit action.
 
 - Add opt-in visible-page translation, loading new text as it scrolls into view.

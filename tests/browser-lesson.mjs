@@ -45,7 +45,7 @@ try {
         });
       return route.fulfill({
         contentType: 'text/html',
-        body: '<!doctype html><title>Synthetic lesson</title><style>body{margin:20px;font:16px system-ui}video{width:800px;height:450px}#transcript{height:200px;overflow:auto}</style><video controls muted loop src="/pattern.webm"></video><p id="tick">Lesson controls</p><div id="transcript"></div>',
+        body: '<!doctype html><title>Synthetic lesson</title><style>body{margin:20px;font:16px system-ui}video{width:800px;height:450px}.video-js{position:relative;width:800px;height:450px}.video-js:fullscreen video{width:100%;height:100%}.vjs-control-bar{position:absolute;bottom:0;left:0;right:0;height:40px;display:flex;align-items:center;gap:8px;background:#172c49;color:white}.vjs-control-bar button{height:32px}.spacer{flex:1}#transcript{height:200px;overflow:auto}</style><div class="video-js"><video muted loop src="/pattern.webm"></video><div class="vjs-control-bar"><button>Play</button><span class="spacer"></span><button class="vjs-subs-caps-button">CC</button><button>Settings</button><button>Fullscreen</button></div></div><p id="tick">Lesson controls</p><div id="transcript"></div>',
       });
     }
     if (url.origin === 'https://translate.googleapis.com') {
@@ -165,11 +165,35 @@ try {
     'Idle logo must not observe all page mutations',
   );
   const tools = page.locator('translator-page-tools');
-  const shortcut = tools.getByRole('button', {
-    name: 'Video translation settings',
-    exact: true,
-  });
+  const shortcut = page
+    .locator('translator-player-shortcut')
+    .getByRole('button', {
+      name: 'Video translation settings',
+      exact: true,
+    });
   await shortcut.waitFor();
+  assert.equal(
+    await page
+      .locator(
+        '.vjs-control-bar > translator-player-shortcut + .vjs-subs-caps-button',
+      )
+      .count(),
+    1,
+    'The shortcut occupies its own slot immediately before CC',
+  );
+  await page.evaluate(() => {
+    document.querySelector('.vjs-control-bar').style.opacity = '0';
+  });
+  assert.equal(
+    await shortcut.evaluate((button) =>
+      button.checkVisibility({ checkOpacity: true }),
+    ),
+    false,
+    'The shortcut follows native control hiding',
+  );
+  await page.evaluate(() => {
+    document.querySelector('.vjs-control-bar').style.opacity = '';
+  });
   const videoRect = await page.locator('video').boundingBox();
   const buttonRect = await shortcut.boundingBox();
   assert.ok(
@@ -197,10 +221,7 @@ try {
   await page.keyboard.press('Enter');
   assert.equal(await tools.locator('.panel').isVisible(), true);
   await page.evaluate(async () => {
-    const player = document.createElement('div');
-    const video = document.querySelector('video');
-    video.before(player);
-    player.append(video);
+    const player = document.querySelector('.video-js');
     await player.requestFullscreen();
   });
   await shortcut.waitFor();
@@ -259,6 +280,7 @@ try {
     const prior = document.querySelector('video');
     const replacement = prior.cloneNode(true);
     replacement.style.width = '600px';
+    document.querySelector('.video-js').style.width = '600px';
     prior.replaceWith(replacement);
   });
   await page.waitForTimeout(1100);
@@ -277,6 +299,23 @@ try {
   await shortcut.waitFor({ state: 'hidden' });
   await page.evaluate(() => window.scrollTo(0, 0));
   await shortcut.waitFor();
+  await page.evaluate(() => {
+    const old = document.querySelector('.vjs-control-bar');
+    const replacement = old.cloneNode(true);
+    replacement.querySelector('translator-player-shortcut')?.remove();
+    old.replaceWith(replacement);
+  });
+  // A replaced toolbar receives the same trusted button, without duplicate controls.
+  await shortcut.waitFor();
+  await page.evaluate(() => {
+    document.querySelector('.vjs-control-bar').remove();
+  });
+  await shortcut.waitFor({ state: 'detached' });
+  assert.equal(
+    await tools.locator('.trigger').isVisible(),
+    true,
+    'Unknown/native-only controls keep the edge menu',
+  );
   await page.bringToFront();
   await send('page.disable');
   assert.equal(await shortcut.count(), 0);

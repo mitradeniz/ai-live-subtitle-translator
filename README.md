@@ -474,11 +474,13 @@ translation still requires a new click. Navigation or expiry ends the translatio
 session; automatic mode reconnects idle controls without resuming translation. Page translation and caption sessions are authorized separately.
 If both tools are enabled, the page menu's Video controls opens the caption controls.
 With page tools enabled, a smaller **A文** button also appears inside the largest
-visible main-document video, above its native controls. It opens translation tools;
+visible main-document video’s recognized control bar, beside CC/settings. It opens translation tools;
 choose **Start video subtitles** to start captions, **Video controls** for an active
 caption overlay, or **Open settings** for provider setup. Opening this menu sends
-no text. This button is an overlay, not a modification of the site's toolbar.
-It follows scroll, player replacement and supported container fullscreen.
+no text. The button has its own slot and follows the control bar’s visibility.
+It reconnects after toolbar replacement and works in supported container fullscreen.
+Unknown layouts and browser-native video controls keep the page-edge menu; no
+extra button is placed over the picture.
 
 Popup provider controls load independently of page-status replies. A busy page can
 show **Page status unavailable** while settings remain usable. Refresh the page to
