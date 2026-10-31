@@ -66,6 +66,13 @@ export class SettingsStore {
       const current = SettingsSchema.safeParse(raw);
       if (!current.success) throw new BoundaryError('UNAVAILABLE');
       valid();
+      // Page-owned DOM controls cannot authorize restarting provider traffic.
+      // Resume from original-only through trusted popup/options operations.
+      if (
+        current.data.displayMode === 'original' &&
+        appearance.data.displayMode !== 'original'
+      )
+        throw new BoundaryError('FORBIDDEN');
       const settings = { ...current.data, ...appearance.data };
       await local.set({ [SETTINGS_KEY]: settings });
       return settings;

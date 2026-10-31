@@ -323,3 +323,26 @@ test('appearance merging cannot overwrite a newer UI language or bypass revocati
   );
   assert.equal((await store.read()).fontSize, 32);
 });
+
+test('content cannot resume provider traffic from original-only, including a queued UI change', async () => {
+  const store = new SettingsStore(new TrustedStorage(fakeAreas()));
+  await store.read();
+  const stopping = store.update({ ...preferences, displayMode: 'original' });
+  const forged = store.updateAppearance(appearance, () => {});
+  await stopping;
+  await assert.rejects(
+    forged,
+    (error: unknown) =>
+      error instanceof BoundaryError && error.code === 'FORBIDDEN',
+  );
+  assert.equal((await store.read()).displayMode, 'original');
+  await store.updateAppearance(
+    { ...appearance, displayMode: 'original' },
+    () => {},
+  );
+  await store.update({ ...preferences, displayMode: 'translated' });
+  assert.equal(
+    (await store.updateAppearance(appearance, () => {})).displayMode,
+    'translated',
+  );
+});

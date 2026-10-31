@@ -9,6 +9,8 @@ export const turkish: Record<string, string> = {
   'Original and translation': 'Orijinal ve çeviri',
   'Translation only': 'Yalnızca çeviri',
   'Original only': 'Yalnızca orijinal',
+  'Resume translation from the extension popup.':
+    'Çeviriyi eklenti popup’ından yeniden başlat.',
   'Font size': 'Yazı boyutu',
   Contrast: 'Kontrast',
   Glass: 'Cam',

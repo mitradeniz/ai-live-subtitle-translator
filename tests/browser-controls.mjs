@@ -245,15 +245,37 @@ try {
   );
   assert.equal(await caption.locator('img').count(), 0);
   assert.equal(requests, beforeRTL, 'Original-only mode sends no translation');
+  // The page can reach an open Shadow DOM and synthesize control events.
+  // Even bypassing the disabled option must not authorize provider traffic.
+  await overlay.evaluate((el) => {
+    const select = el.shadowRoot.querySelector('select');
+    select.querySelector('[value="translated"]').disabled = false;
+    select.value = 'translated';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await overlay
+    .locator('.provider-status')
+    .filter({ hasText: 'Translation stopped' })
+    .waitFor();
+  assert.equal(
+    (await send('settings.read')).data.settings.displayMode,
+    'original',
+  );
+  assert.equal(requests, beforeRTL, 'Page-generated resume cannot send text');
   // Translation-only never flashes the original while a real provider is pending.
   replyMode = 'hold';
   await page.evaluate(() => {
     document.querySelector('video').textTracks[0].cues[0].text =
       'Pending native caption.';
   });
-  await overlay
+  await options
     .getByLabel('Display mode', { exact: true })
     .selectOption('translated');
+  await options
+    .getByRole('button', { name: 'Save preferences', exact: true })
+    .click();
+  await options.getByText('Preferences saved.', { exact: true }).waitFor();
+  await enable();
   await held(page);
   assert.equal(await caption.textContent(), '');
   finishReply();

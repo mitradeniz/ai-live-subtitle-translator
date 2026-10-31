@@ -135,6 +135,16 @@ export class CaptionOverlay {
     );
     this.#wrap.classList.toggle('top', settings.position === 'top');
     this.#mode.value = settings.displayMode;
+    for (const option of this.#mode.options)
+      option.disabled =
+        settings.displayMode === 'original' && option.value !== 'original';
+    this.#mode.title =
+      settings.displayMode === 'original'
+        ? translate(
+            'Resume translation from the extension popup.',
+            this.#locale,
+          )
+        : '';
     this.#mode.setAttribute(
       'aria-label',
       translate('Display mode', this.#locale),
