@@ -1,3 +1,4 @@
+import { SelectionPopup } from './selection-popup';
 import { PageText, EXCLUDED } from './dom';
 import { PlayerShortcut } from '../playback/shortcut';
 import type { PagePreferences, PageState, WritingStyle } from './contracts';
@@ -34,6 +35,7 @@ export class PageTools {
   #restore: HTMLButtonElement;
   #page: PageText;
   #playerShortcut: PlayerShortcut | undefined;
+  #selectionPopup: SelectionPopup | undefined;
   #closed = false;
   #epoch = 0;
   #serial = 0;
@@ -401,6 +403,24 @@ export class PageTools {
         this.showStatus(message);
       },
     );
+    if (prefs.selection && prefs.autoSelection)
+      this.#selectionPopup = new SelectionPopup({
+        t: (text) => this.t(text),
+        recipient: `${label} · ${settings.sourceLanguage} → ${settings.targetLanguage}${ai || label.startsWith('Google Cloud') ? ` · ${this.t('Paid API')}` : label.startsWith('Google ·') ? ` · ${this.t('Experimental')}` : ''}`,
+        translate: async (text) => {
+          const serial = ++this.#serial;
+          const [result] = await this.request(
+            'selection',
+            [{ id: `selection-${serial}`, revision: serial, text }],
+            undefined,
+            true,
+          );
+          return result!;
+        },
+        settings: async () => {
+          await sendRequest({ type: 'page.open-settings', sessionId });
+        },
+      });
     document.addEventListener('focusin', this.#focus, true);
     document.addEventListener('pointerup', this.#select, true);
     document.addEventListener('pointerover', this.#hover, true);
@@ -414,6 +434,7 @@ export class PageTools {
         !this.host.dataset.edgeExpired
       ) {
         this.#page.dispose();
+        this.#selectionPopup?.dispose();
         this.#epoch++;
         this.#serial++;
         this.#draft.value = '';
@@ -553,6 +574,7 @@ export class PageTools {
     feature: Feature,
     items: { id: string; revision: number; text: string }[],
     style?: WritingStyle,
+    automaticSelection = false,
   ) {
     if (this.#closed || !this.prefs[feature])
       throw new Error(this.t('This feature is disabled.'));
@@ -566,6 +588,7 @@ export class PageTools {
         type: 'page.translate',
         sessionId: this.sessionId,
         feature,
+        ...(automaticSelection ? { automaticSelection: true as const } : {}),
         ...(style ? { style } : {}),
         job: {
           jobId: crypto.randomUUID(),
@@ -806,6 +829,7 @@ export class PageTools {
     this.#serial++;
     this.#page.dispose();
     this.#playerShortcut?.dispose();
+    this.#selectionPopup?.dispose();
     clearInterval(this.#expiry);
     clearTimeout(this.#hoverTimer);
     clearTimeout(this.#menuTimer);

@@ -1,3 +1,4 @@
+import { SelectionSettings } from '../../src/ui/SelectionSettings';
 import { useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../../src/messaging/client';
@@ -54,6 +55,7 @@ export function App() {
       <div className="settings-grid">
         <div className="preview-column">
           <ViewingControls />
+          <SelectionSettings />
           <button
             type="button"
             className="secondary"

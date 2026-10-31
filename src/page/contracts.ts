@@ -18,6 +18,7 @@ export const PagePreferencesSchema = z.strictObject({
   captions: z.boolean().default(true),
   youtubeSourceConfirmed: z.boolean().default(false),
   selection: z.boolean().default(false),
+  autoSelection: z.boolean().default(false),
   hover: z.boolean().default(false),
   input: z.boolean().default(false),
   writing: z.boolean().default(false),

@@ -51,6 +51,12 @@ Local VTT export reads only already-loaded source cues, escapes text, rejects
 ambiguous/oversized input and never accepts a URL or fetches remote captions.
 The content-side action picker is limited to enabled page/video features, uses a
 bound document session, and cannot modify other settings or source confirmation.
+Automatic selected-text translation has a separate default-off preference. It uses
+trusted mouse gestures, excludes form/editable/extension content, caps selections
+at 1,000 characters and keeps at most one request plus the latest waiting selection.
+The background checks the automatic-selection flag and enabled document capability;
+opt-out revokes page work. Dismissal discards queued/late results but cannot undo
+an already sent provider request or its charge. Output is rendered as plain text.
 Automatic logo access requires a saved opt-in plus a current browser grant. The
 all-sites switch explicitly requests HTTP(S) wildcard access; the narrower per-site
 option remains available. Registrations follow the chosen authorized scope. Showing

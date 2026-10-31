@@ -42,8 +42,8 @@ export const turkish: Record<string, string> = {
   'Show the logo on all sites': 'Logoyu tüm sitelerde göster',
   'All-sites access was not granted. You can try again.':
     'Tüm siteler için erişim izni verilmedi. Tekrar deneyebilirsin.',
-  'The logo stays on across sites until you turn it off. Translation starts only on click.':
-    'Sen kapatana kadar logo sitelerde görünür. Çeviri yalnızca tıklayınca başlar.',
+  'The logo stays on across sites until you turn it off. Showing it does not translate anything.':
+    'Sen kapatana kadar logo sitelerde görünür. Görünmesi çeviri başlatmaz.',
   'Automatic logo turned off on all sites.':
     'Otomatik logo tüm sitelerde kapatıldı.',
   'Allow access once for all websites. The logo stays visible until you turn this off; showing it does not translate anything.':
@@ -51,8 +51,8 @@ export const turkish: Record<string, string> = {
   'Always show the logo on this site': 'Bu sitede logoyu otomatik göster',
   'Site access was not granted. You can still enable tools for this visit.':
     'Site erişimine izin verilmedi. Bu ziyaret için araçları yine de açabilirsin.',
-  'The logo will appear automatically on this site. Translation starts only when you click.':
-    'Logo bu sitede otomatik görünecek. Çeviri yalnızca tıkladığında başlar.',
+  'The logo will appear automatically on this site. Showing it does not translate anything.':
+    'Logo bu sitede otomatik görünecek. Görünmesi çeviri başlatmaz.',
   'Automatic logo disabled for this site.':
     'Bu sitede otomatik logo kapatıldı.',
   'Could not update site access. Open this page again and retry.':
@@ -60,6 +60,12 @@ export const turkish: Record<string, string> = {
   'Action selected. Click the logo to start.':
     'İşlem seçildi. Başlatmak için logoya tıkla.',
   'Video subtitles': 'Video altyazıları',
+  'Uses your selected provider and target language on pages where page tools are enabled.':
+    'Sayfa araçlarının açık olduğu sayfalarda seçili sağlayıcını ve hedef dilini kullanır.',
+  'Translate automatically after selection': 'Seçince otomatik çevir',
+  'Selecting text sends it to your selected provider. Paid providers may charge per selection.':
+    'Seçtiğin metin seçili sağlayıcıya gönderilir. Ücretli sağlayıcılar her seçim için ücretlendirebilir.',
+  'Translating selected text…': 'Seçili metin çevriliyor…',
   'Selected text translation': 'Seçili metin çevirisi',
   'Hover translation (Alt + hover)': 'Üzerine gelince çeviri (Alt ile)',
   'Text field translation': 'Metin kutusu çevirisi',

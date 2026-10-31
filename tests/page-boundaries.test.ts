@@ -402,3 +402,68 @@ test('compact caption switch and status bind to the sender document without chan
     false,
   );
 });
+
+test('automatic selection requires its own opt-in and never authorizes another feature', async () => {
+  const controller = createController(EXTENSION_ID, fakeAreas());
+  const sender = contentSender();
+  let sessionId = controller.pageSessions.grant(sender);
+  const preferences = await controller.dispatch(
+    request('page.preferences'),
+    uiSender(),
+  );
+  assert.ok(preferences.ok && preferences.data.kind === 'page-preferences');
+  assert.equal(preferences.data.preferences.autoSelection, false);
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: { ...DEFAULT_PAGE_PREFERENCES, selection: true },
+    }),
+    uiSender(),
+  );
+  sessionId = controller.pageSessions.grant(sender);
+  const translate = (feature: string) =>
+    controller.dispatch(
+      request('page.translate', {
+        sessionId,
+        feature,
+        automaticSelection: true,
+        job: job(),
+      }),
+      sender,
+    );
+  const denied = await translate('selection');
+  assert.ok(
+    denied.ok &&
+      denied.data.kind === 'translation' &&
+      !denied.data.result.ok &&
+      denied.data.result.error === 'OFF',
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.configure', {
+          preferences: { ...DEFAULT_PAGE_PREFERENCES, autoSelection: true },
+        }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: {
+        ...DEFAULT_PAGE_PREFERENCES,
+        selection: true,
+        autoSelection: true,
+      },
+    }),
+    uiSender(),
+  );
+  sessionId = controller.pageSessions.grant(sender);
+  const wrongFeature = await translate('page');
+  assert.ok(
+    wrongFeature.ok &&
+      wrongFeature.data.kind === 'translation' &&
+      !wrongFeature.data.result.ok &&
+      wrongFeature.data.result.error === 'OFF',
+  );
+});

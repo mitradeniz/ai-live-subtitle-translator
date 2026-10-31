@@ -456,6 +456,14 @@ mode and enabled tools are separate.
   translated/bilingual caption display first; original-only is not silently changed.
 - **Selected text**: enable tools first, select up to 1,000 characters, then choose
   Translate selection or use that edge-button action. Output appears in a preview.
+  Alternatively, turn on **Translate automatically after selection** in Settings or
+  popup → Customize translation. This separate opt-in defaults off. On pages with
+  enabled tools, completing a mouse selection shows a nearby glass preview with the
+  original, translation, provider and target language. Escape, × or clicking outside
+  closes it. It uses the selected provider (paid usage may apply), skips forms/editable
+  and excluded content, and limits selections to 1,000 characters. Rapid selections
+  keep only the latest waiting result; closing prevents late results reopening it.
+  This is translation, not a dictionary, pronunciation or example-sentence service.
 - **Hover**: opt in, then hold Alt while hovering over ordinary text for 650 ms.
   Hovering over the edge control alone never sends text.
 - **Text fields**: focus a normal textarea or text/search input, then explicitly
@@ -470,7 +478,7 @@ mode and enabled tools are separate.
 Restore original page stops pending page work and restores owned text changes.
 The popup's Restore action also removes page tools. Provider/language/feature/key
 changes restore the page. Opted-in sites restore the idle logo automatically;
-translation still requires a new click. Navigation or expiry ends the translation
+translation still requires a new action (or an enabled automatic mouse selection). Navigation or expiry ends the translation
 session; automatic mode reconnects idle controls without resuming translation. Page translation and caption sessions are authorized separately.
 If both tools are enabled, the page menu's Video controls opens the caption controls.
 With page tools enabled, a smaller **A文** button also appears inside the largest
@@ -521,6 +529,9 @@ unbounded retry is added. Page results/drafts stay in page memory, not the optio
 persistent caption cache. Feature preferences survive reload; page activation does not.
 
 Run `pnpm test:page` for the packaged synthetic page/selection/field/writing tests.
+After a production build, `node tests/browser-selection.mjs` checks the automatic
+selection opt-in, preview placement, excluded text, rapid changes and dismissal
+with mocked providers in an isolated browser profile.
 After `pnpm build`, `node tests/browser-lesson.mjs` checks a large synthetic lesson,
 player track feedback, the in-video button and unresponsive page-status handling.
 The test uses mocked providers and a temporary test-only host grant. Live provider

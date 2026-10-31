@@ -59,7 +59,13 @@ skips form controls, editable areas, hidden text, code, and translate-disabled r
 It does not access iframe or shadow-root content. This does not identify every kind
 of sensitive information displayed as ordinary page text; choose pages deliberately.
 
-Selected text (up to 1,000 characters) is transmitted only after an action. Optional
+Selected text (up to 1,000 characters) is transmitted after an explicit translation
+action, or after a mouse selection when you separately enable **Translate automatically
+after selection**. This setting defaults off, including for existing installations.
+Automatic selections go to the selected provider/target language and can incur its
+charges. One selection request runs at a time; only the latest pending selection is
+kept. Closing the preview discards pending/displayed results; an already dispatched
+request may still finish and be billed. Optional
 Alt-hover translation sends the hovered ordinary text after 650 ms. Text-field
 translation and AI Writing send the requested field value or entered brief, up to
 1,000 characters, only when explicitly triggered. Password fields and recognizable

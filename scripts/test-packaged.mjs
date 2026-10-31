@@ -12,6 +12,7 @@ for (const suite of [
   'work',
   'controls',
   'page',
+  'selection',
   'edge',
   'lesson',
 ]) {

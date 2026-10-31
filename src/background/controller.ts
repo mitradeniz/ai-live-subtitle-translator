@@ -726,6 +726,11 @@ export function createController(
             if (request.type === 'page.translate') {
               const enabled = await pageSettings.read();
               valid();
+              if (
+                request.automaticSelection &&
+                (request.feature !== 'selection' || !enabled.autoSelection)
+              )
+                throw new TranslationFailure('OFF');
               if (!enabled[request.feature])
                 throw new TranslationFailure('OFF');
               if (request.feature === 'writing' && selected !== 'ai')

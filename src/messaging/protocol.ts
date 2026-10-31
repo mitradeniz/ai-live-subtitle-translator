@@ -189,6 +189,7 @@ export const RequestSchema = z.discriminatedUnion('type', [
     ...envelope,
     type: z.literal('page.translate'),
     sessionId,
+    automaticSelection: z.literal(true).optional(),
     feature: PageFeatureSchema,
     style: WritingStyleSchema.optional(),
     job: TranslationJobSchema,

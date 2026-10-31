@@ -67,7 +67,7 @@ export function PageControls({
       setState(enabled ? 'ready' : 'off');
       setMessage(
         enabled
-          ? 'The logo stays on across sites until you turn it off. Translation starts only on click.'
+          ? 'The logo stays on across sites until you turn it off. Showing it does not translate anything.'
           : 'Automatic logo turned off on all sites.',
       );
     } catch {
@@ -100,7 +100,7 @@ export function PageControls({
       setState(enabled ? 'ready' : 'off');
       setMessage(
         enabled
-          ? 'The logo will appear automatically on this site. Translation starts only when you click.'
+          ? 'The logo will appear automatically on this site. Showing it does not translate anything.'
           : 'Automatic logo disabled for this site.',
       );
     } catch {
@@ -115,6 +115,8 @@ export function PageControls({
     setBusy(true);
     try {
       const next = { ...prefs, ...patch };
+      if (patch.selection === false) next.autoSelection = false;
+      if (patch.autoSelection === true) next.selection = true;
       if (!next[next.clickAction])
         next.clickAction =
           (['page', 'captions', 'selection', 'input', 'writing'] as const).find(
@@ -229,6 +231,21 @@ export function PageControls({
               {t(label)}
             </label>
           ))}
+          <label>
+            <input
+              type="checkbox"
+              checked={prefs.autoSelection}
+              onChange={(event) =>
+                void update({ autoSelection: event.target.checked })
+              }
+            />
+            {t('Translate automatically after selection')}
+          </label>
+          <small className="page-consent">
+            {t(
+              'Selecting text sends it to your selected provider. Paid providers may charge per selection.',
+            )}
+          </small>
           <label>
             {t('Edge button action')}
             <select
