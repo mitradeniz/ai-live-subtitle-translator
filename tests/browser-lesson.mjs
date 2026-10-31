@@ -275,11 +275,14 @@ try {
     await player.requestFullscreen();
   });
   await shortcut.waitFor();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('translator-page-tools')?.style.display === 'none',
+  );
   assert.equal(
-    await tools.evaluate(
-      (host) => host.parentElement === document.fullscreenElement,
-    ),
-    true,
+    await tools.evaluate((host) => host.checkVisibility()),
+    false,
+    'The edge button stays out of fullscreen video',
   );
   if (!(await mini.isVisible())) await shortcut.click();
   await mini.waitFor();
@@ -349,7 +352,7 @@ try {
     select.value = 'tr';
   });
   await languages.focus();
-  await page.keyboard.press('e');
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Tab');
   await mini
     .getByText('Preferences saved. Turn subtitle translation on to resume.', {
@@ -500,8 +503,9 @@ try {
   await page.keyboard.press('Escape');
   const before = await page.evaluate(() => window.ticks);
   assert.equal((await send('page.enable', { run: true })).ok, true);
+  // Pages start in translation-only display: text is replaced in place.
   await page.waitForFunction(() =>
-    document.querySelector('[data-page-translation]'),
+    document.querySelector('#transcript p')?.textContent.startsWith('TR '),
   );
   assert.equal(
     await page.locator('html').getAttribute('data-body-observers'),
@@ -562,6 +566,11 @@ try {
     'Disabling must disconnect page observation',
   );
   assert.equal(await page.locator('[data-page-translation]').count(), 0);
+  assert.equal(
+    await page.locator('#transcript p').first().textContent(),
+    'Synthetic paragraph 0.',
+    'Disabling restores the original text',
+  );
   console.log(
     JSON.stringify({
       result: 'passed',

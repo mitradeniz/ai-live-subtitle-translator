@@ -16,7 +16,7 @@ export type WritingStyle = z.infer<typeof WritingStyleSchema>;
 export const PagePreferencesSchema = z.strictObject({
   page: z.boolean().default(true),
   captions: z.boolean().default(true),
-  youtubeSourceConfirmed: z.boolean().default(false),
+  youtubeSourceConfirmed: z.boolean().default(true),
   selection: z.boolean().default(false),
   autoSelection: z.boolean().default(false),
   hover: z.boolean().default(false),
@@ -25,7 +25,7 @@ export const PagePreferencesSchema = z.strictObject({
   clickAction: z
     .enum(['page', 'captions', 'selection', 'input', 'writing'])
     .default('page'),
-  display: z.enum(['bilingual', 'translated']).default('bilingual'),
+  display: z.enum(['bilingual', 'translated']).default('translated'),
 });
 export type PagePreferences = z.infer<typeof PagePreferencesSchema>;
 export const DEFAULT_PAGE_PREFERENCES = PagePreferencesSchema.parse({});

@@ -340,7 +340,8 @@ test('compact caption switch and status bind to the sender document without chan
       assert.equal(tabId, 7);
       assert.equal(documentId, contentSender().documentId);
       assert.equal(await authorized(), true);
-      assert.equal(confirmed, false);
+      // Only starting uses the saved track confirmation, which is on by default.
+      assert.equal(confirmed, operation === 'enable');
       calls.push(operation);
       return operation === 'enable' ? 'enabled' : 'disabled';
     },
@@ -512,16 +513,11 @@ test('selection language overrides are scoped, validated, and never saved as glo
     { ...languages, sourceLanguage: '<img>' },
   ])
     assert.equal((await send({ selectionLanguages })).ok, false);
-  for (const extra of [
-    { feature: 'page' },
-    { automaticSelection: undefined },
-  ]) {
-    const denied = await send(extra);
-    assert.ok(
-      !denied.ok ||
-        (denied.data.kind === 'translation' && !denied.data.result.ok),
-    );
-  }
+  const denied = await send({ feature: 'page' });
+  assert.ok(
+    !denied.ok ||
+      (denied.data.kind === 'translation' && !denied.data.result.ok),
+  );
   assert.equal(calls.length, 0);
   const result = await send();
   assert.ok(
@@ -530,6 +526,30 @@ test('selection language overrides are scoped, validated, and never saved as glo
   );
   assert.equal(calls[0]?.searchParams.get('sl'), 'tr');
   assert.equal(calls[0]?.searchParams.get('tl'), 'en');
+  // A click on the selection icon is a manual request: it may carry the
+  // card's languages without the automatic opt-in.
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: { ...DEFAULT_PAGE_PREFERENCES, selection: true },
+    }),
+    uiSender(),
+  );
+  const manualSession = controller.pageSessions.grant(sender);
+  const manual = await controller.dispatch(
+    request('page.translate', {
+      sessionId: manualSession,
+      feature: 'selection',
+      selectionLanguages: { sourceLanguage: 'de', targetLanguage: 'ja' },
+      job: job(),
+    }),
+    sender,
+  );
+  assert.ok(
+    manual.ok && manual.data.kind === 'translation' && manual.data.result.ok,
+    JSON.stringify(manual),
+  );
+  assert.equal(calls[1]?.searchParams.get('sl'), 'de');
+  assert.equal(calls[1]?.searchParams.get('tl'), 'ja');
   const settings = await controller.dispatch(
     request('settings.read'),
     uiSender(),
@@ -537,4 +557,37 @@ test('selection language overrides are scoped, validated, and never saved as glo
   assert.ok(settings.ok && settings.data.kind === 'settings');
   assert.equal(settings.data.settings.sourceLanguage, 'auto');
   assert.equal(settings.data.settings.targetLanguage, 'tr');
+});
+
+test('page display starts translation-only, the YouTube track counts as confirmed, and earlier preferences move to both once', async () => {
+  assert.equal(DEFAULT_PAGE_PREFERENCES.display, 'translated');
+  const areas = fakeAreas();
+  assert.equal(DEFAULT_PAGE_PREFERENCES.youtubeSourceConfirmed, true);
+  areas.local.data['page-preferences.v1'] = {
+    ...DEFAULT_PAGE_PREFERENCES,
+    selection: true,
+    display: 'bilingual',
+    youtubeSourceConfirmed: false,
+  };
+  const controller = createController(EXTENSION_ID, areas);
+  const read = async () => {
+    const result = await controller.dispatch(
+      request('page.preferences'),
+      uiSender(),
+    );
+    assert.ok(result.ok && result.data.kind === 'page-preferences');
+    return result.data.preferences;
+  };
+  const migrated = await read();
+  assert.equal(migrated.display, 'translated');
+  assert.equal(migrated.youtubeSourceConfirmed, true);
+  assert.equal(migrated.selection, true, 'Other choices are kept');
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: { ...migrated, display: 'bilingual' },
+    }),
+    uiSender(),
+  );
+  assert.equal('page-preferences.v1' in areas.local.data, false);
+  assert.equal((await read()).display, 'bilingual', 'A later choice is kept');
 });

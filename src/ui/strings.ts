@@ -63,6 +63,8 @@ export const turkish: Record<string, string> = {
   'Uses your selected provider and target language on pages where page tools are enabled.':
     'Sayfa araçlarının açık olduğu sayfalarda seçili sağlayıcını ve hedef dilini kullanır.',
   'Translate automatically after selection': 'Seçince otomatik çevir',
+  'When this is off, click the icon next to selected text to translate it.':
+    'Kapalıyken seçtiğin metnin yanında çıkan simgeye tıklayarak çevirirsin.',
   'Selecting text sends it to your selected provider. Paid providers may charge per selection.':
     'Seçtiğin metin seçili sağlayıcıya gönderilir. Ücretli sağlayıcılar her seçim için ücretlendirebilir.',
   'Translating selected text…': 'Seçili metin çevriliyor…',
@@ -87,8 +89,8 @@ export const turkish: Record<string, string> = {
     'Sayfaya erişilemiyor. Normal bir web sayfasında eklenti simgesine tekrar tıkla.',
   'Translating visible text. Scroll to translate more.':
     'Görünen metin çevriliyor. Devamı için sayfayı kaydır.',
-  'Page tools ready. Hover over the edge button for actions.':
-    'Sayfa araçları hazır. İşlemler için kenar düğmesinin üzerine gel.',
+  'Page tools ready. Click the edge button for actions.':
+    'Sayfa araçları hazır. İşlemler için kenar düğmesine tıkla.',
   'Original page restored.': 'Orijinal sayfa geri getirildi.',
   'Could not restore the page. Refresh it to show originals.':
     'Sayfa geri getirilemedi. Orijinaller için sayfayı yenile.',

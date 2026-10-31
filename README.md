@@ -466,8 +466,10 @@ Provider/model and source/target languages are shared with captions; page displa
 mode and enabled tools are separate.
 
 - **Translate visible page** translates visible ordinary text. Scrolling exposes the
-  next text to translate; it does not send the whole document in advance. Choose
-  bilingual or translated-only page display. Links retain their original elements.
+  next text to translate; it does not send the whole document in advance. Pages
+  start in translation-only display (text is replaced in place); choose
+  **Original and translation** under Customize translation → Page display to keep
+  the source visible. Links retain their original elements.
 - **Show the logo on all sites** asks once for HTTP(S) access across websites.
   With that explicit grant, the idle logo appears across supported websites after
   refresh/navigation and browser restart until you turn the switch off. It does not
@@ -485,18 +487,22 @@ mode and enabled tools are separate.
   Translate focused field or AI Writing when those are turned on. A small badge on the
   square shows a check mark while page or video translation is running. Enter/Space or
   F2 opens the menu by keyboard; Escape or a click outside closes it, and arrow keys
-  move the dock. Hide/Show preserves its page edge and height. Provider, language and
-  tool choices stay in the trusted popup and settings.
-  For video subtitles on YouTube, confirm an original track in Customize translation
-  when applicable. Choose a provider and translated/bilingual caption display first;
-  original-only is not silently changed.
-- **Selected text**: enable tools first, select up to 1,000 characters, then choose
-  Translate selection in the edge menu. Output appears in a preview.
-  Alternatively, turn on **Translate automatically after selection** in Settings or
-  popup → Customize translation. This separate opt-in defaults off. On pages with
-  enabled tools, completing a mouse selection shows a nearby glass preview with the
-  original, translation, provider and target language. Escape, × or clicking outside
-  closes it. Source (including Auto-detect) and target language can be changed inside
+  move the dock. Hide/Show preserves its page edge and height. While the page is in
+  fullscreen the square and its menu step aside; the player's own A文 button stays
+  available. Provider, language and tool choices stay in the trusted popup and
+  settings.
+  On YouTube the selected caption track is treated as an original track by default.
+  If you prefer to confirm it each time, turn off **For YouTube: I selected an
+  original caption track** in Customize translation. Choose a provider and
+  translated/bilingual caption display first; original-only is not silently changed.
+- **Selected text**: turn on Selected text translation, enable tools, then select up
+  to 1,000 characters with the mouse. A small A文 icon appears next to the selection;
+  nothing is sent until you click it. Clicking opens a nearby glass preview with the
+  original, translation, provider and target language. Translate selection in the
+  edge menu does the same. To skip the icon, turn on **Translate automatically after
+  selection** in Settings or popup → Customize translation (off by default); the
+  preview then opens as soon as a selection completes. Escape, × or clicking outside
+  closes the preview or the icon. Source (including Auto-detect) and target language can be changed inside
   the preview; each change retranslates the same selection. These choices last for
   this page-tools session and do not change caption/global language preferences.
   It uses the selected provider (paid usage may apply), skips forms/editable
@@ -536,7 +542,10 @@ configured AI profile and the Cloud key are stored; other AI profiles require se
 in Settings. Missing keys, access or experimental Google opt-in are shown beside
 disabled choices. Selecting a provider cannot grant access or make a paid request;
 its recipient and paid status are displayed before use. Target-language choices
-include common languages and preserve a custom code already saved in Settings.
+include 30 widely used languages and preserve a custom code already saved in
+Settings. **Swap languages** exchanges source and target when a source language is
+set. Provider and language load even if the subtitle status check is slow; the
+switch then reports the exact reason if subtitles cannot start.
 
 Download saves the already-loaded, unambiguous native source caption track as
 `subtitles-original.vtt`. It does not request translations or fetch a caption URL.

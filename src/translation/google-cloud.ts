@@ -1,6 +1,7 @@
 import { z } from '../messaging/schema.ts';
 import { TranslationFailure, type TranslationJob } from './contracts.ts';
 import { paidJSON, validatePaidInput } from './paid-http.ts';
+import { LANGUAGE_CODES, normalizeLanguage } from './languages.ts';
 
 export const CLOUD_ORIGIN = 'https://translation.googleapis.com';
 export const CLOUD_HOST = `${CLOUD_ORIGIN}/*`;
@@ -10,43 +11,15 @@ export const CLOUD_PROFILE = {
   endpoint: CLOUD_ENDPOINT,
   model: 'nmt',
 } as const;
-// Deliberately bounded documented subset; no network language discovery.
-const languages = new Set([
-  'en',
-  'tr',
-  'de',
-  'fr',
-  'es',
-  'it',
-  'pt',
-  'ja',
-  'ko',
-  'ar',
-  'ru',
-  'zh-CN',
-  'zh-TW',
-  'he',
-  'id',
-  'nl',
-  'pl',
-  'uk',
-  'hi',
-]);
+// Deliberately bounded documented subset (the picker languages); no network
+// language discovery.
+const languages = new Set(LANGUAGE_CODES);
 export function cloudLanguage(
   value: string,
   source = false,
 ): string | undefined {
   if (source && value === 'auto') return undefined;
-  const code = value.toLowerCase();
-  const mapped = ['zh-tw', 'zh-hant', 'zh-hk'].includes(code)
-    ? 'zh-TW'
-    : ['zh', 'zh-cn', 'zh-hans'].includes(code)
-      ? 'zh-CN'
-      : code === 'iw'
-        ? 'he'
-        : code === 'in'
-          ? 'id'
-          : code.split('-')[0]!;
+  const mapped = normalizeLanguage(value);
   if (!languages.has(mapped)) throw new TranslationFailure('LANGUAGE');
   return mapped;
 }

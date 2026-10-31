@@ -7,6 +7,7 @@ import type { PopupStatus, Settings } from '../messaging/protocol';
 import type { PlaybackOperation, PlaybackState } from '../messaging/playback';
 import { AI_PROFILES, aiDefinition } from '../translation/ai-profile';
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
+import { LANGUAGES } from '../translation/languages';
 import { useI18n } from './useI18n';
 import { DevelopmentNotice } from './DevelopmentNotice';
 
@@ -46,7 +47,8 @@ export default function PopupDashboard() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
-  const [confirmed, setConfirmed] = useState(false);
+  // The saved Customize translation choice (on by default) pre-fills this.
+  const [confirmed, setConfirmed] = useState(true);
   const [showCaptions, setShowCaptions] = useState(true);
   const dirty = useRef(false);
   const [edited, setEdited] = useState(false);
@@ -95,6 +97,12 @@ export default function PopupDashboard() {
   useEffect(() => {
     mounted.current = true;
     void load();
+    void sendRequest({ type: 'page.preferences' })
+      .then((result) => {
+        if (mounted.current && result.kind === 'page-preferences')
+          setConfirmed(result.preferences.youtubeSourceConfirmed);
+      })
+      .catch(() => {});
     // Only local status reads; opening this popup never tests a key or translates.
     const timer = setInterval(() => void load(), 2000);
     return () => {
@@ -342,23 +350,13 @@ export default function PopupDashboard() {
         }}
       />
       <datalist id={`${name}-quick`}>
-        {(name === 'sourceLanguage'
-          ? [
-              'auto',
-              'en',
-              'tr',
-              'de',
-              'fr',
-              'es',
-              'ar',
-              'he',
-              'ja',
-              'ko',
-              'zh-CN',
-            ]
-          : ['tr', 'en', 'de', 'fr', 'es', 'ar', 'he', 'ja', 'ko', 'zh-CN']
-        ).map((code) => (
-          <option key={code} value={code} />
+        {name === 'sourceLanguage' && (
+          <option value="auto">{t('Auto-detect')}</option>
+        )}
+        {LANGUAGES.map(([code, label]) => (
+          <option key={code} value={code}>
+            {label}
+          </option>
         ))}
       </datalist>
     </label>

@@ -3,6 +3,7 @@ import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
 import type { Settings } from '../messaging/protocol';
 import { useI18n } from './useI18n';
+import { LANGUAGES } from '../translation/languages';
 type Engine = 'none' | 'google' | 'google-cloud' | 'ai';
 const engines = {
   none: 'Original captions only',
@@ -137,18 +138,18 @@ export function ViewingControls({ compact = false }: { compact?: boolean }) {
         </div>
         <datalist id="source-languages">
           <option value="auto">{t('Auto-detect')}</option>
-          {['en', 'tr', 'de', 'fr', 'es', 'ar', 'he', 'ja', 'ko', 'zh-CN'].map(
-            (code) => (
-              <option key={code} value={code} />
-            ),
-          )}
+          {LANGUAGES.map(([code, label]) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
         </datalist>
         <datalist id="target-languages">
-          {['tr', 'en', 'de', 'fr', 'es', 'ar', 'he', 'ja', 'ko', 'zh-CN'].map(
-            (code) => (
-              <option key={code} value={code} />
-            ),
-          )}
+          {LANGUAGES.map(([code, label]) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
         </datalist>
         {!compact && (
           <p className="field-help">

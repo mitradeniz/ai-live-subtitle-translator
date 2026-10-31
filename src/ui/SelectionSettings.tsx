@@ -83,6 +83,9 @@ export function SelectionSettings() {
       </label>
       <p>
         {t(
+          'When this is off, click the icon next to selected text to translate it.',
+        )}{' '}
+        {t(
           'Selecting text sends it to your selected provider. Paid providers may charge per selection.',
         )}
       </p>

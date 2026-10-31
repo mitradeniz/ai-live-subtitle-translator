@@ -169,7 +169,7 @@ try {
   await page.waitForTimeout(350);
   assert.equal(sent.length, 1, 'Synthetic language changes cannot send text');
   await targetLanguage.focus();
-  await page.keyboard.press('e');
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Tab');
   await card
     .locator('.result')
@@ -307,7 +307,7 @@ try {
   for (let i = 0; i < 100 && !release; i++) await page.waitForTimeout(50);
   assert.ok(release);
   await targetLanguage.focus();
-  await page.keyboard.press('e');
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Tab');
   hold = false;
   release();
@@ -324,15 +324,45 @@ try {
   const beforeOff = sent.length;
   await select('#selectable');
   await page.waitForTimeout(400);
-  assert.equal(sent.length, beforeOff);
-  assert.equal(await page.locator('translator-selection-popup').count(), 0);
+  assert.equal(sent.length, beforeOff, 'Click mode sends nothing on selection');
+  const chip = page
+    .locator('translator-selection-popup')
+    .getByRole('button', { name: 'Translate selection' });
+  await chip.waitFor();
+  const chipBox = await chip.boundingBox();
+  const textBox = await page.locator('#selectable').boundingBox();
+  assert.ok(
+    chipBox.y >= textBox.y - chipBox.height - 12 &&
+      chipBox.y <= textBox.y + textBox.height + 12,
+    'The icon sits next to the selection',
+  );
+  await chip.evaluate((button) => button.click());
+  await page.waitForTimeout(350);
+  assert.equal(
+    sent.length,
+    beforeOff,
+    'A scripted icon click cannot send text',
+  );
+  await page.keyboard.press('Escape');
+  await chip.waitFor({ state: 'hidden' });
+  await select('#selectable');
+  await chip.waitFor();
+  await chip.click();
+  await chip.waitFor({ state: 'hidden' });
+  await card
+    .locator('.result')
+    .filter({ hasText: 'TR Language change during a request.' })
+    .waitFor();
+  assert.equal(sent.length, beforeOff + 1);
+  await page.mouse.click(5, 5);
+  await card.waitFor({ state: 'hidden' });
   console.log(
     JSON.stringify({
       result: 'passed',
       browser: context.browser().version(),
       requests: sent.length,
       checks:
-        'default off, options opt-in, trusted selection, anchored preview, form/size exclusion, one in flight, newest selection, literal output, close/Escape, stale result, opt-out cleanup',
+        'default off, options opt-in, trusted selection, anchored preview, form/size exclusion, one in flight, newest selection, literal output, close/Escape, stale result, click-to-translate icon',
     }),
   );
 } finally {

@@ -2,6 +2,7 @@ import type { PlayerMenu, MenuProvider } from '../messaging/protocol.ts';
 import { nativeSourceWebVtt } from './download.ts';
 import { readWithDeadline } from '../messaging/deadline.ts';
 import { createMark } from '../ui/mark.ts';
+import { LANGUAGES, languageName } from '../translation/languages.ts';
 import type { PlaybackState } from '../messaging/playback.ts';
 
 // Player-owned control rows are unstable. Keep their selectors local and only
@@ -43,23 +44,6 @@ function controlRow(video: HTMLVideoElement): HTMLElement | null {
 
 type MenuChange =
   { provider: MenuProvider } | { targetLanguage: string } | { swap: true };
-// Names shown in the menu; unknown codes are shown as typed.
-const LANGUAGES: readonly (readonly [string, string])[] = [
-  ['tr', 'Türkçe'],
-  ['en', 'English'],
-  ['de', 'Deutsch'],
-  ['fr', 'Français'],
-  ['es', 'Español'],
-  ['it', 'Italiano'],
-  ['pt', 'Português'],
-  ['ar', 'العربية'],
-  ['he', 'עברית'],
-  ['ja', '日本語'],
-  ['ko', '한국어'],
-  ['zh-CN', '简体中文'],
-  ['ru', 'Русский'],
-  ['hi', 'हिन्दी'],
-];
 
 export interface PlayerMenuOptions {
   t(text: string): string;
@@ -324,9 +308,7 @@ export class PlayerShortcut {
     );
     this.#language.value = config.targetLanguage;
     const name = (code: string) =>
-      code === 'auto'
-        ? this.options.t('Auto-detect')
-        : (LANGUAGES.find(([known]) => known === code)?.[1] ?? code);
+      code === 'auto' ? this.options.t('Auto-detect') : languageName(code);
     this.#pair.textContent = `${name(config.sourceLanguage)} → ${name(config.targetLanguage)}`;
     this.#swap.title =
       config.sourceLanguage === 'auto'
@@ -385,7 +367,7 @@ export class PlayerShortcut {
       'aria-checked',
       String(this.#state === 'enabled'),
     );
-    this.#switch.disabled = this.#busy || this.#state === 'unavailable';
+    this.#switch.disabled = this.#busy;
     this.#provider.disabled = this.#language.disabled =
       this.#busy || !this.#config;
     this.#swap.disabled =
@@ -396,25 +378,41 @@ export class PlayerShortcut {
     const epoch = this.#epoch;
     this.#refreshing = true;
     this.#lastRead = Date.now();
+    let loaded = Boolean(this.#config);
     try {
-      const [state, config] = await readWithDeadline(
-        Promise.all([this.options.status(), this.options.read()]),
-        3000,
-      );
+      // Settings and subtitle status are read independently, so a slow or
+      // failed status check never leaves the provider and language empty.
+      const [state, config] = await Promise.allSettled([
+        readWithDeadline(this.options.status(), 5000),
+        readWithDeadline(this.options.read(), 5000),
+      ]);
       if (!this.#closed && epoch === this.#epoch && !this.#busy) {
-        this.#state = state;
-        // Avoid replacing options under an open native select during polling.
-        if (JSON.stringify(config) !== JSON.stringify(this.#config))
-          this.#paintConfig(config);
+        if (config.status === 'fulfilled') {
+          loaded = true;
+          // Avoid replacing options under an open native select during polling.
+          if (JSON.stringify(config.value) !== JSON.stringify(this.#config))
+            this.#paintConfig(config.value);
+        }
+        // An unknown status keeps the switch usable; a click reports the
+        // exact reason if subtitles cannot start.
+        this.#state =
+          state.status === 'fulfilled'
+            ? state.value
+            : this.#state === 'enabled'
+              ? 'enabled'
+              : 'disabled';
       }
-    } catch {
-      if (!this.#closed && epoch === this.#epoch) this.#state = 'unavailable';
     } finally {
       this.#refreshing = false;
       if (!this.#closed && epoch === this.#epoch) {
         this.#paint();
-        if (this.#state === 'unavailable')
-          this.#notice('Page status unavailable');
+        if (!loaded)
+          this.#notice('Open the extension popup to re-enable these tools.');
+        else if (
+          this.#status.textContent ===
+          this.options.t('Open the extension popup to re-enable these tools.')
+        )
+          this.#notice('');
       }
     }
   }

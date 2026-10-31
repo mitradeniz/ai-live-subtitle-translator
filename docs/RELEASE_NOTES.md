@@ -2,6 +2,24 @@
 
 Adds a separate Firefox MV3 build with document-bound messaging, private durable storage and Firefox installation-time data disclosures. Chromium artifacts use the existing trusted storage boundary. Browser and live-provider verification limits are documented in SUPPORT.md.
 
+- Offer 30 widely used languages (including Arabic, Hebrew, Persian, Hindi,
+  Japanese, Korean and Simplified/Traditional Chinese) in the popup, settings,
+  player menu and selection preview. The Google providers accept the same list.
+- Selected text: with automatic translation off, a small icon appears next to a
+  mouse selection and the translation opens only when it is clicked. The
+  preview's language choices apply to these clicks too.
+- Pages start in translation-only display. The YouTube caption track is treated
+  as an original track by default, so it no longer has to be confirmed each time.
+  Page preferences saved by earlier versions move to both defaults once; either
+  can be changed in Customize translation.
+- The page-edge button and its menu step aside while the page is in fullscreen.
+- The player menu loads provider and language even when the subtitle status check
+  is slow or fails, and is removed when its page-tools session expires.
+
+Page preferences move to a new storage key (`page-preferences.v2`); the old key
+is removed after the first save and by Clear data. No permissions or network
+destinations changed.
+
 # 0.2.1-preview.1 — 2026-10-31
 
 - Use **AI Video Subtitle Translator** as the extension display name.

@@ -343,8 +343,9 @@ export class PageTools {
         this.#paintState();
       },
     );
-    if (prefs.selection && prefs.autoSelection)
+    if (prefs.selection)
       this.#selectionPopup = new SelectionPopup({
+        mode: prefs.autoSelection ? 'auto' : 'click',
         t: (text) => this.t(text),
         languages: {
           sourceLanguage: settings.sourceLanguage,
@@ -357,7 +358,7 @@ export class PageTools {
             'selection',
             [{ id: `selection-${serial}`, revision: serial, text }],
             undefined,
-            true,
+            prefs.autoSelection,
             languages,
           );
           return result!;
@@ -382,6 +383,10 @@ export class PageTools {
       ) {
         this.#page.dispose();
         this.#selectionPopup?.dispose();
+        // The player menu shares this session; remove it rather than leave
+        // controls that can no longer load or save anything.
+        this.#playerShortcut?.dispose();
+        this.#playerShortcut = undefined;
         this.#epoch++;
         this.#serial++;
         this.#draft.value = '';
@@ -774,14 +779,13 @@ export class PageTools {
   #hoverOut = () => clearTimeout(this.#hoverTimer);
   layout = () => {
     if (this.#closed) return;
-    const fullscreen = document.fullscreenElement;
-    const parent =
-      fullscreen && !(fullscreen instanceof HTMLVideoElement)
-        ? fullscreen
-        : document.documentElement;
+    // Fullscreen belongs to the content: the edge button and its menu step
+    // aside until it ends. The player menu stays in the player controls.
+    const fullscreen = Boolean(document.fullscreenElement);
+    const parent = document.documentElement;
     if (this.host.parentElement !== parent) parent.append(this.host);
-    this.host.style.display =
-      fullscreen instanceof HTMLVideoElement ? 'none' : 'block';
+    this.host.style.display = fullscreen ? 'none' : 'block';
+    if (fullscreen && !this.#panel.hidden) this.open(false);
     const width = document.documentElement.clientWidth,
       height = innerHeight;
     this.#position.height = Math.min(1, Math.max(0, this.#position.height));

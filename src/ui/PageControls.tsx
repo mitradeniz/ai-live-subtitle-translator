@@ -151,7 +151,7 @@ export function PageControls({
             ? 'Page access unavailable. Open a regular webpage and click the extension again.'
             : run
               ? 'Translating visible text. Scroll to translate more.'
-              : 'Page tools ready. Hover over the edge button for actions.',
+              : 'Page tools ready. Click the edge button for actions.',
         );
       }
     } catch {
@@ -243,6 +243,9 @@ export function PageControls({
           </label>
           <small className="page-consent">
             {t(
+              'When this is off, click the icon next to selected text to translate it.',
+            )}{' '}
+            {t(
               'Selecting text sends it to your selected provider. Paid providers may charge per selection.',
             )}
           </small>
@@ -270,8 +273,8 @@ export function PageControls({
                 })
               }
             >
-              <option value="bilingual">{t('Original and translation')}</option>
               <option value="translated">{t('Translation only')}</option>
+              <option value="bilingual">{t('Original and translation')}</option>
             </select>
           </label>
         </fieldset>

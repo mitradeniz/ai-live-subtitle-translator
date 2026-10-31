@@ -135,7 +135,20 @@ try {
     data: { kind: 'playback', state: 'source-required' },
   });
   assert.equal(await page.locator('subtitle-translator-overlay').count(), 0);
+  // The track counts as confirmed by default; exercise the explicit opt-out.
+  const pagePreferences = (await send('page.preferences')).data.preferences;
+  assert.equal(pagePreferences.youtubeSourceConfirmed, true);
+  await send('page.configure', {
+    preferences: { ...pagePreferences, youtubeSourceConfirmed: false },
+  });
   const toolbar = await openToolbarPopup(context, worker);
+  await toolbar.evaluate(async () => {
+    const deadline = Date.now() + 5000;
+    while (document.querySelector('.source-confirm input')?.checked !== false) {
+      if (Date.now() > deadline) throw new Error('Saved choice not loaded');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  });
   const sourceStatus = await toolbar.evaluate(async () => {
     document.querySelector('.popup-controls button').click();
     const deadline = Date.now() + 5000;

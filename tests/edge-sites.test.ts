@@ -178,6 +178,15 @@ test('automatic bootstrap uses browser sender identity and cannot configure host
 test('hover-menu action can only select already enabled page/video tools in a bound session', async () => {
   const controller = createController(EXTENSION_ID, fakeAreas());
   const sender = contentSender();
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: {
+        ...DEFAULT_PAGE_PREFERENCES,
+        youtubeSourceConfirmed: false,
+      },
+    }),
+    uiSender('popup'),
+  );
   let sessionId = controller.pageSessions.grant(sender);
   const choose = (action: string, extra = {}) =>
     controller.dispatch(

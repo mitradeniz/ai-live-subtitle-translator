@@ -1,5 +1,9 @@
 import { EdgeSites, type EdgeSitePorts } from './edge-sites.ts';
-import { PageSettings, PAGE_PREFERENCES_KEY } from './page-settings.ts';
+import {
+  PageSettings,
+  PAGE_PREFERENCES_KEY,
+  LEGACY_PAGE_PREFERENCES_KEY,
+} from './page-settings.ts';
 import type { PageHandler } from '../page/contracts.ts';
 import { SitePreferences, YOUTUBE_ORIGIN, type SitePorts } from './sites.ts';
 import { isYouTubeWatch } from '../youtube/source.ts';
@@ -749,10 +753,7 @@ export function createController(
               )
                 throw new TranslationFailure('OFF');
               if (request.selectionLanguages) {
-                if (
-                  !request.automaticSelection ||
-                  request.feature !== 'selection'
-                )
+                if (request.feature !== 'selection')
                   throw new TranslationFailure('OFF');
                 Object.assign(preferences, request.selectionLanguages);
               }
@@ -899,6 +900,7 @@ export function createController(
               'ai-profile.v1',
               'settings.v1',
               PAGE_PREFERENCES_KEY,
+              LEGACY_PAGE_PREFERENCES_KEY,
             ]);
           });
         }

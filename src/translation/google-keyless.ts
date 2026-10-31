@@ -1,31 +1,13 @@
 import { retryAfter } from './retry.ts';
 import { GOOGLE_ORIGIN, TranslationFailure } from './contracts.ts';
+import { LANGUAGE_CODES, normalizeLanguage } from './languages.ts';
 
-// A deliberately small language allowlist. This is not Google's official API.
-const languages = new Set([
-  'en',
-  'tr',
-  'de',
-  'fr',
-  'es',
-  'it',
-  'pt',
-  'ja',
-  'ko',
-  'ar',
-  'ru',
-  'zh-CN',
-  'zh-TW',
-]);
+// A bounded language allowlist (the picker languages). This is not Google's
+// official API.
+const languages = new Set(LANGUAGE_CODES);
 export function googleLanguage(value: string, source = false): string {
   if (source && value === 'auto') return 'auto';
-  const normalized = value.toLowerCase();
-  const mapped =
-    normalized === 'zh-tw' || normalized === 'zh-hant'
-      ? 'zh-TW'
-      : ['zh', 'zh-cn', 'zh-hans'].includes(normalized)
-        ? 'zh-CN'
-        : (normalized.split('-')[0] ?? '');
+  const mapped = normalizeLanguage(value);
   if (!languages.has(mapped)) throw new TranslationFailure('LANGUAGE');
   return mapped;
 }
