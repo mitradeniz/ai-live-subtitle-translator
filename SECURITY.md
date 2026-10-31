@@ -31,11 +31,16 @@ read credentials or change providers, endpoints or languages. Caption and model
 output is displayed as text. Do not interpret a model's caption output as trusted
 instructions.
 
-Choosing the video edge action in the trusted popup delegates caption activation
+Choosing the video edge action in the popup or authorized hover menu delegates caption activation
 to that document's page-tools session. The background derives tab/document identity
 from the browser sender, checks the selected capability and existing provider setup,
 and bounds repeated activation. This action cannot enable a provider or change
 original-only display; YouTube source confirmation comes from trusted preferences.
+The content-side action picker is limited to enabled page/video features, uses a
+bound document session, and cannot modify other settings or source confirmation.
+Automatic logo access is a separate per-site opt-in: optional wildcard declarations
+support exact-host permission requests, never a wildcard grant. Registrations use
+only saved, currently granted origins and do not automatically translate text.
 
 ## Reporting and fixes
 

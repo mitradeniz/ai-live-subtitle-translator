@@ -23,6 +23,19 @@ export const turkish: Record<string, string> = {
     'Önce eklenti menüsünden sağlayıcı ve çeviri görünümünü seç.',
   'Video subtitles could not start. Try again from the popup.':
     'Video altyazıları başlatılamadı. Eklenti menüsünden tekrar dene.',
+  'Preferences saved. The logo will refresh automatically.':
+    'Tercihler kaydedildi. Logo otomatik yenilenecek.',
+  'Always show the logo on this site': 'Bu sitede logoyu otomatik göster',
+  'Site access was not granted. You can still enable tools for this visit.':
+    'Site erişimine izin verilmedi. Bu ziyaret için araçları yine de açabilirsin.',
+  'The logo will appear automatically on this site. Translation starts only when you click.':
+    'Logo bu sitede otomatik görünecek. Çeviri yalnızca tıkladığında başlar.',
+  'Automatic logo disabled for this site.':
+    'Bu sitede otomatik logo kapatıldı.',
+  'Could not update site access. Open this page again and retry.':
+    'Site erişimi güncellenemedi. Sayfayı tekrar açıp dene.',
+  'Action selected. Click the logo to start.':
+    'İşlem seçildi. Başlatmak için logoya tıkla.',
   'Video subtitles': 'Video altyazıları',
   'Selected text translation': 'Seçili metin çevirisi',
   'Hover translation (Alt + hover)': 'Üzerine gelince çeviri (Alt ile)',

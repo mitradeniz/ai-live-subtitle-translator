@@ -36,6 +36,8 @@ try {
   assert.deepEqual(manifest.optional_host_permissions, [
     ...hosts,
     'https://www.youtube.com/*',
+    'https://*/*',
+    'http://*/*',
   ]);
   // Required grants only in this throwaway copy; real permission prompts remain owner checks.
   manifest.host_permissions = ['http://127.0.0.1/*', ...hosts];

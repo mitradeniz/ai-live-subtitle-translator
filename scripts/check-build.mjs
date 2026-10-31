@@ -46,6 +46,8 @@ assert.deepEqual(
         'https://api.deepseek.com/*',
         'https://generativelanguage.googleapis.com/*',
         'https://www.youtube.com/*',
+        'https://*/*',
+        'http://*/*',
       ],
 );
 assert.equal(manifest.externally_connectable, undefined);
@@ -65,7 +67,7 @@ for (const file of files.filter((entry) => entry.isFile())) {
   );
   assert.match(
     path,
-    /^(?:manifest\.json|dependency-provenance\.json|THIRD_PARTY_NOTICES\.txt|LICENSE\.txt|(?:popup|options)\.html|(?:background|youtube-source)\.js|chunks\/[\w.-]+\.js|assets\/[\w.-]+\.css|content-scripts\/(?:auto|captions|page)\.js|providers\/(?:openai|gemini)\.png|providers\/(?:deepseek|cloud)\.svg|providers\/google\.ico|icons\/icon-(?:16|32|48|128)\.png)$/,
+    /^(?:manifest\.json|dependency-provenance\.json|THIRD_PARTY_NOTICES\.txt|LICENSE\.txt|(?:popup|options)\.html|(?:background|youtube-source)\.js|chunks\/[\w.-]+\.js|assets\/[\w.-]+\.css|content-scripts\/(?:auto|edge-auto|captions|page)\.js|providers\/(?:openai|gemini)\.png|providers\/(?:deepseek|cloud)\.svg|providers\/google\.ico|icons\/icon-(?:16|32|48|128)\.png)$/,
     `Unexpected packaged path ${path}`,
   );
   assert.match(

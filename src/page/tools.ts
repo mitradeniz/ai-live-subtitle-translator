@@ -66,7 +66,7 @@ export class PageTools {
     this.settings = settings;
     this.ai = ai;
     const css = document.createElement('style');
-    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 system-ui,sans-serif;color:#e9efff}.trigger{width:46px;height:46px;padding:0;white-space:nowrap;border-radius:14px;touch-action:none;cursor:grab;font-size:20px;font-weight:700;background:linear-gradient(140deg,#d7e7ff80,#25334be8 55%,#8faef24a);box-shadow:inset 0 1px #fff8,0 6px 22px #0005;backdrop-filter:blur(14px)}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid #c5dbff40;border-radius:20px;background:linear-gradient(140deg,#1e2b42f7,#0b101cf9);box-shadow:0 18px 50px #0006;backdrop-filter:blur(20px);overflow:auto}.panel h2{margin:0 0 8px;font-size:17px}.panel p{margin:8px 0;overflow-wrap:anywhere;color:#bfcee5}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid #94afd24a;background:#ffffff0c;border-radius:10px;padding:8px 10px}button{cursor:pointer}button:hover{background:#ffffff20}button:disabled{opacity:.45;cursor:default}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #a9c8ff;outline-offset:2px}.primary{background:#bfd2fa;color:#101a2e;font-weight:700;width:100%}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;border-left:2px solid #8faef2;padding:0 8px}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px system-ui,sans-serif;color:#e9efff;background:#141e31ed}.label{font-size:11px}.status{font-size:12px}select{max-width:100%}`;
+    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 system-ui,sans-serif;color:#e9efff}.trigger{width:46px;height:46px;padding:0;white-space:nowrap;border-radius:14px;touch-action:none;cursor:grab;font-size:20px;font-weight:700;background:linear-gradient(140deg,#d7e7ff80,#25334be8 55%,#8faef24a);box-shadow:inset 0 1px #fff8,0 6px 22px #0005;backdrop-filter:blur(14px)}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid #c5dbff40;border-radius:20px;background:linear-gradient(140deg,#1e2b42f7,#0b101cf9);box-shadow:0 18px 50px #0006;backdrop-filter:blur(20px);overflow:auto}.panel h2{margin:0 0 8px;font-size:17px}.panel p{margin:8px 0;overflow-wrap:anywhere;color:#bfcee5}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid #94afd24a;background:#ffffff0c;border-radius:10px;padding:8px 10px}button{cursor:pointer}button:hover{background:#ffffff20}.trigger:hover{background:linear-gradient(140deg,#7d91b8e6,#25334bf2 55%,#526b95ed);color:#fff}button:disabled{opacity:.45;cursor:default}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #a9c8ff;outline-offset:2px}.action-picker{border:0;padding:0}.action-picker legend{font-size:12px;color:#bfcee5}button[aria-pressed="true"]{background:#bfd2fa;color:#101a2e;border-color:#e3edff}.primary{background:#bfd2fa;color:#101a2e;font-weight:700;width:100%}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;border-left:2px solid #8faef2;padding:0 8px}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px system-ui,sans-serif;color:#e9efff;background:#141e31ed}.label{font-size:11px}.status{font-size:12px}select{max-width:100%}`;
     this.#dock.className = 'dock';
     this.#button.className = 'trigger';
     this.#button.type = 'button';
@@ -95,6 +95,45 @@ export class PageTools {
     this.#result.dir = 'auto';
     this.#result.setAttribute('aria-live', 'polite');
     this.#panel.append(heading, destination, consent);
+    const actionPicker = document.createElement('fieldset');
+    actionPicker.className = 'row action-picker';
+    const legend = document.createElement('legend');
+    legend.textContent = this.t('Edge button action');
+    actionPicker.append(legend);
+    const choices: { value: 'page' | 'captions'; button: HTMLButtonElement }[] =
+      [];
+    for (const [value, label] of [
+      ['page', 'Web page translation'],
+      ['captions', 'Video subtitles'],
+    ] as const) {
+      const button = this.button(label, async () => {
+        actionPicker.disabled = true;
+        try {
+          const response = await sendRequest({
+            type: 'page.action',
+            sessionId: this.sessionId,
+            action: value,
+          });
+          if (this.#closed) return;
+          if (response.kind === 'page-preferences') {
+            this.prefs = response.preferences;
+            for (const choice of choices)
+              choice.button.setAttribute(
+                'aria-pressed',
+                String(choice.value === this.prefs.clickAction),
+              );
+            this.showStatus('Action selected. Click the logo to start.');
+          }
+        } finally {
+          actionPicker.disabled = false;
+        }
+      });
+      button.disabled = !prefs[value];
+      button.setAttribute('aria-pressed', String(prefs.clickAction === value));
+      choices.push({ value, button });
+      actionPicker.append(button);
+    }
+    this.#panel.append(actionPicker);
     const main = this.button('Translate visible page', () => this.startPage());
     main.className = 'primary';
     main.disabled = !prefs.page;
@@ -509,6 +548,7 @@ export class PageTools {
     }
   };
   #select = (event: PointerEvent) => {
+    if (!this.prefs.selection) return;
     if (!event.isTrusted || this.host.contains(event.target as Node)) return;
     const selection = getSelection();
     if (!selection?.rangeCount || selection.isCollapsed) return;

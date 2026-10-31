@@ -12,6 +12,7 @@ for (const suite of [
   'work',
   'controls',
   'page',
+  'edge',
 ]) {
   const result = spawnSync(process.execPath, [`tests/browser-${suite}.mjs`], {
     stdio: 'inherit',

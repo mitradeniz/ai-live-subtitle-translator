@@ -32,6 +32,8 @@ try {
     'https://api.deepseek.com/*',
     'https://generativelanguage.googleapis.com/*',
     'https://www.youtube.com/*',
+    'https://*/*',
+    'http://*/*',
   ]);
   // This test copy supplies grants; real Chrome grant/removal remains an owner check.
   manifest.host_permissions = [

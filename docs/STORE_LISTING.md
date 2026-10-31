@@ -94,3 +94,7 @@ of source commits and the extension ZIP. The committed icon is `public/icons/ico
 Before submission, inspect screenshots and store icon sizing against the current
 [Chrome image requirements](https://developer.chrome.com/docs/webstore/images).
 Contact: mitradenizkaratas@gmail.com. No website/privacy URL or publisher ID has been invented.
+
+An optional logo can appear automatically on sites you individually allow. Hover
+to select Page or Video; click to start. Showing the logo or choosing an action
+does not send text. No all-sites permission request is made.

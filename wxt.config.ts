@@ -47,6 +47,8 @@ export default defineConfig({
             'https://api.deepseek.com/*',
             'https://generativelanguage.googleapis.com/*',
             'https://www.youtube.com/*',
+            'https://*/*',
+            'http://*/*',
           ],
     incognito: 'not_allowed',
     action: {

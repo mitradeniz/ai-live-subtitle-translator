@@ -8,7 +8,10 @@
   AI Writing (improve, shorten, formal, draft) preview before optional application.
 - Reuse existing provider profiles, origin-bound credentials, bounded queues and
   fixed network destinations. Page jobs have separate document-bound sessions and
-  bypass translation caches. No new required or broad host permissions.
+  bypass translation caches. Required permissions are unchanged.
+- Add an opt-in automatic logo on individually granted HTTP(S) sites, with saved
+  Page/Video choices in the hover menu. Optional wildcard host declarations support
+  exact-site requests; no all-sites grant or automatic page translation is requested.
 - Keep provider/language changes in the trusted popup; changes stop page work and
   restore originals. Navigation/expiry ends page activation.
 

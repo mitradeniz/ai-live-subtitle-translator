@@ -25,7 +25,8 @@ profiles with captions; writing requires an AI profile. All previews are plain t
 field application requires an explicit click and an unchanged target value. No form
 submission is automated. Rich editors/contenteditable, iframe/shadow-root text,
 PDFs and browser-internal pages are unsupported. Provider changes happen in the
-trusted popup opened by the page menu. No new generic site access is requested.
+trusted popup opened by the page menu. Automatic logo access is optional per host;
+manual activation continues to use temporary activeTab access.
 
 Synthetic packaged tests cover data exclusions, visible-only dispatch, scrolling,
 restoration, stale results/field edits and mocked writing. This is not live-site or
@@ -63,3 +64,8 @@ retried; exactly-once billing cannot be guaranteed after worker interruption.
 
 The project has no public backend, proxy or telemetry. Read [privacy](PRIVACY.md),
 [release notes](RELEASE_NOTES.md) and the [README](../README.md) before installing.
+
+Automatic edge controls are opt-in per HTTP(S) host, with a one-time Chrome grant.
+They reappear after refresh/navigation/restart and remain idle until clicked. The
+hover menu remembers Page/Video selection. Nonstandard-port pages, incognito and
+browser-internal pages remain manual-only or unsupported as described above.

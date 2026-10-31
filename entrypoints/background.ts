@@ -1,3 +1,4 @@
+import { edgeOrigin } from '../src/background/edge-sites.ts';
 import { createPageHandler } from '../src/background/page-activation.ts';
 import { isYouTubeWatch } from '../src/youtube/source.ts';
 import { YOUTUBE_HOST, YOUTUBE_ORIGIN } from '../src/background/sites.ts';
@@ -64,12 +65,84 @@ export default defineBackground(() => {
     () => browser.action.openPopup(),
     (tabId, documentId, confirmed, authorized) =>
       playback.fromPage(tabId, documentId, confirmed, authorized),
+    {
+      current: async () => {
+        const [tab] = await browser.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        const origin = tab?.url && edgeOrigin(tab.url);
+        return tab?.id !== undefined && !tab.incognito && origin
+          ? { tabId: tab.id, origin }
+          : null;
+      },
+      permitted: (origin) =>
+        import.meta.env.MODE === 'mock'
+          ? Promise.resolve(false)
+          : browser.permissions.contains({ origins: [`${origin}/*`] }),
+      changed: () => reconcileEdges(),
+      activate: async (tabId, documentId, authorized) => {
+        await page.auto(tabId, documentId, authorized);
+      },
+    },
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
     createPlaybackHandler(controller.sessions, (id, paused) =>
       controller.sites.pause(id, paused),
     );
   const page = createPageHandler(controller.pageSessions);
+  let edgeReconciliation: Promise<void> = Promise.resolve();
+  function reconcileEdges() {
+    edgeReconciliation = edgeReconciliation
+      .catch(() => {})
+      .then(async () => {
+        const registrations =
+          await browser.scripting.getRegisteredContentScripts({
+            ids: ['edge-tools-auto'],
+          });
+        const previous = registrations[0]?.matches ?? [];
+        const origins =
+          import.meta.env.MODE === 'mock'
+            ? []
+            : await controller.edgeSites.prune();
+        const matches = origins.map((origin) => `${origin}/*`).sort();
+        if (JSON.stringify([...previous].sort()) !== JSON.stringify(matches)) {
+          if (registrations.length)
+            await browser.scripting.unregisterContentScripts({
+              ids: ['edge-tools-auto'],
+            });
+          if (matches.length)
+            await browser.scripting.registerContentScripts([
+              {
+                id: 'edge-tools-auto',
+                matches,
+                js: ['content-scripts/edge-auto.js'],
+                runAt: 'document_idle',
+                allFrames: false,
+                persistAcrossSessions: true,
+                world: 'ISOLATED',
+              },
+            ]);
+        }
+        // Opt-out removes existing controls as well as future registration.
+        for (const tab of await browser.tabs.query({})) {
+          const origin = tab.url && edgeOrigin(tab.url);
+          if (tab.id === undefined || tab.incognito || !origin) continue;
+          if (previous.includes(`${origin}/*`) && !origins.includes(origin)) {
+            page.invalidate(tab.id);
+            await browser.tabs
+              .sendMessage(
+                tab.id,
+                { version: 1, type: 'page.stop' },
+                { frameId: 0 },
+              )
+              .catch(() => {});
+          }
+        }
+      });
+    return edgeReconciliation;
+  }
+  void reconcileEdges().catch(() => {});
   let reconciliation: Promise<void> = Promise.resolve();
   function reconcileSites(stop = false) {
     reconciliation = reconciliation
@@ -168,6 +241,33 @@ export default defineBackground(() => {
           typeof message === 'object' &&
           message !== null &&
           'type' in message &&
+          message.type === 'page.site-configure' &&
+          response.data.kind === 'edge-site' &&
+          response.data.enabled
+        ) {
+          const [tab] = await browser.tabs.query({
+            active: true,
+            currentWindow: true,
+          });
+          if (
+            tab?.id !== undefined &&
+            !tab.incognito &&
+            tab.url &&
+            edgeOrigin(tab.url) === response.data.origin
+          )
+            await browser.scripting
+              .executeScript({
+                target: { tabId: tab.id, frameIds: [0] },
+                files: ['/content-scripts/edge-auto.js'],
+                world: 'ISOLATED',
+              })
+              .catch(() => {});
+        }
+        if (
+          response.ok &&
+          typeof message === 'object' &&
+          message !== null &&
+          'type' in message &&
           [
             'google.enable',
             'google.disable',
@@ -235,6 +335,7 @@ export default defineBackground(() => {
     },
   );
   browser.permissions.onRemoved.addListener((removed) => {
+    void reconcileEdges().catch(() => {});
     controller.pageSessions.revokeAll();
     void browser.tabs
       .query({})
@@ -279,6 +380,7 @@ export default defineBackground(() => {
     void controller.sessions.ready
       .then(async () => {
         playback.invalidate(tabId);
+        page.invalidate(tabId);
         await controller.work.dropTab(tabId);
         await controller.sites.pause(tabId, false);
       })

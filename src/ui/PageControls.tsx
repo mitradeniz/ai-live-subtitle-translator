@@ -1,3 +1,4 @@
+import { browser } from 'wxt/browser';
 import { useEffect, useState } from 'react';
 import { sendRequest } from '../messaging/client';
 import {
@@ -17,6 +18,9 @@ export function PageControls({
   const [prefs, setPrefs] = useState<PagePreferences>(DEFAULT_PAGE_PREFERENCES);
   const [state, setState] = useState<PageState>('off');
   const [busy, setBusy] = useState(false);
+  const [site, setSite] = useState<{ origin: string | null; enabled: boolean }>(
+    { origin: null, enabled: false },
+  );
   const [message, setMessage] = useState('');
   const enabled = state !== 'off' && state !== 'unavailable';
   useEffect(() => {
@@ -24,8 +28,10 @@ export function PageControls({
     void Promise.all([
       sendRequest({ type: 'page.preferences' }),
       sendRequest({ type: 'page.status' }),
+      sendRequest({ type: 'page.site-status' }),
     ])
-      .then(([preferences, status]) => {
+      .then(([preferences, status, edge]) => {
+        if (active && edge.kind === 'edge-site') setSite(edge);
         if (!active) return;
         if (preferences.kind === 'page-preferences') {
           setPrefs(preferences.preferences);
@@ -40,6 +46,39 @@ export function PageControls({
       active = false;
     };
   }, [captions]);
+  async function automatic(enabled: boolean) {
+    if (!site.origin) return;
+    setBusy(true);
+    try {
+      // Invoke synchronously from the checkbox gesture, for this exact origin only.
+      if (
+        enabled &&
+        !(await browser.permissions.request({ origins: [`${site.origin}/*`] }))
+      ) {
+        setMessage(
+          'Site access was not granted. You can still enable tools for this visit.',
+        );
+        return;
+      }
+      const result = await sendRequest({
+        type: 'page.site-configure',
+        enabled,
+      });
+      if (result.kind === 'edge-site') setSite(result);
+      setState(enabled ? 'ready' : 'off');
+      setMessage(
+        enabled
+          ? 'The logo will appear automatically on this site. Translation starts only when you click.'
+          : 'Automatic logo disabled for this site.',
+      );
+    } catch {
+      setMessage(
+        'Could not update site access. Open this page again and retry.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function update(patch: Partial<PagePreferences>) {
     setBusy(true);
     try {
@@ -54,8 +93,12 @@ export function PageControls({
         await sendRequest({ type: 'playback.disable' });
       setPrefs(next);
       captions(next.captions);
-      setState('off');
-      setMessage('Preferences saved. Enable page tools to use them here.');
+      setState(site.enabled ? 'ready' : 'off');
+      setMessage(
+        site.enabled
+          ? 'Preferences saved. The logo will refresh automatically.'
+          : 'Preferences saved. Enable page tools to use them here.',
+      );
     } catch {
       setMessage('Could not save page preferences.');
     } finally {
@@ -103,6 +146,16 @@ export function PageControls({
           {t(enabled ? 'Page tools on' : 'Off')}
         </span>
       </div>
+      <label className="page-auto-site">
+        <input
+          type="checkbox"
+          checked={site.enabled}
+          disabled={busy || !site.origin}
+          onChange={(event) => void automatic(event.target.checked)}
+        />
+        {t('Always show the logo on this site')}
+      </label>
+      {site.origin && <small className="page-consent">{site.origin}</small>}
       <details className="page-customize">
         <summary>{t('Customize translation')}</summary>
         <fieldset disabled={busy}>

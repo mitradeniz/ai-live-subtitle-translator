@@ -24,6 +24,8 @@ try {
     'https://api.deepseek.com/*',
     'https://generativelanguage.googleapis.com/*',
     'https://www.youtube.com/*',
+    'https://*/*',
+    'http://*/*',
   ]);
   assert.equal(manifest.host_permissions, undefined);
   // Temporary grants only: no activeTab gesture or optional-permission dialog automation is claimed.

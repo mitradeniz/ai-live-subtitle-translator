@@ -17,7 +17,7 @@ correct video. It does not record video/audio, transcribe speech, read microphon
 input, collect website cookies, or extract account credentials.
 
 Manual activation uses temporary access to the selected page. Optional automatic
-activation grants access only to `https://www.youtube.com/*`; it checks watch-page
+caption activation grants access only to `https://www.youtube.com/*`; it checks watch-page
 navigation and player changes. A page-world reader on YouTube reads bounded video
 and track metadata. With explicit automatic YouTube consent, a packaged reader
 starts when a watch page opens and can temporarily hold the selected original
@@ -44,7 +44,14 @@ options page and receives no credentials or configurable destination.
 ## Page and writing tools
 
 Page tools require a deliberate popup action on the current HTTP(S) main document.
-There is no new all-sites host permission or automatic page translation. Visible
+The optional automatic logo stores the exact sites you opt into (up to 64). It
+requests access to one HTTP(S) host at a time, registers a packaged main-frame script
+for those sites, and rechecks access on restart. The manifest declares optional
+HTTP(S) wildcard patterns to permit these individual requests, but installation
+grants no hosts and the UI never requests all sites. The logo and its hover-menu
+action picker do not send page text or start translation. Revoking access removes
+that site from the saved list. Turning off the logo leaves the Chrome host grant
+unchanged, because another feature may still use it. There is no automatic page translation. Visible
 ordinary text is processed as you scroll; mutation and intersection observers track
 new visible content within fixed scan/node/character bounds. Automatic translation
 skips form controls, editable areas, hidden text, code, and translate-disabled regions.

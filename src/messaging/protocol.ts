@@ -1,3 +1,4 @@
+import { EdgeOriginSchema } from '../background/edge-sites.ts';
 import {
   PagePreferencesSchema,
   PageFeatureSchema,
@@ -91,6 +92,20 @@ const envelope = {
 };
 const sessionId = z.uuid();
 export const RequestSchema = z.discriminatedUnion('type', [
+  z.strictObject({ ...envelope, type: z.literal('page.site-status') }),
+  z.strictObject({ ...envelope, type: z.literal('page.auto') }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.site-configure'),
+    enabled: z.boolean(),
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.action'),
+    sessionId,
+    action: z.enum(['page', 'captions']),
+  }),
+
   z.strictObject({
     ...envelope,
     type: z.literal('page.enable'),
@@ -377,6 +392,11 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
       z.strictObject({
         kind: z.literal('credential-status'),
         status: CredentialStatusSchema,
+      }),
+      z.strictObject({
+        kind: z.literal('edge-site'),
+        origin: EdgeOriginSchema.nullable(),
+        enabled: z.boolean(),
       }),
       z.strictObject({ kind: z.literal('saved') }),
       z.strictObject({ kind: z.literal('deleted') }),

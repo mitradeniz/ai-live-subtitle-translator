@@ -1,3 +1,4 @@
+import { EdgeSites, type EdgeSitePorts } from './edge-sites.ts';
 import { PageSettings, PAGE_PREFERENCES_KEY } from './page-settings.ts';
 import type { PageHandler } from '../page/contracts.ts';
 import { SitePreferences, YOUTUBE_ORIGIN, type SitePorts } from './sites.ts';
@@ -55,10 +56,17 @@ export function createController(
     throw new BoundaryError('UNAVAILABLE');
   },
   pageCaptions?: PageCaptionHandler,
+  edgePorts: EdgeSitePorts = {
+    current: async () => null,
+    permitted: async () => false,
+    changed: async () => {},
+    activate: async () => {},
+  },
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
   const pageSettings = new PageSettings(storage);
+  const edgeSites = new EdgeSites(storage, edgePorts);
   const credentials = new CredentialStore(storage);
   const google = new GoogleCoordinator(storage, googlePorts);
   const ai = new PaidCoordinator(storage, credentials, aiPorts);
@@ -133,6 +141,37 @@ export function createController(
       await pageSessions.flush();
       let response: Response;
       if (
+        request.type === 'page.site-status' ||
+        request.type === 'page.site-configure'
+      ) {
+        if (sender.kind !== 'ui' || sender.page !== 'popup')
+          throw new BoundaryError('FORBIDDEN');
+        const status =
+          request.type === 'page.site-status'
+            ? await edgeSites.status()
+            : await edgeSites.configure(request.enabled);
+        response = { ok: true, data: { kind: 'edge-site', ...status } };
+      } else if (request.type === 'page.auto') {
+        if (sender.kind !== 'content' || sender.identity.frameId !== 0)
+          throw new BoundaryError('FORBIDDEN');
+        await edgeSites.activate(
+          sender.identity.tabId,
+          sender.identity.documentId,
+          sender.identity.origin,
+        );
+        response = { ok: true, data: { kind: 'saved' } };
+      } else if (request.type === 'page.action') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        const valid = () =>
+          pageSessions.assertBound(request.sessionId, sender.identity);
+        valid();
+        const preferences = await pageSettings.action(request.action, valid);
+        valid();
+        response = {
+          ok: true,
+          data: { kind: 'page-preferences', preferences },
+        };
+      } else if (
         request.type === 'page.enable' ||
         request.type === 'page.disable' ||
         request.type === 'page.status'
@@ -246,7 +285,11 @@ export function createController(
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         pageSessions.assertBound(request.sessionId, sender.identity);
         if (request.type === 'page.settings') {
-          const engine = await selection.read();
+          const selected = await selection.read();
+          const engine =
+            selected === 'google' && !(await google.enabled())
+              ? 'none'
+              : selected;
           const profile = AIProfileSchema.parse(await ai.profile());
           const label =
             engine === 'ai'
@@ -653,6 +696,7 @@ export function createController(
           await work.cache.configure(request.persistent);
         if (request.type === 'cache.clear') await work.cache.clear();
         if (request.type === 'data.clear') {
+          await edgeSites.clear();
           await work.clearData();
           await sites.configure(false, false);
           await sites.changed();
@@ -939,6 +983,7 @@ export function createController(
     dispatch,
     sessions,
     pageSessions,
+    edgeSites,
     google,
     ai,
     cloud,

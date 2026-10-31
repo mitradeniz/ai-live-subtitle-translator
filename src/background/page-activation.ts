@@ -9,10 +9,18 @@ export function createPageHandler(sessions: SessionRegistry) {
       operations.delete(operations.keys().next().value!);
     sessions.revokeTab(tabId);
   };
-  const handle: PageHandler = async (operation, run) => {
-    const tab = (
-      await browser.tabs.query({ active: true, currentWindow: true })
-    )[0];
+  const perform = async (
+    operation: Parameters<PageHandler>[0],
+    run: boolean,
+    autoTab?: number,
+    expectedDocument?: string,
+    authorized?: () => Promise<boolean>,
+  ) => {
+    const tab =
+      autoTab === undefined
+        ? (await browser.tabs.query({ active: true, currentWindow: true }))[0]
+        : await browser.tabs.get(autoTab);
+    if (authorized && !(await authorized())) return 'off';
     if (tab?.id === undefined || tab.incognito) return 'unavailable';
     const tabId = tab.id;
     if (operation !== 'page.enable') {
@@ -44,7 +52,13 @@ export function createPageHandler(sessions: SessionRegistry) {
         world: 'ISOLATED',
       });
       const documentId = results.find((item) => item.frameId === 0)?.documentId;
-      if (!documentId || operations.get(tabId) !== ticket) return 'off';
+      if (
+        !documentId ||
+        (expectedDocument && documentId !== expectedDocument) ||
+        operations.get(tabId) !== ticket ||
+        (authorized && !(await authorized()))
+      )
+        return 'off';
       const sessionId = sessions.grant({
         id: browser.runtime.id,
         url: url.href,
@@ -55,7 +69,13 @@ export function createPageHandler(sessions: SessionRegistry) {
         tab: { id: tabId, incognito: false },
       });
       await sessions.flush();
-      if (operations.get(tabId) !== ticket) return 'off';
+      if (
+        operations.get(tabId) !== ticket ||
+        (authorized && !(await authorized()))
+      ) {
+        if (operations.get(tabId) === ticket) sessions.revokeTab(tabId);
+        return 'off';
+      }
       const state = PageStateSchema.parse(
         await browser.tabs.sendMessage(
           tabId,
@@ -63,12 +83,35 @@ export function createPageHandler(sessions: SessionRegistry) {
           { documentId },
         ),
       );
-      if (operations.get(tabId) !== ticket) return 'off';
+      if (
+        operations.get(tabId) !== ticket ||
+        (authorized && !(await authorized()))
+      ) {
+        if (operations.get(tabId) === ticket) {
+          sessions.revokeTab(tabId);
+          await browser.tabs
+            .sendMessage(
+              tabId,
+              { version: 1, type: 'page.stop' },
+              { documentId },
+            )
+            .catch(() => {});
+        }
+        return 'off';
+      }
       return state;
     } catch {
       if (operations.get(tabId) === ticket) sessions.revokeTab(tabId);
       return 'unavailable';
     }
   };
-  return { handle, invalidate };
+  return {
+    handle: ((operation, run) => perform(operation, run)) as PageHandler,
+    auto: (
+      tabId: number,
+      documentId: string,
+      authorized: () => Promise<boolean>,
+    ) => perform('page.enable', false, tabId, documentId, authorized),
+    invalidate,
+  };
 }

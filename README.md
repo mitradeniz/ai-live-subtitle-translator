@@ -432,10 +432,19 @@ mode and enabled tools are separate.
 - **Translate visible page** translates visible ordinary text. Scrolling exposes the
   next text to translate; it does not send the whole document in advance. Choose
   bilingual or translated-only page display. Links retain their original elements.
+- **Always show the logo on this site** asks once for the current site's host access.
+  After you allow it, the logo appears on refresh, same-site navigation and browser
+  restart without sending text. Optional HTTP(S) host declarations let Chrome ask for
+  a specific site at runtime; the extension never requests all sites at once. Sites
+  using nonstandard ports are manual-only. Disable this checkbox to remove automatic
+  controls; revoke the host in Chrome to remove access itself. Site opt-in is separate
+  from automatic YouTube captions and does not enable translation.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
   the square starts the chosen action (page, video subtitles, selection, field or
   writing); hovering opens its glass menu. Clicking an already running page/video
-  action does not stop or restart it; use Restore/Disable from the menu. Focus/F2 opens
+  action does not stop or restart it; use Restore/Disable from the menu.
+  The hover menu also lets you choose Page or Video directly; the choice is saved,
+  but switching it never starts translation or enables a disabled feature. Focus/F2 opens
   the menu by keyboard, Escape closes it, and arrow keys move the dock. Hide/Show
   preserves its page edge and height. **Change provider / languages** opens the
   trusted toolbar popup; keys and new provider permissions stay in extension UI.
@@ -457,8 +466,9 @@ mode and enabled tools are separate.
 
 Restore original page stops pending page work and restores owned text changes.
 The popup's Restore action also removes page tools. Provider/language/feature/key
-changes restore the page and require explicit reactivation. Navigation or expiry
-ends the page session. Page translation and caption sessions are authorized separately.
+changes restore the page. Opted-in sites restore the idle logo automatically;
+translation still requires a new click. Navigation or expiry ends the translation
+session; on opted-in sites, navigation creates a fresh idle control. Page translation and caption sessions are authorized separately.
 If both tools are enabled, the page menu's Video controls opens the caption controls.
 
 This is an experimental main-document feature, not support for every site/editor.
@@ -562,7 +572,8 @@ tab until refresh or manual enabling. **Turn off and remove access** in settings
 stops affected playback and unregisters the automatic script. You can also revoke
 YouTube site access through Chrome's extension controls. Permission denial is
 recoverable by trying again; permission is rechecked before activation and when the
-worker starts. No other site has persistent or automatic access. The mock build
+worker starts. Other sites can separately opt in to an idle page logo; this never enables
+automatic captions outside YouTube. The mock build
 retains manual activation only.
 
 ## Current playback limits

@@ -1,0 +1,198 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import {
+  EdgeSites,
+  edgeOrigin,
+  EDGE_SITES_KEY,
+} from '../src/background/edge-sites.ts';
+import { TrustedStorage } from '../src/background/storage.ts';
+import { createController } from '../src/background/controller.ts';
+import { DEFAULT_PAGE_PREFERENCES } from '../src/page/contracts.ts';
+import {
+  fakeAreas,
+  EXTENSION_ID,
+  contentSender,
+  uiSender,
+  request,
+} from './helpers.ts';
+
+test('automatic edge sites require exact ordinary origins, saved opt-in and current permission', async () => {
+  const areas = fakeAreas();
+  let permission = false;
+  let changed = 0;
+  let calls = 0;
+  const origin = 'https://video.example.test';
+  const ports = {
+    current: async () => ({ origin, tabId: 7 }),
+    permitted: async () => permission,
+    changed: async () => {
+      changed++;
+    },
+    activate: async (
+      _tab: number,
+      _doc: string,
+      valid: () => Promise<boolean>,
+    ) => {
+      assert.equal(await valid(), true);
+      calls++;
+    },
+  };
+  const sites = new EdgeSites(new TrustedStorage(areas), ports);
+  for (const value of [
+    'https://*.test',
+    'https://user:secret@example.test',
+    'file:///test',
+    'https://example.test:8443',
+  ])
+    assert.equal(edgeOrigin(value), null);
+  await assert.rejects(sites.configure(true));
+  assert.equal((await sites.status()).enabled, false);
+  permission = true;
+  assert.equal(
+    await sites.allowed(origin),
+    false,
+    'Host access alone is not opt-in',
+  );
+  await sites.configure(true);
+  await sites.activate(7, 'doc', origin);
+  await assert.rejects(sites.activate(7, 'doc', origin));
+  assert.equal(calls, 1);
+  assert.equal(changed, 1);
+  const restarted = new EdgeSites(new TrustedStorage(areas), ports);
+  assert.equal(await restarted.allowed(origin), true);
+  permission = false;
+  assert.equal(await restarted.allowed(origin), false);
+  assert.deepEqual(await restarted.prune(), []);
+  permission = true;
+  assert.equal(
+    await restarted.allowed(origin),
+    false,
+    'Revocation is not silently undone',
+  );
+  await restarted.configure(true);
+  await restarted.clear();
+  assert.equal(areas.local.data[EDGE_SITES_KEY], undefined);
+});
+
+test('automatic bootstrap uses browser sender identity and cannot configure hosts from content', async () => {
+  let calls = 0;
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      current: async () => ({ origin: contentSender().origin, tabId: 7 }),
+      permitted: async () => true,
+      changed: async () => {},
+      activate: async (tab, doc, valid) => {
+        assert.equal(tab, 7);
+        assert.equal(doc, contentSender().documentId);
+        assert.equal(await valid(), true);
+        calls++;
+      },
+    },
+  );
+  const sender = contentSender();
+  assert.equal(
+    (await controller.dispatch(request('page.auto'), sender)).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.site-configure', { enabled: true }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.site-configure', {
+          enabled: true,
+          origin: 'https://evil.test',
+        }),
+        uiSender('popup'),
+      )
+    ).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.site-configure', { enabled: true }),
+        uiSender('popup'),
+      )
+    ).ok,
+    true,
+  );
+  for (const altered of [
+    { ...sender, frameId: 1 },
+    { ...sender, tab: { id: 7, incognito: true } },
+    { ...sender, origin: 'https://evil.test' },
+  ])
+    assert.equal(
+      (await controller.dispatch(request('page.auto'), altered)).ok,
+      false,
+    );
+  assert.equal(
+    (await controller.dispatch(request('page.auto', { tabId: 99 }), sender)).ok,
+    false,
+  );
+  assert.equal(
+    (await controller.dispatch(request('page.auto'), sender)).ok,
+    true,
+  );
+  assert.equal(calls, 1);
+});
+
+test('hover-menu action can only select already enabled page/video tools in a bound session', async () => {
+  const controller = createController(EXTENSION_ID, fakeAreas());
+  const sender = contentSender();
+  let sessionId = controller.pageSessions.grant(sender);
+  const choose = (action: string, extra = {}) =>
+    controller.dispatch(
+      request('page.action', { sessionId, action, ...extra }),
+      sender,
+    );
+  for (const action of ['ai', 'writing', 'https://evil.test'])
+    assert.equal((await choose(action)).ok, false);
+  assert.equal(
+    (await choose('captions', { youtubeSourceConfirmed: true })).ok,
+    false,
+  );
+  const selected = await choose('captions');
+  assert.ok(selected.ok && selected.data.kind === 'page-preferences');
+  assert.equal(selected.data.preferences.clickAction, 'captions');
+  assert.equal(selected.data.preferences.youtubeSourceConfirmed, false);
+  const reloaded = await controller.dispatch(
+    request('page.preferences'),
+    uiSender('popup'),
+  );
+  assert.ok(
+    reloaded.ok &&
+      reloaded.data.kind === 'page-preferences' &&
+      reloaded.data.preferences.clickAction === 'captions',
+  );
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: { ...DEFAULT_PAGE_PREFERENCES, captions: false },
+    }),
+    uiSender('popup'),
+  );
+  sessionId = controller.pageSessions.grant(sender);
+  assert.equal((await choose('captions')).ok, false);
+  assert.equal((await choose('page')).ok, true);
+  controller.pageSessions.revokeTab(7);
+  assert.equal((await choose('page')).ok, false);
+});

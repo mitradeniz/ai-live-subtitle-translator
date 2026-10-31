@@ -958,3 +958,11 @@ summary:focus-visible {
 .caption-section.is-hidden {
   display: none;
 }
+
+.page-auto-site {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.85rem;
+}
