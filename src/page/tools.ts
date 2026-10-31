@@ -5,7 +5,7 @@ import type { PagePreferences, PageState, WritingStyle } from './contracts';
 import type { Settings, SelectionLanguages } from '../messaging/protocol';
 import { sendRequest } from '../messaging/client';
 import { translate } from '../ui/strings';
-import { createMark } from '../ui/mark';
+import { createCheck, createMark } from '../ui/mark';
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
 
 type Feature = 'page' | 'selection' | 'hover' | 'input' | 'writing';
@@ -33,7 +33,11 @@ export class PageTools {
   #writingPanel = document.createElement('details');
   #style = document.createElement('select');
   #apply: HTMLButtonElement;
+  #translate: HTMLButtonElement;
   #restore: HTMLButtonElement;
+  #captions = document.createElement('button');
+  #badge = document.createElement('span');
+  #captionsOn = false;
   #page: PageText;
   #playerShortcut: PlayerShortcut | undefined;
   #selectionPopup: SelectionPopup | undefined;
@@ -44,7 +48,6 @@ export class PageTools {
   #requests = 0;
   #position = { side: 1, height: 0.22 };
   #drag: { id: number; x: number; y: number; moved: boolean } | undefined;
-  #menuTimer: ReturnType<typeof setTimeout> | undefined;
   #hoverTimer: ReturnType<typeof setTimeout> | undefined;
   #lastHover = '';
   #field: Field | null = null;
@@ -72,15 +75,17 @@ export class PageTools {
     this.settings = settings;
     this.ai = ai;
     const css = document.createElement('style');
-    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:46px;height:46px;padding:0;white-space:nowrap;border:0;border-radius:16px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger svg{width:30px;height:30px;pointer-events:none}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel h2{margin:0 0 8px;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}.action-picker{border:0;padding:0}.action-picker legend{font-size:12px;color:rgb(226 233 247 / 74%)}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px var(--font);color:#f3f6fc;background:rgb(16 20 36 / 70%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}.label{font-size:11px}.status{font-size:12px}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.show{-webkit-backdrop-filter:none;backdrop-filter:none}}`;
+    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:46px;height:46px;padding:0;white-space:nowrap;border:0;border-radius:16px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger{position:relative}.trigger svg{width:30px;height:30px;pointer-events:none}.badge{position:absolute;top:-3px;right:-3px;display:grid;place-items:center;width:12px;height:12px;border-radius:50%;background:rgb(139 147 167 / 90%);box-shadow:0 0 0 2px rgb(16 20 36 / 92%);transition:width .35s cubic-bezier(.34,1.56,.64,1),height .35s cubic-bezier(.34,1.56,.64,1),background .3s}.badge svg{width:11px;height:11px;opacity:0;transition:opacity .2s}.trigger[data-active="true"] .badge{width:18px;height:18px;background:#7fe9c3;color:#06231a}.trigger[data-active="true"] .badge svg{opacity:1}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel{display:flex;flex-direction:column;gap:8px}.panel h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel .destination{margin:-4px 0 4px;color:rgb(226 233 247 / 70%)}.panel .consent{margin:0;color:rgb(226 233 247 / 56%)}.panel .row{margin:0}.wide{width:100%}.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 14px;border-radius:16px}.switch .track{flex:none;width:34px;height:20px;padding:2px;border-radius:999px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);transition:background .3s}.switch .track span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}.switch[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}.switch[aria-checked="true"] .track span{transform:translateX(14px)}.footer button{flex:1}.panel p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px var(--font);color:#f3f6fc;background:rgb(16 20 36 / 70%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}.label{font-size:11px}.status{font-size:12px}.status:empty{display:none}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.show{-webkit-backdrop-filter:none;backdrop-filter:none}}`;
     this.#dock.className = 'dock';
     this.#button.className = 'trigger';
     this.#button.type = 'button';
-    this.#button.append(createMark(30));
-    this.#button.setAttribute(
-      'aria-label',
-      this.t('Translate · hover for tools'),
-    );
+    this.#button.append(createMark(30), this.#badge);
+    // The corner badge shows whether page or video translation is running.
+    this.#badge.className = 'badge';
+    this.#badge.setAttribute('aria-hidden', 'true');
+    this.#badge.append(createCheck(11));
+    this.#button.setAttribute('aria-label', this.t('Translation tools'));
+    this.#button.setAttribute('aria-haspopup', 'true');
     this.#button.setAttribute('aria-expanded', 'false');
     this.#panel.className = 'panel';
     this.#panel.hidden = true;
@@ -88,98 +93,45 @@ export class PageTools {
     const heading = document.createElement('h2');
     heading.textContent = this.t('Translation tools');
     const destination = document.createElement('p');
-    destination.className = 'label';
+    destination.className = 'label destination';
     destination.textContent = `${label} · ${settings.sourceLanguage} → ${settings.targetLanguage}`;
-    const consent = document.createElement('p');
-    consent.className = 'label';
-    consent.textContent = this.t(
-      'Requested text goes to this provider. User-key services may charge.',
-    );
     this.#status.className = 'status';
     this.#status.setAttribute('role', 'status');
     this.#result.className = 'result';
     this.#result.dir = 'auto';
     this.#result.setAttribute('aria-live', 'polite');
-    this.#panel.append(heading, destination, consent);
-    const actionPicker = document.createElement('fieldset');
-    actionPicker.className = 'row action-picker';
-    const legend = document.createElement('legend');
-    legend.textContent = this.t('Edge button action');
-    actionPicker.append(legend);
-    const choices: { value: 'page' | 'captions'; button: HTMLButtonElement }[] =
-      [];
-    for (const [value, label] of [
-      ['page', 'Web page translation'],
-      ['captions', 'Video subtitles'],
-    ] as const) {
-      const button = this.button(label, async () => {
-        actionPicker.disabled = true;
-        try {
-          const response = await sendRequest({
-            type: 'page.action',
-            sessionId: this.sessionId,
-            action: value,
-          });
-          if (this.#closed) return;
-          if (response.kind === 'page-preferences') {
-            this.prefs = response.preferences;
-            for (const choice of choices)
-              choice.button.setAttribute(
-                'aria-pressed',
-                String(choice.value === this.prefs.clickAction),
-              );
-            this.showStatus('Action selected. Click the logo to start.');
-          }
-        } finally {
-          actionPicker.disabled = false;
-        }
-      });
-      button.disabled = !prefs[value];
-      button.setAttribute('aria-pressed', String(prefs.clickAction === value));
-      choices.push({ value, button });
-      actionPicker.append(button);
-    }
-    this.#panel.append(actionPicker);
-    const main = this.button('Translate visible page', () => this.startPage());
-    main.className = 'primary';
-    main.disabled = !prefs.page;
-    this.#panel.append(main);
-    const videoStart = this.button('Start video subtitles', () =>
-      this.startCaptions(),
-    );
-    videoStart.disabled = !prefs.captions;
-    this.#panel.append(videoStart);
-    const row = document.createElement('div');
-    row.className = 'row';
+    this.#panel.append(heading, destination);
+    // One page action at a time: translate, or restore once translated.
+    this.#translate = this.button('Translate visible page', () => {
+      this.startPage();
+      this.#paintState();
+    });
+    this.#translate.className = 'primary';
+    this.#translate.disabled = !prefs.page;
     this.#restore = this.button('Restore original page', () => {
       this.#page.restore();
       this.state = 'ready';
+      this.#paintState();
     });
-    row.append(
-      this.#restore,
-      this.button('Change provider / languages', () => this.popup()),
-      this.button('Customize translation', () => this.popup()),
-    );
-    this.#panel.append(row);
-    const display = document.createElement('select');
-    display.setAttribute('aria-label', this.t('Page display'));
-    for (const [value, label] of [
-      ['bilingual', 'Original and translation'],
-      ['translated', 'Translation only'],
-    ]) {
-      const option = document.createElement('option');
-      option.value = value!;
-      option.textContent = this.t(label!);
-      display.append(option);
+    this.#restore.className = 'wide';
+    this.#panel.append(this.#translate, this.#restore);
+    if (prefs.captions) {
+      this.#captions.type = 'button';
+      this.#captions.className = 'switch';
+      this.#captions.setAttribute('role', 'switch');
+      this.#captions.setAttribute('aria-checked', 'false');
+      const name = document.createElement('span');
+      name.textContent = this.t('Video subtitles');
+      const track = document.createElement('span');
+      track.className = 'track';
+      track.setAttribute('aria-hidden', 'true');
+      track.append(document.createElement('span'));
+      this.#captions.append(name, track);
+      this.#captions.addEventListener('click', (event) => {
+        if (event.isTrusted) void this.toggleCaptions();
+      });
+      this.#panel.append(this.#captions);
     }
-    display.value = prefs.display;
-    display.addEventListener('change', (event) => {
-      if (event.isTrusted)
-        this.#page.setMode(
-          display.value === 'translated' ? 'translated' : 'bilingual',
-        );
-    });
-    this.#panel.append(display);
     const textRow = document.createElement('div');
     textRow.className = 'row';
     if (prefs.selection)
@@ -190,7 +142,7 @@ export class PageTools {
       );
     if (prefs.writing)
       textRow.append(this.button('AI Writing', () => this.writing()));
-    this.#panel.append(textRow);
+    if (textRow.childElementCount) this.#panel.append(textRow);
     if (prefs.hover) {
       const hint = document.createElement('p');
       hint.className = 'label';
@@ -237,12 +189,8 @@ export class PageTools {
       this.#apply,
     );
     const footer = document.createElement('div');
-    footer.className = 'row';
+    footer.className = 'row footer';
     footer.append(
-      this.button('Video controls', () => {
-        this.open(false);
-        document.dispatchEvent(new Event('subtitle-translator:show-controls'));
-      }),
       this.button('Open settings', async () => {
         await sendRequest({ type: 'page.open-settings', sessionId });
       }),
@@ -253,7 +201,12 @@ export class PageTools {
         this.#show.focus();
       }),
     );
-    this.#panel.append(footer);
+    const consent = document.createElement('p');
+    consent.className = 'label consent';
+    consent.textContent = this.t(
+      'Requested text goes to this provider. User-key services may charge.',
+    );
+    this.#panel.append(footer, consent);
     this.#show.type = 'button';
     this.#show.className = 'show';
     this.#show.textContent = this.t('Show controls');
@@ -351,12 +304,10 @@ export class PageTools {
     this.#button.addEventListener('pointercancel', () => {
       this.#drag = undefined;
     });
+    // A real click opens or closes the menu; actions run from menu buttons.
     this.#button.addEventListener('click', (event) => {
-      if (event.isTrusted && !this.#drag?.moved) {
-        clearTimeout(this.#menuTimer);
-        this.open(false);
-        this.action();
-      }
+      if (event.isTrusted && !this.#drag?.moved)
+        this.open(Boolean(this.#panel.hidden));
       this.#drag = undefined;
     });
     this.#button.addEventListener('keydown', (event) => {
@@ -376,21 +327,6 @@ export class PageTools {
         this.#panel.querySelector('button')?.focus();
       }
     });
-    this.#button.addEventListener('focus', () => {
-      if (this.#button.matches(':focus-visible')) this.open(true);
-    });
-    this.#dock.addEventListener('pointerenter', (event) => {
-      if (event.isTrusted) {
-        clearTimeout(this.#menuTimer);
-        this.#menuTimer = setTimeout(() => this.open(true), 220);
-      }
-    });
-    this.#dock.addEventListener('pointerleave', () => {
-      clearTimeout(this.#menuTimer);
-      this.#menuTimer = setTimeout(() => {
-        if (!this.#panel.contains(this.#shadow.activeElement)) this.open(false);
-      }, 350);
-    });
     this.#dock.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         this.#button.focus();
@@ -404,6 +340,7 @@ export class PageTools {
       (message) => {
         this.state = this.#page.active ? 'translating' : 'ready';
         this.showStatus(message);
+        this.#paintState();
       },
     );
     if (prefs.selection && prefs.autoSelection)
@@ -430,12 +367,14 @@ export class PageTools {
         },
       });
     document.addEventListener('focusin', this.#focus, true);
+    document.addEventListener('pointerdown', this.#outside, true);
     document.addEventListener('pointerup', this.#select, true);
     document.addEventListener('pointerover', this.#hover, true);
     document.addEventListener('pointerout', this.#hoverOut, true);
     window.addEventListener('resize', this.layout);
     document.addEventListener('fullscreenchange', this.layout);
     this.#expiry = setInterval(() => {
+      this.#watchCaptions();
       if (location.href !== this.#url) this.dispose();
       else if (
         Date.now() - this.#started >= 30 * 60_000 &&
@@ -461,7 +400,7 @@ export class PageTools {
       }
     }, 1000);
     this.layout();
-    this.showStatus('Ready. Click the edge button to run your chosen action.');
+    this.#paintState();
   }
   private t(text: string) {
     return translate(text, this.settings.uiLanguage);
@@ -487,43 +426,72 @@ export class PageTools {
   }
   open(value: boolean) {
     if (this.#closed) return;
+    const opening = value && Boolean(this.#panel.hidden);
     this.#panel.hidden = !value;
     this.#button.setAttribute('aria-expanded', String(value));
     this.layout();
+    if (opening) void this.refreshCaptions();
   }
-  private async popup() {
-    await sendRequest({ type: 'page.open-popup', sessionId: this.sessionId });
-  }
-  action() {
+  #outside = (event: PointerEvent) => {
+    if (
+      event.isTrusted &&
+      !this.#panel.hidden &&
+      !event.composedPath().includes(this.host)
+    )
+      this.open(false);
+  };
+  #paintState() {
     if (this.#closed) return;
-    switch (this.prefs.clickAction) {
-      case 'page':
-        this.startPage();
-        break;
-      case 'captions':
-        void this.startCaptions();
-        break;
-      case 'selection':
-        void this.selected();
-        break;
-      case 'input':
-        void this.field();
-        break;
-      case 'writing':
-        void this.writing();
-        break;
+    const translating = this.#page.active;
+    this.#translate.hidden = translating;
+    this.#restore.hidden = !translating;
+    this.#captions.setAttribute('aria-checked', String(this.#captionsOn));
+    const active = translating || this.#captionsOn;
+    this.#button.dataset.active = String(active);
+    this.#button.title = this.t(
+      active ? 'Translation is on' : 'Translation is off',
+    );
+  }
+  // Display hint only: the overlay exists while captions run in this document.
+  // The menu switch asks the background for the real state when it opens.
+  #watchCaptions() {
+    if (!this.prefs.captions || this.#pending) return;
+    const running = Boolean(
+      document.querySelector('subtitle-translator-overlay'),
+    );
+    if (running !== this.#captionsOn) {
+      this.#captionsOn = running;
+      this.#paintState();
     }
   }
-  private async startCaptions() {
-    if (!this.prefs.captions || this.#pending) return;
-    this.#pending++;
+  private async refreshCaptions() {
+    if (!this.prefs.captions || this.#closed) return;
     try {
       const result = await sendRequest({
-        type: 'page.captions',
+        type: 'page.caption-status',
         sessionId: this.sessionId,
+      });
+      if (this.#closed || this.#pending || result.kind !== 'playback') return;
+      this.#captionsOn = result.state === 'enabled';
+      this.#paintState();
+    } catch {
+      // Keep the last known state; actions still report their own errors.
+    }
+  }
+  private async toggleCaptions() {
+    if (!this.prefs.captions || this.#pending) return;
+    const enable = !this.#captionsOn;
+    this.#pending++;
+    this.#captions.disabled = true;
+    try {
+      const result = await sendRequest({
+        type: 'page.caption-toggle',
+        sessionId: this.sessionId,
+        enabled: enable,
       });
       if (this.#closed) return;
       const state = result.kind === 'playback' ? result.state : 'unavailable';
+      this.#captionsOn = state === 'enabled';
       const messages = {
         enabled: 'Video subtitles started.',
         'no-video': 'No supported video found on this page.',
@@ -534,19 +502,21 @@ export class PageTools {
           'Allow provider access in settings, then try again.',
         'needs-restart':
           'Choose a provider and translated display in the popup first.',
-        disabled: 'Video subtitles could not start. Try again from the popup.',
+        disabled: enable
+          ? 'Video subtitles could not start. Try again from the popup.'
+          : 'Video subtitles stopped.',
         unavailable:
           'Video subtitles could not start. Try again from the popup.',
       };
       this.showStatus(messages[state]);
-      if (state !== 'enabled') this.open(true);
     } catch {
       this.showStatus(
         'Video subtitles could not start. Try again from the popup.',
       );
-      this.open(true);
     } finally {
       this.#pending--;
+      this.#captions.disabled = false;
+      this.#paintState();
     }
   }
   get placement() {
@@ -842,8 +812,8 @@ export class PageTools {
     this.#selectionPopup?.dispose();
     clearInterval(this.#expiry);
     clearTimeout(this.#hoverTimer);
-    clearTimeout(this.#menuTimer);
     document.removeEventListener('focusin', this.#focus, true);
+    document.removeEventListener('pointerdown', this.#outside, true);
     document.removeEventListener('pointerup', this.#select, true);
     document.removeEventListener('pointerover', this.#hover, true);
     document.removeEventListener('pointerout', this.#hoverOut, true);

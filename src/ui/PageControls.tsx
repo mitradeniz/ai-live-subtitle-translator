@@ -246,33 +246,7 @@ export function PageControls({
               'Selecting text sends it to your selected provider. Paid providers may charge per selection.',
             )}
           </small>
-          <label>
-            {t('Edge button action')}
-            <select
-              value={prefs.clickAction}
-              onChange={(event) =>
-                void update({
-                  clickAction: event.target
-                    .value as PagePreferences['clickAction'],
-                })
-              }
-            >
-              {(
-                [
-                  ['page', 'Translate visible page'],
-                  ['captions', 'Video subtitles'],
-                  ['selection', 'Translate selection'],
-                  ['input', 'Translate focused field'],
-                  ['writing', 'AI Writing'],
-                ] as const
-              ).map(([key, label]) => (
-                <option key={key} value={key} disabled={!prefs[key]}>
-                  {t(label)}
-                </option>
-              ))}
-            </select>
-          </label>
-          {prefs.clickAction === 'captions' && (
+          {prefs.captions && (
             <label>
               <input
                 type="checkbox"

@@ -110,41 +110,39 @@ try {
   await page.bringToFront();
   let tools = page.locator('translator-page-tools');
   await tools.waitFor();
+  // The idle logo opens its menu only on a real click; nothing is sent.
   await tools.locator('.trigger').hover();
-  const videoChoice = tools.getByRole('button', {
+  await tools.locator('.trigger').evaluate((button) => button.click());
+  assert.equal(await tools.locator('.panel').isVisible(), false);
+  await tools.locator('.trigger').click();
+  await tools.locator('.panel').waitFor({ state: 'visible' });
+  const videoSwitch = tools.getByRole('switch', {
     name: 'Video subtitles',
     exact: true,
   });
-  await videoChoice.evaluate((button) => button.click());
+  await videoSwitch.evaluate((button) => button.click());
+  await page.waitForTimeout(250);
   assert.equal(
-    await videoChoice.getAttribute('aria-pressed'),
+    await videoSwitch.getAttribute('aria-checked'),
     'false',
-    'Synthetic choice is ignored',
+    'Synthetic switch click is ignored',
   );
-  await videoChoice.click();
-  await tools.getByText('Action selected. Click the logo to start.').waitFor();
-  assert.equal(requests, 0, 'Hover/action choice must not translate');
-  const saved = await message('page.preferences');
-  assert.equal(saved.data.preferences.clickAction, 'captions');
+  assert.equal(requests, 0, 'Opening the menu must not translate');
   // No engine is configured: a real click gives guidance without network activity.
-  await tools.locator('.trigger').click();
+  await videoSwitch.click();
   await tools
     .getByText('Choose a provider and translated display in the popup first.')
     .waitFor();
+  assert.equal(await videoSwitch.getAttribute('aria-checked'), 'false');
   await page.evaluate(() => history.pushState({}, '', '/next'));
   await page.waitForTimeout(2400);
   await tools.waitFor();
   assert.equal(await tools.count(), 1);
-  await tools.locator('.trigger').hover();
-  assert.equal(await videoChoice.getAttribute('aria-pressed'), 'true');
-  const pageChoice = tools.getByRole('button', {
-    name: 'Web page translation',
-    exact: true,
-  });
-  await pageChoice.focus();
-  await page.keyboard.press('Enter');
-  await tools.getByText('Action selected. Click the logo to start.').waitFor();
-  assert.equal(await pageChoice.getAttribute('aria-pressed'), 'true');
+  await tools.locator('.trigger').click();
+  await tools.locator('.panel').waitFor({ state: 'visible' });
+  await tools
+    .getByRole('button', { name: 'Translate visible page', exact: true })
+    .waitFor();
   await page.screenshot({ path: '.output/edge-auto-menu.png' });
   const other = await context.newPage();
   await other.goto('https://other.example.test/article');
@@ -253,7 +251,7 @@ try {
       browser: context.browser().version(),
       providerRequests: requests,
       checks:
-        'exact-host grant, denial, idle auto logo, refresh, hover choice, SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
+        'exact-host grant, denial, idle auto logo, refresh, click-to-open menu, SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
     }),
   );
 } finally {

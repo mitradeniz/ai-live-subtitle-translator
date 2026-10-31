@@ -19,6 +19,10 @@
 - Add **Swap languages** to the player menu. It exchanges the saved source and
   target languages, shows the current pair and is disabled for auto-detect. Like
   a target-language change there, it stops translation until it is turned on again.
+- Simplify the page-edge menu: clicking the logo opens or closes it (hover no longer
+  opens it), and it lists only the enabled tools with one translate/restore button and
+  a video subtitles switch. The edge-button action choice is removed from the menu and
+  popup. A badge on the logo shows a check mark while page or video translation runs.
 - Document distribution in Edge, Opera and Brave (same Chromium package, not yet
   tested) and why there is no Firefox build yet.
 

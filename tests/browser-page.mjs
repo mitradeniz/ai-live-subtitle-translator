@@ -144,7 +144,7 @@ try {
   const originalFirst = await page.locator('#first').textContent();
   const tools = page.locator('translator-page-tools');
   const trigger = tools.getByRole('button', {
-    name: 'Translate · hover for tools',
+    name: 'Translation tools',
     exact: true,
   });
   const menu = async () => {
@@ -152,21 +152,25 @@ try {
     await page.keyboard.press('F2');
   };
   await enable(false);
+  // Only a real click on the logo opens the menu; hovering does nothing.
+  await trigger.evaluate((button) => button.click());
   await trigger.hover();
+  await page.waitForTimeout(400);
+  assert.equal(await tools.locator('.panel').isVisible(), false);
+  assert.equal(await trigger.getAttribute('data-active'), 'false');
+  await trigger.click();
   await tools.locator('.panel').waitFor({ state: 'visible' });
-  assert.equal(
-    sent.length,
-    0,
-    'Hovering opens the menu without transmitting text',
-  );
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'true');
+  assert.equal(sent.length, 0, 'Opening the menu does not transmit text');
   // Synthetic page clicks must not trigger requests.
-  await tools
-    .getByRole('button', { name: 'Translate visible page', exact: true })
-    .evaluate((button) => button.click());
+  const translateButton = tools.getByRole('button', {
+    name: 'Translate visible page',
+    exact: true,
+  });
+  await translateButton.evaluate((button) => button.click());
   await page.waitForTimeout(250);
   assert.equal(sent.length, 0);
-  await trigger.click();
-  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
+  await translateButton.click();
   await page.waitForFunction(() =>
     document
       .querySelector('#first [data-page-translation]')
@@ -188,9 +192,13 @@ try {
         { cause: error },
       );
     });
+  assert.equal(await trigger.getAttribute('data-active'), 'true');
+  assert.equal(await translateButton.isVisible(), false);
   const completedRequests = sent.length;
   const completedSpans = await page.locator('[data-page-translation]').count();
+  // Clicking the logo again only closes the menu.
   await trigger.click();
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
   await page.waitForTimeout(250);
   assert.equal(
     await page.locator('[data-page-translation]').count(),
@@ -199,7 +207,7 @@ try {
   assert.equal(
     sent.length,
     completedRequests,
-    'Repeated click does not stop or resend translated text',
+    'Closing the menu does not stop or resend translated text',
   );
   assert.ok(!sent.some((text) => text.includes('Lower paragraph')));
   assert.ok(
@@ -382,17 +390,19 @@ try {
     track.addCue(new VTTCue(0, 10, 'Native video sentence.'));
     track.mode = 'showing';
   });
-  await send('page.configure', {
-    preferences: { ...prefs, clickAction: 'captions' },
-  });
   await enable();
-  await trigger.hover();
+  await trigger.click();
   await tools.locator('.panel').waitFor({ state: 'visible' });
+  const subtitles = tools.getByRole('switch', {
+    name: 'Video subtitles',
+    exact: true,
+  });
+  assert.equal(await subtitles.getAttribute('aria-checked'), 'false');
   assert.equal(await page.locator('subtitle-translator-overlay').count(), 0);
-  await trigger.evaluate((button) => button.click());
+  await subtitles.evaluate((button) => button.click());
   await page.waitForTimeout(250);
   assert.equal(await page.locator('subtitle-translator-overlay').count(), 0);
-  await trigger.click();
+  await subtitles.click();
   await page.locator('subtitle-translator-overlay').waitFor();
   await page.waitForFunction(
     () =>
@@ -401,6 +411,8 @@ try {
         ?.shadowRoot.querySelector('.status')?.textContent ===
       'Video subtitles started.',
   );
+  assert.equal(await subtitles.getAttribute('aria-checked'), 'true');
+  assert.equal(await trigger.getAttribute('data-active'), 'true');
   assert.equal(
     await page.locator('[data-page-translation]').count(),
     0,

@@ -470,19 +470,19 @@ mode and enabled tools are separate.
 - **Always show the logo on this site**, under Customize translation, retains the
   narrower one-host alternative. You can use this instead of all-sites access.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
-  the square starts the chosen action (page, video subtitles, selection, field or
-  writing); hovering opens its glass menu. Clicking an already running page/video
-  action does not stop or restart it; use Restore/Disable from the menu.
-  The hover menu also lets you choose Page or Video directly; the choice is saved,
-  but switching it never starts translation or enables a disabled feature. Focus/F2 opens
-  the menu by keyboard, Escape closes it, and arrow keys move the dock. Hide/Show
-  preserves its page edge and height. **Change provider / languages** opens the
-  trusted toolbar popup; keys and new provider permissions stay in extension UI.
-  For the video click action, select Video subtitles in Customize translation and
-  confirm an original YouTube track there when applicable. Choose a provider and
-  translated/bilingual caption display first; original-only is not silently changed.
+  the square opens or closes its glass menu; opening it sends nothing. The menu holds
+  only the enabled tools: **Translate visible page** (replaced by **Restore original
+  page** while active), a **Video subtitles** switch, and Translate selection,
+  Translate focused field or AI Writing when those are turned on. A small badge on the
+  square shows a check mark while page or video translation is running. Enter/Space or
+  F2 opens the menu by keyboard; Escape or a click outside closes it, and arrow keys
+  move the dock. Hide/Show preserves its page edge and height. Provider, language and
+  tool choices stay in the trusted popup and settings.
+  For video subtitles on YouTube, confirm an original track in Customize translation
+  when applicable. Choose a provider and translated/bilingual caption display first;
+  original-only is not silently changed.
 - **Selected text**: enable tools first, select up to 1,000 characters, then choose
-  Translate selection or use that edge-button action. Output appears in a preview.
+  Translate selection in the edge menu. Output appears in a preview.
   Alternatively, turn on **Translate automatically after selection** in Settings or
   popup → Customize translation. This separate opt-in defaults off. On pages with
   enabled tools, completing a mouse selection shows a nearby glass preview with the

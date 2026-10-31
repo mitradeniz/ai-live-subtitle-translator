@@ -557,3 +557,9 @@ Object.assign(turkish, {
   'Set a source language in settings to swap.':
     'Değiştirmek için ayarlardan bir kaynak dil seç.',
 });
+
+Object.assign(turkish, {
+  'Translation is on': 'Çeviri açık',
+  'Translation is off': 'Çeviri kapalı',
+  'Video subtitles stopped.': 'Video altyazıları durduruldu.',
+});
