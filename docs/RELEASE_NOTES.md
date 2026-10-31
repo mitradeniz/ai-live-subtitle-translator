@@ -1,5 +1,6 @@
-# Unreleased
+# 0.2.1-preview.1 — 2026-10-31
 
+- Use **AI Video Subtitle Translator** as the extension display name.
 - Redesign the popup, settings and in-page controls in a liquid glass style:
   translucent panels over a static aurora background, rim highlights and
   spring-eased switches and segmented controls. The system font stack is used;

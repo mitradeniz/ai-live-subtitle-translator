@@ -1,15 +1,19 @@
-# Draft store copy — limited preview
+# Store copy — limited preview
 
-Prepared text only; no store listing or hosted release exists. This copy intentionally
-excludes compatibility and live-provider claims that have not been verified.
+Listing content for version 0.2.1-preview.1. This document is not evidence of
+store approval. Compatibility and live-provider claims are limited to actual checks.
 
 ## English
 
-Name: AI Live Subtitle Translator
+Name: AI Video Subtitle Translator
 
 Short description: Translate visible page text and available captions with Google or your own API key. Limited preview.
 
 Detailed description:
+
+Free to install and open source. The experimental keyless Google option does not
+require an API key. Optional AI and Google Cloud services use your own account and
+may charge for usage; installing this extension does not include paid API credits.
 
 Read available captions in your preferred language while watching supported desktop
 videos. Choose original, translated or bilingual text, adjust size, contrast and
@@ -30,7 +34,8 @@ and can stop working. No paid provider is selected automatically.
 
 Opt into visible-page translation, selected-text and Alt-hover previews, plain
 text-field translation, or AI Writing previews. A page-edge glass menu offers quick
-actions; provider changes open the trusted popup. Page translation processes new
+actions; configured providers and target languages can also be changed in the
+player menu. Page translation processes new
 visible text as you scroll and can restore originals. Writing requires a configured
 AI profile. Field edits need explicit application; no form submission is automated.
 Rich editors, iframes and PDFs are unsupported. Requested page/writing text stays out
@@ -43,11 +48,15 @@ any time. Device storage is not an encrypted vault. Read the privacy notice befo
 
 ## Türkçe
 
-Ad: AI Live Subtitle Translator
+Ad: AI Video Subtitle Translator
 
 Kısa açıklama: Görünen sayfa metnini ve altyazıları Google veya kendi API anahtarınla çevir. Sınırlı önizleme.
 
 Açıklama:
+
+Ücretsiz kurulabilir ve açık kaynaklıdır. Deneysel anahtarsız Google seçeneği API
+anahtarı istemez. İsteğe bağlı AI ve Google Cloud hizmetleri kendi hesabını kullanır
+ve kullanım ücreti alabilir; eklenti ücretli API kredisi sağlamaz.
 
 Desteklenen masaüstü videolarında erişilebilir altyazıları seçtiğin dilde oku.
 Orijinal, çeviri veya iki dilli görünüm; yazı boyutu, kontrast ve konum ayarları;
@@ -69,7 +78,8 @@ henüz tamamlanmamıştır. Anahtarsız Google belgelenmemiş davranışa dayan�
 
 Görünen sayfa çevirisini, seçili metin/Alt ile üzerine gelme önizlemelerini,
 normal yazı alanı çevirisini ve AI Yazım araçlarını ayrı ayrı açabilirsin. Kenardaki
-cam menü hızlı işlemler sunar; sağlayıcı değişimi eklentinin popup penceresinde yapılır.
+cam menü hızlı işlemler sunar; yapılandırılmış sağlayıcı ve hedef dil oynatıcı
+menüsünden de değiştirilebilir.
 Kaydırdıkça yeni görünen metinler çevrilir ve orijinal görünüm geri getirilebilir.
 AI Yazım için yapılandırılmış AI sağlayıcısı gerekir. Yazı alanına uygulama açık bir
 tıklama gerektirir; form gönderilmez. Zengin editörler, iframe ve PDF desteklenmez.
@@ -85,10 +95,12 @@ Cihaz depolaması şifreli bir kasa değildir. Kullanmadan önce gizlilik bildir
 `pnpm test:release` captures actual settings from a clean install of the verified
 normal ZIP at ordinary Chrome 90% page zoom, with no stored key or provider request. It writes 1280×800 PNG screenshots:
 
-- `.output/store-assets/0.1.1-preview.1/01-settings-en.png`: English viewing controls.
-- `.output/store-assets/0.1.1-preview.1/02-settings-tr.png`: Turkish viewing controls.
+- `.output/store-assets/0.2.1-preview.1/01-settings-en.png`: English viewing controls.
+- `.output/store-assets/0.2.1-preview.1/02-settings-tr.png`: Turkish viewing controls.
 
-No mock caption output, real video transcript, account data or invented UI is shown.
+No mock provider output, real video transcript, account data or invented UI is shown.
+The settings caption preview contains fixed illustrative text; it is not a live
+translation result.
 `capture.json` records browser/version/archive hash. These generated assets stay out
 of source commits and the extension ZIP. The committed icon is `public/icons/icon-128.png`.
 Before submission, inspect screenshots and store icon sizing against the current

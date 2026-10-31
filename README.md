@@ -1,8 +1,8 @@
-# AI Live Subtitle Translator
+# AI Video Subtitle Translator
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.2.0-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+**Current status: 0.2.1-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus experimental YouTube timed-caption access and a visible-caption
 fallback. Includes saved preferences, JSON export, and
 a liquid glass popup and settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.2.0-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.2.0-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.2.0-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.2.1-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.2.1-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.2.1-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.2.0-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.2.1-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -128,7 +128,7 @@ Build output and local caches are ignored by Git.
 
 1. Run `pnpm build`. Open `chrome://extensions`, turn on **Developer mode**, click
    **Load unpacked**, and select `.output/chrome-mv3` from this repository.
-2. Pin **AI Live Subtitle Translator**. On a regular webpage with a visible HTML5
+2. Pin **AI Video Subtitle Translator**. On a regular webpage with a visible HTML5
    video and accessible text tracks, open the extension and choose **Enable
    captions**. This grants temporary access to that tab. It does not grant permanent
    access to all websites.

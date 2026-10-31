@@ -23,7 +23,7 @@ assert.equal(manifest.options_ui?.open_in_tab, true);
 assert.deepEqual(manifest.permissions, ['storage', 'activeTab', 'scripting']);
 assert.equal(
   manifest.name,
-  mock ? '[TEST] Subtitle timing lab' : 'AI Live Subtitle Translator',
+  mock ? '[TEST] Subtitle timing lab' : 'AI Video Subtitle Translator',
 );
 assert.equal(manifest.incognito, 'not_allowed');
 // No required hosts or static injection; automatic YouTube access is optional.

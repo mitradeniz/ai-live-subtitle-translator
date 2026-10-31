@@ -1,7 +1,7 @@
 {
   "name": "ai-live-subtitle-translator",
   "description": "Limited preview of a browser extension for page and caption translation.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "license": "MIT",
