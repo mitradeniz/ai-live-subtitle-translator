@@ -49,6 +49,7 @@ export class YouTubePlayer {
   #generation = new PlaybackGeneration();
   #active: readonly CaptionUnit[] = [];
   #result: string | null = null;
+  #failed = false;
   #waitMutation = false;
   #closed = false;
   #poll: ReturnType<typeof setInterval>;
@@ -135,6 +136,7 @@ export class YouTubePlayer {
     this.#revision.clear();
     this.#active = [];
     this.#result = null;
+    this.#failed = false;
     this.#overlay.render('');
   }
   #seek = () => {
@@ -265,6 +267,7 @@ export class YouTubePlayer {
       this.#generation.next();
       this.#active = units;
       this.#result = null;
+      this.#failed = false;
       if (
         !timed.length &&
         units.length &&
@@ -278,19 +281,24 @@ export class YouTubePlayer {
           this.#generation.signal,
         )
           .then((result) => {
-            if (this.#closed || !this.#generation.accepts(result, this.#active))
-              return;
+            if (this.#closed || signal.aborted) return;
+            if (!this.#generation.accepts(result, this.#active))
+              throw new TranslationFailure('RESPONSE');
             this.#result = result.items.map((item) => item.text).join('\n');
             this.#overlay.setTranslationStatus('');
             this.#render();
           })
           .catch((error: unknown) => {
-            if (
-              !this.#closed &&
-              !signal.aborted &&
-              error instanceof TranslationFailure
-            )
-              this.#overlay.setTranslationStatus(error.message);
+            if (!this.#closed && !signal.aborted) {
+              this.#failed = true;
+              this.#overlay.setTranslationStatus(
+                (error instanceof TranslationFailure
+                  ? error
+                  : new TranslationFailure('RESPONSE')
+                ).message,
+              );
+              this.#render();
+            }
           });
       }
     }
@@ -315,11 +323,20 @@ export class YouTubePlayer {
     const original = this.#active.map((unit) => unit.text).join('\n');
     const mode = this.#settings.displayMode;
     this.#overlay.render(
-      !this.#result || mode === 'original'
-        ? original
-        : mode === 'translated'
-          ? this.#result
-          : `${original}\n${this.#result}`,
+      mode === 'translated' &&
+        !this.#result &&
+        this.#transform &&
+        !(this.#timed.length
+          ? this.#timedWindow?.failed(
+              activeCues(this.#timed, this.#video.currentTime),
+            )
+          : this.#failed)
+        ? ''
+        : !this.#result || mode === 'original'
+          ? original
+          : mode === 'translated'
+            ? this.#result
+            : `${original}\n${this.#result}`,
     );
   }
   #animate = () => {

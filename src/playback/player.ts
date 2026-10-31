@@ -176,11 +176,16 @@ export class CaptionPlayer {
     const mock = this.#result?.join('\n');
     const mode = this.#settings.displayMode;
     this.#overlay.render(
-      !mock || mode === 'original'
-        ? original
-        : mode === 'translated'
-          ? mock
-          : `${original}\n${mock}`,
+      mode === 'translated' &&
+        !mock &&
+        this.#window &&
+        !this.#window.failed(cues)
+        ? ''
+        : !mock || mode === 'original'
+          ? original
+          : mode === 'translated'
+            ? mock
+            : `${original}\n${mock}`,
     );
   };
 

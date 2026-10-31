@@ -651,3 +651,72 @@ test('queue relevance deadline rejects waiting work and aborts an active provide
   held.resolve(result(j));
   await tick();
 });
+
+test('slow dispatches and cache hits do not add another spacing interval', async () => {
+  let now = 10_000;
+  const queue = new WorkQueue(new TrustedStorage(fakeAreas()), () => now);
+  let calls = 0;
+  const make = (text: string) => {
+    const batch = job(text);
+    return {
+      provider: 'ai',
+      config,
+      paid: true,
+      tabId: 1,
+      sessionId: 'latency',
+      job: batch,
+      valid: () => {},
+      perform: async () => {
+        calls++;
+        now += 2000;
+        return result(batch);
+      },
+    };
+  };
+  await queue.run(make('first'));
+  await tick();
+  await queue.run(make('first')); // cached
+  await tick();
+  const started = performance.now();
+  await queue.run(make('second'));
+  assert.equal(calls, 2);
+  assert.ok(
+    performance.now() - started < 800,
+    'An elapsed dispatch interval must not restart at completion/cache hit',
+  );
+});
+
+test('timed captions distinguish waiting from failed output and discard old failure after reset', async () => {
+  let finish!: (value: CaptionResult) => void;
+  const errors: unknown[] = [];
+  const window = new TimedWindow(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    () => {},
+    (error) => errors.push(error),
+  );
+  const cues = [cue(0)];
+  window.update(cues, 0.5, true);
+  assert.equal(window.texts(cues), null);
+  assert.equal(
+    window.failed(cues),
+    false,
+    'Pending must not trigger original fallback',
+  );
+  finish({ generation: 999, items: [] });
+  await tick();
+  assert.equal(
+    window.failed(cues),
+    true,
+    'Malformed result must allow original fallback',
+  );
+  assert.ok(errors.some(failure('RESPONSE')));
+  window.reset();
+  assert.equal(window.failed(cues), false);
+  const tooLong = [{ ...cue(1), text: 'x'.repeat(1001) }];
+  window.update(tooLong, 1.5, true);
+  assert.equal(window.failed(tooLong), true);
+  assert.ok(errors.some(failure('LIMIT')));
+});

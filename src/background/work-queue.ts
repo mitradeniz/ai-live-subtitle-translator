@@ -150,7 +150,6 @@ export class WorkQueue {
         .finally(() => {
           clearTimeout(entry.timer);
           this.#active.delete(entry.work.provider);
-          this.#next.set(entry.work.provider, this.#now() + 1100);
           this.#entries = this.#entries.filter((e) => e !== entry);
           this.#pump();
         });
@@ -196,6 +195,9 @@ export class WorkQueue {
     valid();
     if (!allowed) throw new TranslationFailure('INTERRUPTED');
     try {
+      // Space actual dispatch starts, not cache hits, cancelled waiters or completion.
+      // Provider budgets and Retry-After gates still apply inside perform().
+      this.#next.set(work.provider, this.#now() + 1100);
       const result = await work.perform(valid);
       valid();
       if (

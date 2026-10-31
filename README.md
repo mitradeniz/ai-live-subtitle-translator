@@ -68,8 +68,10 @@ Build output and local caches are ignored by Git.
    language, engine, original/translated/bilingual display, font size, contrast,
    top/bottom position and English/Turkish interface language. **Save preferences**
    applies appearance changes during playback. Language or provider changes stop
-   translation: enable captions again from the video page. Original text stays
-   available when a provider is off, unavailable or still responding.
+   translation: enable captions again from the video page. In **Translation only**, the extension waits for the current translation without
+   first displaying the source. Original/bilingual mode still shows source text
+   while waiting. Provider failure or disabled translation restores originals.
+   YouTube’s own CC layer remains visible because it supplies the observed text.
 5. Hover or Tab to the controls above the video captions to change display mode,
    text size, contrast or position, or disable captions. Focus remains visible;
    captions use automatic text direction for Arabic/Hebrew and other RTL text.
@@ -103,8 +105,8 @@ are accepted by the mock build; it requests the same temporary tab access as pro
 
 The first cue is `Hello from the timing lab.` and the test output is
 `[MOCK] Hello from the timing lab.`. **This is repeated test text, not a translation.**
-The mock deliberately completes asynchronously after 120 ms. Original text remains
-available while it is pending. With the default bilingual preference, both lines show.
+The mock deliberately completes asynchronously after 120 ms. In bilingual mode, original text remains while the mock is pending; translation-only
+waits without showing the original first. With the default bilingual preference, both lines show.
 
 Try play/pause, forward/backward seeks, 0.5×/2× speed, and disable/re-enable. At 6–8
 seconds two cues overlap; at 9–10 and 18–20 seconds there is no cue. At 10–14 seconds
@@ -288,7 +290,8 @@ ahead while playing. The window holds at most **12 cues**, dispatching at most *
 cues / 2,000 characters** per batch, with current cues separate from future batches.
 Paused playback sends only current cues. Prefetch can consume quota for captions you
 later skip. The visible YouTube fallback has no future-caption lookahead; its 300 ms
-stabilization remains separate. Rapidly revised text can still miss translation.
+stabilization remains separate. Request spacing applies to actual dispatch starts;
+cache hits and cancelled waiters do not restart the spacing delay. Rapidly revised text can still miss translation.
 
 The background queue holds at most 16 jobs across tabs and two per tab, with one
 active job per provider. Waiting current-cue jobs precede prefetch jobs. Completed

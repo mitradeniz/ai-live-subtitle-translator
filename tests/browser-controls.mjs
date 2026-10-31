@@ -10,6 +10,20 @@ const server = await startFixture(0);
 let context;
 const errors = [];
 let requests = 0;
+let replyMode = 'normal';
+let release;
+async function held(page) {
+  const deadline = Date.now() + 8000;
+  while (!release) {
+    if (Date.now() > deadline) throw new Error('No held translation request');
+    await page.waitForTimeout(20);
+  }
+}
+function finishReply() {
+  const finish = release;
+  release = undefined;
+  finish?.();
+}
 try {
   const extension = join(temp, 'extension');
   await cp(resolve('.output/chrome-mv3'), extension, { recursive: true });
@@ -55,6 +69,13 @@ try {
     if (url.origin === 'https://translate.googleapis.com') {
       requests++;
       const source = url.searchParams.get('q');
+      const mode = replyMode;
+      if (mode === 'hold')
+        await new Promise((resolve) => {
+          release = resolve;
+        });
+      if (mode === 'malformed')
+        return route.fulfill({ contentType: 'application/json', body: '{}' });
       return route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify([[[`Çeviri: ${source}`, source]], null, 'en']),
@@ -224,6 +245,44 @@ try {
   );
   assert.equal(await caption.locator('img').count(), 0);
   assert.equal(requests, beforeRTL, 'Original-only mode sends no translation');
+  // Translation-only never flashes the original while a real provider is pending.
+  replyMode = 'hold';
+  await page.evaluate(() => {
+    document.querySelector('video').textTracks[0].cues[0].text =
+      'Pending native caption.';
+  });
+  await overlay
+    .getByLabel('Display mode', { exact: true })
+    .selectOption('translated');
+  await held(page);
+  assert.equal(await caption.textContent(), '');
+  finishReply();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('subtitle-translator-overlay')
+        .shadowRoot.querySelector('.caption').textContent ===
+      'Çeviri: Pending native caption.',
+  );
+  replyMode = 'malformed';
+  await page.evaluate(() => {
+    document.querySelector('video').textTracks[0].cues[0].text =
+      'Failed native caption.';
+  });
+  await overlay
+    .locator('.provider-status')
+    .filter({ hasText: 'unsupported response' })
+    .waitFor();
+  assert.equal(await caption.textContent(), 'Failed native caption.');
+  replyMode = 'normal';
+  await overlay
+    .getByLabel('Display mode', { exact: true })
+    .selectOption('original');
+  await options.waitForFunction(
+    () =>
+      document.querySelector('[aria-label="Display mode"]').value ===
+      'original',
+  );
   await options
     .getByLabel('Interface language', { exact: true })
     .selectOption('tr');
@@ -356,6 +415,54 @@ try {
   await page.reload();
   await page.waitForTimeout(1500);
   assert.equal(await overlay.count(), 0);
+  // The observed YouTube path also hides pending source text and rejects a late
+  // response for a replaced caption. YouTube's own CC layer stays untouched.
+  assert.equal(
+    (await send('controls.select', { provider: 'google' })).ok,
+    true,
+  );
+  const saved = await send('settings.read');
+  const { schemaVersion: _version, ...preferences } = saved.data.settings;
+  void _version;
+  assert.equal(
+    (
+      await send('controls.update', {
+        preferences: { ...preferences, displayMode: 'translated' },
+      })
+    ).ok,
+    true,
+  );
+  replyMode = 'hold';
+  await enable();
+  await held(page);
+  assert.equal(await caption.textContent(), '');
+  assert.equal(
+    await page.locator('.ytp-caption-segment').textContent(),
+    'Synthetic manual caption.',
+  );
+  await page.evaluate(() => window.fixture.text('Updated observed caption.'));
+  finishReply();
+  await held(page);
+  assert.equal(
+    await caption.textContent(),
+    '',
+    'Old translation cannot survive a revision',
+  );
+  finishReply();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('subtitle-translator-overlay')
+        .shadowRoot.querySelector('.caption').textContent ===
+      'Çeviri: Updated observed caption.',
+  );
+  replyMode = 'malformed';
+  await page.evaluate(() => window.fixture.text('Failed observed caption.'));
+  await overlay
+    .locator('.provider-status')
+    .filter({ hasText: 'unsupported response' })
+    .waitFor();
+  assert.equal(await caption.textContent(), 'Failed observed caption.');
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify(
@@ -371,6 +478,7 @@ try {
     ),
   );
 } finally {
+  finishReply();
   await context?.close();
   await new Promise((resolve) => server.close(resolve));
   await rm(temp, { recursive: true, force: true });

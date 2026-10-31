@@ -24,6 +24,7 @@ export class TimedWindow {
   #generation = new PlaybackGeneration();
   #results = new Map<Cue, string>();
   #attempted = new Set<Cue>();
+  #failed = new Map<Cue, TranslationFailure>();
   #pending:
     { cues: Cue[]; abort: AbortController; current: boolean } | undefined;
   #window: Cue[] = [];
@@ -43,6 +44,7 @@ export class TimedWindow {
     this.#pending = undefined;
     this.#results.clear();
     this.#attempted.clear();
+    this.#failed.clear();
     this.#window = [];
     this.#active = [];
   }
@@ -53,6 +55,8 @@ export class TimedWindow {
       if (!this.#window.includes(cue)) this.#results.delete(cue);
     for (const cue of this.#attempted)
       if (!this.#window.includes(cue)) this.#attempted.delete(cue);
+    for (const cue of this.#failed.keys())
+      if (!this.#window.includes(cue)) this.#failed.delete(cue);
     const missingCurrent = this.#active.some(
       (c) => !this.#results.has(c) && !this.#attempted.has(c),
     );
@@ -65,6 +69,13 @@ export class TimedWindow {
       // Keep attempted markers: preempted paid work is uncertain and must not loop.
     }
     this.#pump();
+    const failure = this.#active
+      .map((cue) => this.#failed.get(cue))
+      .find(Boolean);
+    if (failure) this.#error(failure);
+  }
+  failed(cues: readonly Cue[]) {
+    return cues.some((cue) => this.#failed.has(cue));
   }
   texts(cues: readonly Cue[]) {
     return cues.length && cues.every((c) => this.#results.has(c))
@@ -85,6 +96,8 @@ export class TimedWindow {
     )) {
       if (cue.text.length > 1000) {
         this.#attempted.add(cue);
+        this.#failed.set(cue, new TranslationFailure('LIMIT'));
+        if (current) this.#error(new TranslationFailure('LIMIT'));
         continue;
       }
       if (batch.length === 4 || characters + cue.text.length > BATCH_CHARACTERS)
@@ -102,26 +115,30 @@ export class TimedWindow {
       observed: false,
     })
       .then((result) => {
-        if (
-          pending.abort.signal.aborted ||
-          !this.#generation.accepts(result, batch)
-        )
-          return;
+        if (pending.abort.signal.aborted) return;
+        if (!this.#generation.accepts(result, batch))
+          throw new TranslationFailure('RESPONSE');
         for (let i = 0; i < batch.length; i++)
           if (this.#window.includes(batch[i]!))
             this.#results.set(batch[i]!, result.items[i]!.text);
         if (current) this.#error(null);
       })
-      .catch((error) => {
-        if (
-          !pending.abort.signal.aborted &&
-          current &&
+      .catch((error: unknown) => {
+        if (this.#generation.value !== generation) return;
+        const failure =
           error instanceof TranslationFailure
-        )
-          this.#error(error);
+            ? error
+            : new TranslationFailure('RESPONSE');
+        for (const cue of batch)
+          if (this.#window.includes(cue)) this.#failed.set(cue, failure);
+        if (!pending.abort.signal.aborted && current) this.#error(failure);
       })
       .finally(() => {
         if (this.#pending !== pending) return;
+        for (const cue of batch)
+          if (this.#window.includes(cue) && !this.#results.has(cue))
+            if (!this.#failed.has(cue))
+              this.#failed.set(cue, new TranslationFailure('CANCELLED'));
         this.#pending = undefined;
         this.#changed();
         this.#pump();
