@@ -2,7 +2,7 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.1.4-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+**Current status: 0.1.5-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus experimental YouTube timed-caption access and a visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.1.4-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.1.4-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.1.4-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.1.5-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.1.5-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.1.5-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.1.4-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.1.5-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -118,9 +118,10 @@ Build output and local caches are ignored by Git.
    translation: enable captions again from the video page. In **Translation only**, the extension waits for the current translation without
    first displaying the source. Original/bilingual mode still shows source text
    while waiting. Provider failure or disabled translation restores originals.
-   YouTube’s own CC layer remains visible because it supplies the observed text.
-5. Hover or Tab to the controls above the video captions to change display mode,
-   text size, contrast or position, or disable captions. Focus remains visible;
+   YouTube’s CC styling is restored when captions are disabled.
+5. Click or focus the square glass control on the video to open quick settings.
+   Change display mode, text size, contrast or position, or disable captions.
+   Drag the control (or use arrow keys), and use Hide/Show to collapse it. Focus remains visible;
    captions use automatic text direction for Arabic/Hebrew and other RTL text.
    The controls also work inside supported fullscreen containers. After choosing
    **Original only**, resume translation from the popup or settings; a page control
@@ -419,6 +420,22 @@ immediately; an attached worker inspector can change lifecycle behavior. This fo
 termination check is not a claim that natural idle suspension was measured. Fixture
 response timings are not live-provider latency or billing guarantees.
 
+## Floating subtitle controls
+
+After enabling captions, the video shows a small square glass **A/文** control.
+Drag it within the video, or focus it and use arrow keys. Click it to change display
+mode, text size, contrast or top/bottom placement. Escape closes the panel. **Hide
+controls** collapses it into a **Show controls** tab without stopping translation.
+**Open settings** opens the extension's fixed options page; keys and provider setup
+stay there. Resuming a stopped/original-only translation still requires the trusted
+popup. Disable captions removes the widget and restores native caption styling.
+
+In bilingual mode the translated line is above the original. On YouTube the native
+CC layer is temporarily transparent while the extension paints a replacement at its
+position; the original DOM still supplies fallback text. Original inline opacity is
+restored on disable or unavailable source. Burned-in text cannot be removed by this
+extension. Custom overlays still cannot appear in video-element fullscreen or PiP.
+
 ## YouTube preview
 
 Only desktop `https://www.youtube.com/watch?v=...` pages are recognized. Open a video,
@@ -428,35 +445,41 @@ an original caption track, not Auto-translate**, then enable captions. Reopening
 popup resets this confirmation. Known Auto-translate selections and unknown player
 metadata are blocked rather than silently used as a source.
 
-The adapter first checks native timed tracks. If none are exposed, it makes one
-bounded, credential-free request for the selected original track using YouTube's
-page-provided timed-caption URL. Only the exact same-origin `/api/timedtext` path
-and current video/language/track are accepted. This undocumented path may return
-empty data or change without notice; it is not the official YouTube Data API.
-Complete timed segments are joined into caption units, prepared ahead, then shown
-against the video clock. Word offsets do not cause incremental translation requests.
-The label **YouTube timed track · advance translation** identifies this path.
+For advance YouTube captions, choose **Allow YouTube and turn on** under automatic
+captions in settings, grant the YouTube-only permission, then **refresh the video
+page once**. Select the original CC track and your translation engine before
+playing. The early reader must be present when the player first loads its captions;
+manual activation after the player has cached them may be too late. Pausing briefly
+after activation gives the selected provider time to prepare upcoming text.
 
-If timed captions are unavailable, the label says **Advance translation unavailable**
-and **Visible captions · no cue timestamps**. This fallback still reads only text
-already displayed by YouTube and may lag; it cannot satisfy advance translation.
-Observed text has revisions, not fabricated cue start/end times or future lookahead.
-Incremental automatic captions can change while displayed. Source changes and seeks
-clear stale work; the visible fallback waits for a fresh caption mutation afterward,
-so the first changed line can be missed. YouTube's own captions remain untouched.
+The adapter prefers native timed tracks, then reads the selected original track's
+**player-owned caption response**. It observes only the exact YouTube timed-text
+path for the current video/language/track; it never rewrites requests or responses,
+extracts tokens, replays signed URLs, or generates authentication material. If the
+player advertises its caption reload option, it requests that reload once per
+source. Some players reuse their own cache without another network response;
+automatic access plus a page refresh handles the initial capture instead.
 
-For mock evaluation, load the existing `.output/chrome-mv3-mock` build. It repeats
-available text with `[MOCK]`; it does not translate. No fixture server or terminal
-command is needed for this YouTube test. The ordinary production build can translate available captions when a translation engine is selected in settings. No extra host permission, project server, signed-URL export, cookie extraction, or authentication workaround is used.
+Complete timed pieces are joined until sentence-ending punctuation, subject to
+12-second / 800-character / eight-piece limits. Long unpunctuated speech uses
+bounded phrases. Manual overlaps remain separate; rolling ASR sentence display is
+clipped at the next sentence's supplied start. No word timestamps are invented.
+The complete prepared unit appears at its first source cue's start, and the
+translation is above the original in bilingual mode. An incomplete visible DOM
+fragment no longer triggers a translation request.
 
-The 2026-10-31 isolated live recheck exposed no native tracks and returned HTTP 200
-with empty bodies for both credential-free and ordinary same-origin caption requests.
-The shipped request always omits credentials. **Live timed-caption delivery remains
-unverified**; synthetic tests establish parser, prefetch, timing and boundary behavior
-only. Owner-visible captions worked previously, but this does not establish timed access.
-Missing/append-only/oversized timing data is rejected rather than assigned invented
-intervals. Live streams and other incremental formats are unsupported. Seek/source
-changes reject old work; the normal bounded provider budgets still apply.
+**YouTube timed track · advance translation** identifies available timed data.
+**Advance translation unavailable** means it was not obtained; the visible fallback
+cannot provide future words. It translates only complete punctuated visible text,
+so unpunctuated fallback captions may remain untranslated. This is not a guarantee
+of support for every video or live stream. Empty/unsupported platform responses
+stop cleanly. No speech recognition, hidden proxy or paid fallback is involved.
+
+The isolated signed-out browser observed player-owned XHR/json3 requests but empty
+responses; live delivery in that environment remains unavailable. Synthetic
+packaged tests verify early capture/reuse, original response preservation, complete
+sentences, timing, source changes and cleanup. These tests do not establish live
+provider latency or universal YouTube compatibility. The player contract can change.
 
 If text is inaccessible, the extension reports that state and makes no translation
 requests. Try another captioned video in your browser and report the result. Videos
@@ -521,12 +544,17 @@ The mock build has no optional provider host and blocks remote connections. The
 page's native track loader may load its own caption resources when a track is enabled.
 No project backend, domain, shared key, or analytics is used. Cloud and AI modes require your own provider account/key and API quota. On YouTube only, a
 packaged MAIN-world reader supplies bounded source metadata and normalized timed
-captions through validated, request-correlated DOM events. It reads the selected
-track URL from the current player's response and fetches only validated same-origin
-timed text with credentials omitted, redirects rejected, a five-second timeout and
-one-MiB response limit. It makes at most one attempt per source and eight per activation.
-Signed URLs remain transient in the page world; they are not sent to the background,
-translation providers, logs or exports. The reader never receives provider keys.
+captions through validated, request-correlated DOM events. With explicit automatic
+site consent it starts at document start. It observes only selected original-track
+XHR/fetch responses and ignores redirects or mismatched video/language/track data.
+A one-MiB response limit, 200,000 text-character limit, 5,000-cue limit and bounded
+reader/request counts apply. Provider requests still omit credentials and reject
+redirects; YouTube's own requests retain the website's normal behavior unchanged.
+Signed URLs are neither persisted nor sent to the background/providers/logs/exports.
+Disabling removes response observers; a single normalized track may remain in page
+memory for up to 30 minutes for re-enable. Navigation, closing the page, site opt-out
+or clearing all extension data removes it. No reader code receives provider keys.
+
 This page-controlled channel is untrusted data, never an authorization mechanism.
 
 Messages are schema-validated and authorized from browser-supplied sender metadata.

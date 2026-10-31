@@ -115,15 +115,35 @@ try {
     }, time);
     await page.waitForFunction(() => !document.querySelector('video').seeking);
   };
-  const caption = (text) =>
-    page.waitForFunction(
-      (text) =>
-        document
-          .querySelector('subtitle-translator-overlay')
-          ?.shadowRoot.querySelector('.caption')
-          .textContent.includes(text),
-      text,
-    );
+  const caption = async (text) => {
+    try {
+      await page.waitForFunction(
+        (text) =>
+          document
+            .querySelector('subtitle-translator-overlay')
+            ?.shadowRoot.querySelector('.caption')
+            .textContent.includes(text),
+        text,
+      );
+    } catch (error) {
+      const state = await page.evaluate(() => {
+        const video = document.querySelector('video');
+        const root = document.querySelector(
+          'subtitle-translator-overlay',
+        )?.shadowRoot;
+        return {
+          time: video.currentTime,
+          seeking: video.seeking,
+          caption: root?.querySelector('.caption').textContent,
+          status: root?.querySelector('.provider-status').textContent,
+        };
+      });
+      throw new Error(
+        `Synthetic caption wait failed: ${JSON.stringify({ state, calls })}`,
+        { cause: error },
+      );
+    }
+  };
   const status = (text) =>
     page.waitForFunction(
       (text) =>
@@ -136,7 +156,7 @@ try {
   const tag = (text) =>
     page.evaluate((text) => {
       const track = document.querySelector('video').textTracks[0];
-      track.cues[0].text = text;
+      track.cues[0].text = `${text}.`;
     }, text);
   const stopWorker = async () => {
     // Browser-level stop, detached immediately; do not attach a worker inspector.
@@ -170,8 +190,11 @@ try {
   await caption('TR Hello from the timing lab.');
   const warmMs = Math.round(performance.now() - warmStart);
   assert.equal(calls.length, 1);
-  for (const time of [3, 1, 2, 1]) await seek(time);
-  await caption('TR Hello from the timing lab.');
+  // Repeated seeks within a completed cue must not flood the background queue.
+  for (let i = 0; i < 8; i++) {
+    for (const time of [3, 1, 2, 1]) await seek(time);
+    await caption('TR Hello from the timing lab.');
+  }
   assert.equal(calls.length, 1);
   await stopWorker();
   await seek(2);

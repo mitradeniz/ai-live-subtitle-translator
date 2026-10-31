@@ -42,6 +42,9 @@ export function createController(
     tabId: number;
     youtube: boolean;
   } | null> = async () => null,
+  openSettings: () => Promise<void> = async () => {
+    throw new BoundaryError('UNAVAILABLE');
+  },
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
@@ -87,6 +90,7 @@ export function createController(
     storage,
   );
   let pending = 0;
+  const settingsOpened = new Map<number, number>();
 
   async function dispatch(
     raw: unknown,
@@ -204,6 +208,17 @@ export function createController(
             ),
           },
         };
+      } else if (request.type === 'content.open-settings') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        sessions.assertBound(request.sessionId, sender.identity);
+        const tabId = sender.identity.tabId;
+        if (Date.now() - (settingsOpened.get(tabId) ?? 0) < 5000)
+          throw new BoundaryError('BUSY');
+        if (settingsOpened.size >= 32)
+          settingsOpened.delete(settingsOpened.keys().next().value!);
+        settingsOpened.set(tabId, Date.now());
+        await openSettings();
+        response = { ok: true, data: { kind: 'saved' } };
       } else if (request.type === 'content.stop') {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         sessions.assertBound(request.sessionId, sender.identity);

@@ -11,6 +11,15 @@ export class CaptionOverlay {
   #status = document.createElement('div');
   #wrap = document.createElement('div');
   #toolbar = document.createElement('div');
+  #dock = document.createElement('div');
+  #logo = document.createElement('button');
+  #peek = document.createElement('button');
+  #position = { x: 0.94, y: 0.16 };
+  #native: HTMLElement | null = null;
+  #nativeOpacity = '';
+  #nativePriority = '';
+  #parts = '';
+  #drag: { id: number; x: number; y: number; moved: boolean } | undefined;
   #video: HTMLVideoElement;
   #text = '';
   #labelText = '';
@@ -28,6 +37,7 @@ export class CaptionOverlay {
       settings: Settings;
       change: (appearance: Appearance) => void;
       disable: () => void;
+      openSettings?: () => void;
     },
   ) {
     this.#video = video;
@@ -41,11 +51,12 @@ export class CaptionOverlay {
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `:host { all:initial; position:fixed; display:block; pointer-events:none; z-index:2147483647; --size:24px; --caption-bg:#080d16eb; }
-      *{box-sizing:border-box}.wrap{display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;padding:16px 5% 58px;gap:6px}
+      *{box-sizing:border-box}[hidden]{display:none!important}.wrap{display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;padding:16px 5% 58px;gap:6px}
       .wrap.top{justify-content:start;padding-top:24px}.caption{white-space:pre-line;overflow-wrap:anywhere;unicode-bidi:plaintext;text-align:center;color:#fff;background:var(--caption-bg);border:1px solid #ffffff40;border-radius:12px;padding:8px 16px;font:600 var(--size)/1.4 system-ui,sans-serif;max-width:100%;max-height:65%;overflow:hidden;text-shadow:0 2px 4px #000}
-      .caption:empty,.label:empty{display:none}.label{font:600 11px/1.5 system-ui,sans-serif;color:#e2e8ff;background:#10172ff2;border-radius:6px;padding:3px 8px;max-width:100%;overflow-wrap:anywhere}
-      .controls{pointer-events:auto;display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:center;padding:5px;border:1px solid #ffffff50;border-radius:12px;background:#0b1427f2;opacity:.15;transition:opacity .15s;max-width:100%}
-      .controls:hover,.controls:focus-within{opacity:1}button,select{font:500 12px system-ui,sans-serif;color:#fff;background:#25334b;border:1px solid #95abd080;border-radius:7px;min-height:32px;padding:5px 8px;cursor:pointer}button:focus-visible,select:focus-visible{outline:3px solid #b0d6ff;outline-offset:2px}select{max-width:180px}button:disabled{opacity:.4;cursor:default}@media(prefers-reduced-motion:reduce){.controls{transition:none}}`;
+      .caption.bilingual{display:flex;flex-direction:column-reverse}.original-line{font-size:.85em;color:#dfe6ee}.caption:empty,.label:empty{display:none}.label{font:500 11px/1.5 system-ui,sans-serif;color:#dfe8ff;overflow-wrap:anywhere;max-width:100%}.provider-status{background:#10172feb;border-radius:6px;padding:3px 8px}
+      .dock{position:absolute;pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px;width:48px;font:500 12px system-ui,sans-serif}.logo{width:46px;height:46px;padding:0!important;position:relative;touch-action:none;cursor:grab!important;border-radius:14px!important;background:linear-gradient(140deg,#b9dbff50,#12203bbf 52%,#718acb50)!important;box-shadow:inset 0 1px 1px #ffffff80,0 5px 22px #0005;backdrop-filter:blur(12px)}.logo:active{cursor:grabbing!important}.latin{position:absolute;left:8px;top:4px;font-size:22px;font-weight:650}.han{position:absolute;right:6px;bottom:3px;font-size:19px}.arrows{position:absolute;left:8px;bottom:6px;font-size:13px;color:#b7d6ff}
+      .controls{position:absolute;right:0;top:54px;width:290px;max-width:calc(100vw - 24px);max-height:70vh;overflow:auto;display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:14px;border:1px solid #ffffff38;border-radius:18px;background:linear-gradient(145deg,#17233af5,#090e19f5);box-shadow:inset 0 1px #ffffff18,0 14px 44px #0006;backdrop-filter:blur(14px)}.controls.above{top:auto;bottom:54px}.controls .label{flex-basis:100%;max-height:90px;overflow:auto}.controls select{width:100%;max-width:none}.peek{position:absolute;right:8px;top:22%;pointer-events:auto;opacity:.7}
+      button,select{font:500 12px system-ui,sans-serif;color:#fff;background:#25334b;border:1px solid #95abd080;border-radius:8px;min-height:32px;padding:6px 9px;cursor:pointer}button:hover{background:#36476a}button:focus-visible,select:focus-visible{outline:3px solid #b0d6ff;outline-offset:2px}button:disabled{opacity:.4;cursor:default}.settings-link{width:100%;text-align:left;background:#ffffff0b}.peek:hover{opacity:1}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}`;
     this.#wrap.className = 'wrap';
     this.#caption.className = 'caption';
     this.#caption.dir = 'auto';
@@ -56,6 +67,99 @@ export class CaptionOverlay {
     this.#status.setAttribute('role', 'status');
     this.#toolbar.className = 'controls';
     this.#toolbar.setAttribute('role', 'group');
+    this.#toolbar.id = 'subtitle-quick-settings';
+    this.#toolbar.hidden = true;
+    this.#dock.className = 'dock';
+    this.#logo.className = 'logo';
+    this.#logo.type = 'button';
+    this.#logo.setAttribute('aria-controls', this.#toolbar.id);
+    this.#logo.setAttribute('aria-expanded', 'false');
+    for (const [name, text] of [
+      ['latin', 'A'],
+      ['han', '文'],
+      ['arrows', '↔'],
+    ]) {
+      const span = document.createElement('span');
+      span.className = name!;
+      span.textContent = text!;
+      span.setAttribute('aria-hidden', 'true');
+      this.#logo.append(span);
+    }
+    const toggle = (open: boolean) => {
+      this.#toolbar.hidden = !open;
+      this.#logo.setAttribute('aria-expanded', String(open));
+      this.layout();
+    };
+    this.#logo.addEventListener('click', () => {
+      if (!this.#drag?.moved) toggle(this.#toolbar.hidden === true);
+      this.#drag = undefined;
+    });
+    this.#logo.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      this.#drag = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+      this.#logo.setPointerCapture(event.pointerId);
+    });
+    this.#logo.addEventListener('pointermove', (event) => {
+      const drag = this.#drag;
+      if (!drag || drag.id !== event.pointerId || !(event.buttons & 1)) return;
+      if (
+        Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 4 &&
+        !drag.moved
+      )
+        return;
+      drag.moved = true;
+      const rect = this.#video.getBoundingClientRect();
+      this.#position = {
+        x: (event.clientX - rect.left - 23) / Math.max(1, rect.width - 48),
+        y: (event.clientY - rect.top - 23) / Math.max(1, rect.height - 48),
+      };
+      toggle(false);
+    });
+    this.#logo.addEventListener('pointerup', (event) => {
+      if (this.#logo.hasPointerCapture(event.pointerId))
+        this.#logo.releasePointerCapture(event.pointerId);
+    });
+    this.#logo.addEventListener('pointercancel', () => {
+      this.#drag = undefined;
+    });
+    this.#logo.addEventListener('keydown', (event) => {
+      const delta: Record<string, [number, number]> = {
+        ArrowLeft: [-0.04, 0],
+        ArrowRight: [0.04, 0],
+        ArrowUp: [0, -0.04],
+        ArrowDown: [0, 0.04],
+      };
+      const move = delta[event.key];
+      if (!move) return;
+      event.preventDefault();
+      this.#position.x += move[0];
+      this.#position.y += move[1];
+      this.layout();
+    });
+    this.#dock.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        toggle(false);
+        this.#logo.focus();
+      }
+    });
+    this.#peek.type = 'button';
+    this.#peek.className = 'peek';
+    this.#peek.hidden = true;
+    this.#peek.addEventListener('click', () => {
+      this.#dock.hidden = false;
+      this.#peek.hidden = true;
+      this.#logo.focus();
+    });
+    this.#buttons.push(
+      [this.#logo, 'Quick subtitle settings'],
+      [this.#peek, 'Show controls'],
+    );
+    this.#dock.append(this.#logo, this.#toolbar);
     if (options) {
       const change = (patch: Partial<Appearance>) => {
         const next = { ...this.#settings, ...patch };
@@ -112,10 +216,27 @@ export class CaptionOverlay {
         }),
       );
       button('×', 'Disable captions', options.disable);
+      button('−', 'Hide controls', () => {
+        toggle(false);
+        this.#dock.hidden = true;
+        this.#peek.hidden = false;
+        this.#peek.focus();
+      });
+      const general = document.createElement('button');
+      general.type = 'button';
+      general.className = 'settings-link';
+      general.addEventListener('click', (event) => {
+        if (event.isTrusted) options.openSettings?.();
+      });
+      this.#labels.push([general, 'Open settings']);
+      this.#buttons.push([general, 'Open settings']);
+      this.#toolbar.append(general, this.#label);
     }
-    this.#wrap.append(this.#label, this.#status, this.#caption);
-    if (options) this.#wrap.append(this.#toolbar);
-    shadow.append(style, this.#wrap);
+    this.#wrap.append(this.#status, this.#caption);
+    if (!options) this.#wrap.prepend(this.#label);
+    shadow.append(style);
+    if (options) shadow.append(this.#dock, this.#peek);
+    shadow.append(this.#wrap);
     if (options) this.appearance(options.settings);
     else this.host.style.setProperty('--size', `${fontSize}px`);
     this.layout();
@@ -160,6 +281,7 @@ export class CaptionOverlay {
       node.title = translate(text, this.#locale);
     }
     this.#toolbar.lang = this.#locale;
+    this.#peek.textContent = translate('Show controls', this.#locale);
     this.setLabel(this.#labelText);
     this.setTranslationStatus(this.#statusText);
   }
@@ -179,12 +301,63 @@ export class CaptionOverlay {
       height: `${rect.height}px`,
       display: unsupported || !rect.width || !rect.height ? 'none' : 'block',
     });
+    this.#position.x = Math.max(0, Math.min(1, this.#position.x));
+    this.#position.y = Math.max(0, Math.min(1, this.#position.y));
+    const x = this.#position.x * Math.max(0, rect.width - 48),
+      y = this.#position.y * Math.max(0, rect.height - 48);
+    this.#dock.style.left = `${x}px`;
+    this.#dock.style.top = `${y}px`;
+    this.#toolbar.style.width = `${Math.min(290, Math.max(150, rect.width - 24))}px`;
+    this.#toolbar.style.maxHeight = `${Math.max(100, rect.height - 80)}px`;
+    const panelWidth = Math.min(290, Math.max(150, rect.width - 24));
+    this.#toolbar.style.right = 'auto';
+    this.#toolbar.style.left = `${Math.max(12, Math.min(x + 48 - panelWidth, rect.width - panelWidth - 12)) - x}px`;
+    const above = y > rect.height / 2;
+    this.#toolbar.classList.toggle('above', above);
+    this.#toolbar.style.maxHeight = `${Math.max(80, above ? y - 8 : rect.height - y - 62)}px`;
+    const nativeRect = this.#native?.getBoundingClientRect();
+    this.#wrap.style.paddingBottom =
+      nativeRect &&
+      nativeRect.height > 0 &&
+      nativeRect.height < rect.height * 0.45
+        ? `${Math.max(12, rect.bottom - nativeRect.bottom)}px`
+        : '58px';
   }
-  render(text: string) {
-    if (text !== this.#text) {
-      this.#caption.textContent = text;
-      this.#text = text;
+  nativeCaption(element: HTMLElement | null) {
+    if (element === this.#native) return;
+    if (this.#native) {
+      if (this.#nativeOpacity)
+        this.#native.style.setProperty(
+          'opacity',
+          this.#nativeOpacity,
+          this.#nativePriority,
+        );
+      else this.#native.style.removeProperty('opacity');
     }
+    this.#native = element;
+    if (element) {
+      this.#nativeOpacity = element.style.getPropertyValue('opacity');
+      this.#nativePriority = element.style.getPropertyPriority('opacity');
+      element.style.setProperty('opacity', '0', 'important');
+    }
+  }
+  render(text: string, original?: string) {
+    const parts = original ?? '';
+    if (text === this.#text && parts === this.#parts) return;
+    this.#caption.replaceChildren();
+    this.#caption.classList.toggle('bilingual', !!parts);
+    if (parts && text.startsWith(parts + '\n')) {
+      const source = document.createElement('div');
+      source.className = 'original-line';
+      source.dir = 'auto';
+      source.textContent = parts + '\n';
+      const translated = document.createElement('div');
+      translated.dir = 'auto';
+      translated.textContent = text.slice(parts.length + 1);
+      this.#caption.append(source, translated);
+    } else this.#caption.textContent = text;
+    this.#text = text;
+    this.#parts = parts;
   }
   setLabel(text: string) {
     this.#labelText = text;
@@ -199,6 +372,7 @@ export class CaptionOverlay {
       this.#status.textContent = rendered;
   }
   dispose() {
+    this.nativeCaption(null);
     this.host.remove();
   }
 }

@@ -1,3 +1,4 @@
+import { SentenceIndex, endsSentence } from '../playback/sentences.ts';
 import { TimedWindow } from '../playback/timed-window.ts';
 import type { Settings } from '../messaging/protocol.ts';
 import {
@@ -33,6 +34,7 @@ const SELECTORS = {
 
 export class YouTubePlayer {
   #video: HTMLVideoElement;
+  #sentences = new SentenceIndex();
   #root: Element;
   #overlay: CaptionOverlay;
   #native: NativeTrackAdapter;
@@ -74,6 +76,7 @@ export class YouTubePlayer {
     label: string,
     onAppearance: (appearance: Appearance) => void = () => {},
     onDisable: () => void = () => {},
+    onOpenSettings: () => void = () => {},
   ) {
     this.#video = video;
     this.#root = video.closest(SELECTORS.player) ?? video.parentElement!;
@@ -93,6 +96,7 @@ export class YouTubePlayer {
     this.#native = new NativeTrackAdapter(video);
     this.#overlay = new CaptionOverlay(video, settings.fontSize, label, {
       settings,
+      openSettings: onOpenSettings,
       change: onAppearance,
       disable: () => {
         onDisable();
@@ -142,8 +146,8 @@ export class YouTubePlayer {
     );
     this.#sample();
   }
-  #clear() {
-    this.#timedWindow?.reset();
+  #clear(retainCompleted = false) {
+    this.#timedWindow?.reset(retainCompleted);
     this.#generation.next();
     this.#revision.clear();
     this.#active = [];
@@ -153,7 +157,7 @@ export class YouTubePlayer {
   }
   #seek = () => {
     this.#waitMutation = true;
-    this.#clear();
+    this.#clear(true);
   };
   #receive = (event: Event) => {
     const raw: unknown = (event as CustomEvent).detail;
@@ -184,7 +188,7 @@ export class YouTubePlayer {
     const raw: unknown = (event as CustomEvent).detail;
     if (
       this.#closed ||
-      this.#timedState !== 'loading' ||
+      !['loading', 'unavailable'].includes(this.#timedState) ||
       typeof raw !== 'string' ||
       raw.length > TIMED_MAX_BYTES
     )
@@ -200,6 +204,11 @@ export class YouTubePlayer {
         return;
       this.#remoteTimed = parsed.data.cues ?? [];
       this.#timedState = parsed.data.cues ? 'ready' : 'unavailable';
+      this.#overlay.setTranslationStatus(
+        parsed.data.cues
+          ? ''
+          : 'For complete captions, enable automatic YouTube access in settings and refresh once.',
+      );
       this.#clear();
       // Resume in the next scan, outside synchronous page event dispatch.
     } catch {
@@ -256,7 +265,11 @@ export class YouTubePlayer {
       }
       if (this.#timedState === 'loading' && Date.now() - this.#timedAt > 5500)
         this.#timedState = 'unavailable';
-      const timed = native.length ? native : this.#remoteTimed;
+      const rawTimed = native.length ? native : this.#remoteTimed;
+      const timed = this.#sentences.snapshot(
+        rawTimed,
+        this.#source?.kind === 'asr',
+      );
       if (timed !== this.#timed) this.#timedWindow?.reset();
       this.#timed = timed;
     } else {
@@ -286,12 +299,17 @@ export class YouTubePlayer {
     else if (this.#root.classList.contains('ad-showing'))
       reason = 'Captions paused during the ad.';
     if (reason) {
+      this.#overlay.nativeCaption(null);
       this.#clear();
       this.#overlay.setLabel(
         `${this.#label}${this.#label ? ' · ' : ''}${reason}`,
       );
       return;
     }
+    this.#overlay.nativeCaption(
+      this.#container?.querySelector<HTMLElement>('.caption-window') ??
+        (this.#container as HTMLElement | null),
+    );
     const timed = this.#timed;
     if (!timed.length && this.#timedState === 'loading') {
       this.#overlay.setLabel('Preparing timed captions…');
@@ -299,7 +317,7 @@ export class YouTubePlayer {
       return;
     }
     const mode = timed.length
-      ? timed === this.#remoteTimed
+      ? this.#remoteTimed.length > 0
         ? 'YouTube timed track · advance translation'
         : 'Native timed track'
       : 'Advance translation unavailable · Visible captions · no cue timestamps';
@@ -333,6 +351,7 @@ export class YouTubePlayer {
         !timed.length &&
         units.length &&
         this.#transform &&
+        endsSentence(units.at(-1)!.text) &&
         this.#settings.displayMode !== 'original'
       ) {
         const signal = this.#generation.signal;
@@ -394,6 +413,7 @@ export class YouTubePlayer {
           : mode === 'translated'
             ? this.#result
             : `${original}\n${this.#result}`,
+      mode === 'bilingual' && this.#result ? original : undefined,
     );
   }
   #animate = () => {

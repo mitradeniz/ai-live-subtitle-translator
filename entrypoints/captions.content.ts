@@ -49,6 +49,9 @@ export default defineContentScript({
         return true;
       }
       if (control.type === 'playback.site-stop') {
+        document.dispatchEvent(
+          new CustomEvent(SOURCE_STOP, { detail: 'purge' }),
+        );
         if (isYouTubeWatch(location.href)) {
           player?.dispose();
           player = undefined;
@@ -148,6 +151,12 @@ export default defineContentScript({
           () => {
             void sendRequest({
               type: 'content.stop',
+              sessionId: control.sessionId,
+            }).catch(() => {});
+          },
+          () => {
+            void sendRequest({
+              type: 'content.open-settings',
               sessionId: control.sessionId,
             }).catch(() => {});
           },

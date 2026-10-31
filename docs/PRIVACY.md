@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.4-preview.1.
+Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.5-preview.1.
 This describes the implemented extension. This file has not been published as a
 hosted privacy-policy page and does not imply store approval.
 
@@ -19,15 +19,27 @@ input, collect website cookies, or extract account credentials.
 Manual activation uses temporary access to the selected page. Optional automatic
 activation grants access only to `https://www.youtube.com/*`; it checks watch-page
 navigation and player changes. A page-world reader on YouTube reads bounded video
-and track metadata. When native cues are absent, it reads the selected original
-track's signed URL transiently and requests its timed text from the exact YouTube
-origin/path. Requests omit credentials/referrer, reject redirects and are bounded
-by size, timeout and attempt count. Signed URLs stay in the page world and are not
-logged, persisted or sent to translation providers. Metadata/captions are untrusted.
-No website cookies or account credentials are extracted; no browsing-history
-database is collected. After activation, timed-caption translation may prepare up
-to 20 seconds / 12 cues ahead, including while paused. This can use provider quota
-for captions not yet watched; disabling captions stops preparation.
+and track metadata. With explicit automatic YouTube consent, a packaged reader
+starts when a watch page opens and can temporarily hold the selected original
+track before the playback session is ready. It observes only current-video
+YouTube caption XHR/fetch responses. It does not change the website's requests,
+cookies or responses, replay signed URLs, extract authentication tokens, or make
+privileged caption downloads. At most one player caption reload is requested per
+source, eight per reader lifetime; response reads are also bounded.
+
+Normalized captions are limited to one MiB / 200,000 text characters / 5,000 cues.
+The page reader does not receive API keys. URLs and request headers are not sent
+to providers or stored/exported. Disabling captions restores request functions
+and native caption styling; one normalized track can remain in page memory for
+up to 30 minutes to support re-enable. Navigation, page closure, site opt-out or
+clearing all extension data removes it. No browsing-history database is collected.
+
+After activation, timed-caption translation may prepare up to 20 seconds / 12
+units ahead, including while paused. Units combine source pieces up to punctuation,
+with bounded length/duration. Preparation can use quota for captions not yet watched;
+disabling stops provider work. The draggable control's position/hidden state is
+held only by the current overlay. Its settings button opens the fixed extension
+options page and receives no credentials or configurable destination.
 
 ## Where text goes
 

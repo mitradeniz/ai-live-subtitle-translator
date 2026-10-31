@@ -197,3 +197,56 @@ test('a newly active overlapping cue does not cancel a prefetch containing anoth
   assert.deepEqual(window.texts([cues[3]!]), ['TR Caption 3']);
   window.reset();
 });
+
+test('rejecting a cloned response does not wait for or consume the player response', async () => {
+  const original = new Response('unavailable', { status: 429 });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const outcome = await Promise.race([
+      readTimedCaptions(original.clone()),
+      new Promise<string>((resolve) => {
+        timer = setTimeout(() => resolve('blocked on player'), 1000);
+      }),
+    ]);
+    assert.equal(outcome, null);
+    assert.equal(await original.text(), 'unavailable');
+  } finally {
+    clearTimeout(timer);
+    await original.body?.cancel().catch(() => {});
+  }
+});
+
+test('seek retains bounded completed cues but rejects pending old generations and a full reset clears them', async () => {
+  const cues = parseTimedCaptions(fixture)!;
+  const calls: {
+    items: readonly CaptionUnit[];
+    generation: number;
+    finish: (result: CaptionResult) => void;
+  }[] = [];
+  const window = new TimedWindow(
+    (items, generation) =>
+      new Promise((finish) => calls.push({ items, generation, finish })),
+    () => {},
+    () => {},
+  );
+  const finish = (index: number) => {
+    const call = calls[index]!;
+    call.finish({
+      generation: call.generation,
+      items: call.items.map((cue) => ({ ...cue, text: `TR ${cue.text}` })),
+    });
+  };
+  window.update(cues, 1);
+  finish(0);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(calls.length, 2); // future batch still pending
+  window.reset(true);
+  window.update(cues, 1.5);
+  assert.deepEqual(window.texts([cues[0]!]), ['TR Complete sentence.']);
+  assert.equal(window.texts([cues[1]!]), null);
+  finish(1); // old future generation cannot publish after seek
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(window.texts([cues[1]!]), null);
+  window.reset();
+  assert.equal(window.texts([cues[0]!]), null);
+});

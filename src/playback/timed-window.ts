@@ -37,11 +37,13 @@ export class TimedWindow {
     this.#changed = changed;
     this.#error = error;
   }
-  reset() {
+  reset(retainCompleted = false) {
     this.#generation.next();
     this.#pending?.abort.abort();
     this.#pending = undefined;
-    this.#results.clear();
+    // Seeking within the bounded window can reuse already validated results.
+    // Configuration/source changes call the default full reset.
+    if (!retainCompleted) this.#results.clear();
     this.#attempted.clear();
     this.#failed.clear();
     this.#window = [];

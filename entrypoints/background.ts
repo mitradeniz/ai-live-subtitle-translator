@@ -58,6 +58,7 @@ export default defineBackground(() => {
         ? { tabId: tab.id, youtube: isYouTubeWatch(tab.url ?? '') }
         : null;
     },
+    () => browser.runtime.openOptionsPage(),
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
     createPlaybackHandler(controller.sessions, (id, paused) =>
@@ -71,12 +72,12 @@ export default defineBackground(() => {
         const enabled =
           import.meta.env.MODE !== 'mock' && (await controller.sites.enabled());
         const registered = await browser.scripting.getRegisteredContentScripts({
-          ids: ['youtube-auto'],
+          ids: ['youtube-auto', 'youtube-caption-reader'],
         });
         if (!enabled) {
           if (registered.length)
             await browser.scripting.unregisterContentScripts({
-              ids: ['youtube-auto'],
+              ids: registered.map((script) => script.id),
             });
           await controller.sites.configure(false, false);
           if (!stop && !registered.length) return;
@@ -93,16 +94,28 @@ export default defineBackground(() => {
                 .catch(() => {});
           return;
         }
-        if (!registered.length)
-          await browser.scripting.registerContentScripts([
-            {
-              id: 'youtube-auto',
-              matches: [YOUTUBE_HOST],
-              js: ['/content-scripts/auto.js'],
-              runAt: 'document_idle',
-              persistAcrossSessions: true,
-            },
-          ]);
+        const registrations = [
+          {
+            id: 'youtube-auto',
+            matches: [YOUTUBE_HOST],
+            js: ['/content-scripts/auto.js'],
+            runAt: 'document_start' as const,
+            persistAcrossSessions: true,
+          },
+          {
+            id: 'youtube-caption-reader',
+            matches: [YOUTUBE_HOST],
+            js: ['/youtube-source.js'],
+            runAt: 'document_start' as const,
+            world: 'MAIN' as const,
+            persistAcrossSessions: true,
+          },
+        ];
+        for (const script of registrations) {
+          if (registered.some((item) => item.id === script.id))
+            await browser.scripting.updateContentScripts([script]);
+          else await browser.scripting.registerContentScripts([script]);
+        }
         // Existing documents retain their observer while the worker sleeps.
         // Only an explicit opt-in injects into already open tabs.
         if (!stop) return;

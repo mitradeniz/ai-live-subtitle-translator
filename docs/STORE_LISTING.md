@@ -16,8 +16,9 @@ videos. Choose original, translated or bilingual text, adjust size, contrast and
 position, and use English or Turkish controls.
 
 This limited preview works with accessible HTML5 video text tracks and provides an
-experimental visible-caption fallback on desktop YouTube watch pages. Enable
-YouTube's original CC track; the fallback has no future caption timing and may lag.
+experimental timed-response capture on desktop YouTube watch pages. Enable
+original CC and explicitly allow automatic YouTube access, then refresh once.
+Unavailable timed data falls back to visible text, which cannot provide lookahead.
 Videos without accessible captions are not transcribed. Picture-in-Picture and
 video-element fullscreen cannot display the custom overlay.
 
@@ -42,11 +43,13 @@ Açıklama:
 
 Desteklenen masaüstü videolarında erişilebilir altyazıları seçtiğin dilde oku.
 Orijinal, çeviri veya iki dilli görünüm; yazı boyutu, kontrast ve konum ayarları;
-Türkçe ve İngilizce arayüz sunar.
+Türkçe ve İngilizce arayüz sunar. Sürüklenebilir kare kontrolden hızlı ayarlara
+ulaşabilir, kontrolü gizleyip tekrar açabilirsin.
 
-Bu sınırlı önizleme, erişilebilir HTML5 altyazılarını ve masaüstü YouTube'daki görünür
-altyazıları kullanır. YouTube'da orijinal CC açık olmalıdır; görünür altyazı yöntemi
-gelecekteki metne erişemez ve gecikebilir. Altyazısı olmayan videolar için konuşma
+Bu sınırlı önizleme, erişilebilir HTML5 altyazılarını ve YouTube oynatıcısının
+yüklediği zamanlı altyazıları kullanır. Orijinal CC'yi ve otomatik YouTube erişimini
+açıp sayfayı bir kez yenile. Zamanlı veri alınamazsa görünür metin yöntemi
+gelecekteki kelimelere erişemez ve gecikebilir. Altyazısı olmayan videolar için konuşma
 tanıma yapmaz. Resim içinde resim ve doğrudan video öğesinin tam ekranında özel
 altyazı katmanı desteklenmez.
 

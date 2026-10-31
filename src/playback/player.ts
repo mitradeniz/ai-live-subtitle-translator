@@ -1,3 +1,4 @@
+import { SentenceIndex } from './sentences.ts';
 import { TimedWindow } from './timed-window.ts';
 import type { Settings } from '../messaging/protocol.ts';
 import {
@@ -12,6 +13,7 @@ import { TranslationFailure } from '../translation/contracts.ts';
 
 export class CaptionPlayer {
   #video: HTMLVideoElement;
+  #sentences = new SentenceIndex();
   #adapter: NativeTrackAdapter;
   #overlay: CaptionOverlay;
   #settings: Settings;
@@ -38,6 +40,7 @@ export class CaptionPlayer {
     label = '',
     onAppearance: (appearance: Appearance) => void = () => {},
     onDisable: () => void = () => {},
+    onOpenSettings: () => void = () => {},
   ) {
     this.#video = video;
     this.#source = video.currentSrc;
@@ -56,6 +59,7 @@ export class CaptionPlayer {
     this.#adapter = new NativeTrackAdapter(video);
     this.#overlay = new CaptionOverlay(video, settings.fontSize, label, {
       settings,
+      openSettings: onOpenSettings,
       change: onAppearance,
       disable: () => {
         onDisable();
@@ -65,7 +69,7 @@ export class CaptionPlayer {
     video.addEventListener('emptied', this.dispose);
     video.addEventListener('enterpictureinpicture', this.dispose);
     for (const name of ['seeking', 'ratechange'])
-      video.addEventListener(name, this.#invalidate);
+      video.addEventListener(name, this.#seek);
     for (const name of ['pause', 'play', 'seeked', 'timeupdate', 'ended'])
       video.addEventListener(name, this.#paint);
     window.addEventListener('pagehide', this.dispose);
@@ -114,8 +118,10 @@ export class CaptionPlayer {
     this.#paint();
   }
 
-  #invalidate = () => {
-    this.#window?.reset();
+  #seek = () => this.#invalidate(true);
+
+  #invalidate = (retainCompleted = false) => {
+    this.#window?.reset(retainCompleted);
     this.#generation.next();
     this.#active = [];
     this.#result = null;
@@ -134,7 +140,7 @@ export class CaptionPlayer {
       return;
     }
     this.#source = this.#video.currentSrc;
-    const cues = this.#adapter.snapshot();
+    const cues = this.#sentences.snapshot(this.#adapter.snapshot());
     if (cues !== this.#cues) {
       this.#cues = cues;
       this.#invalidate();
@@ -187,6 +193,7 @@ export class CaptionPlayer {
           : mode === 'translated'
             ? mock
             : `${original}\n${mock}`,
+      mode === 'bilingual' && mock ? original : undefined,
     );
   };
 
@@ -206,7 +213,7 @@ export class CaptionPlayer {
     this.#video.removeEventListener('emptied', this.dispose);
     this.#video.removeEventListener('enterpictureinpicture', this.dispose);
     for (const name of ['seeking', 'ratechange'])
-      this.#video.removeEventListener(name, this.#invalidate);
+      this.#video.removeEventListener(name, this.#seek);
     for (const name of ['pause', 'play', 'seeked', 'timeupdate', 'ended'])
       this.#video.removeEventListener(name, this.#paint);
     window.removeEventListener('pagehide', this.dispose);

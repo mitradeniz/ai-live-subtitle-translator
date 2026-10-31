@@ -9,6 +9,26 @@ export default defineContentScript({
     let lastUrl = '';
     let lastSent = 0;
     let pending = false;
+    const stopReader = () =>
+      document.dispatchEvent(
+        new CustomEvent('subtitle-translator:youtube-source-stop', {
+          detail: 'purge',
+        }),
+      );
+    const onMessage: Parameters<
+      typeof browser.runtime.onMessage.addListener
+    >[0] = (message: unknown, sender) => {
+      if (
+        sender.id === browser.runtime.id &&
+        !sender.tab &&
+        message &&
+        typeof message === 'object' &&
+        'type' in message &&
+        message.type === 'playback.site-stop'
+      )
+        stopReader();
+    };
+    browser.runtime.onMessage.addListener(onMessage);
     const inspect = () => {
       if (!ctx.isValid || pending || !isYouTubeWatch(location.href)) return;
       const video = document.querySelector('video');
@@ -53,12 +73,18 @@ export default defineContentScript({
     // This only observes the document. Unchanged pages send no worker heartbeat.
     const timer = setInterval(inspect, 1000);
     const observer = new MutationObserver(inspect);
-    observer.observe(document.documentElement, {
+    observer.observe(document, {
       childList: true,
       subtree: true,
     });
     inspect();
     ctx.onInvalidated(() => {
+      stopReader();
+      try {
+        browser.runtime.onMessage.removeListener(onMessage);
+      } catch {
+        /* Invalidated context. */
+      }
       clearInterval(timer);
       observer.disconnect();
     });

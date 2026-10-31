@@ -1,3 +1,26 @@
+# 0.1.5-preview.1 — 2026-10-31
+
+- Use the YouTube player's own selected-track caption response instead of replaying
+  its base URL. Explicit automatic YouTube access installs the bounded reader at
+  document start; refresh once to capture the initial response. Normal website
+  requests/responses are unchanged. A supported player reload is requested once.
+- Combine timed pieces up to sentence-ending punctuation, with duration/length
+  limits, and prepare them before playback. Incomplete visible fragments no longer
+  cause word-by-word translation requests. Missing timing is still a real limitation.
+- Reuse completed captions when seeking within the bounded prepared window, avoiding
+  repeated requests for the same displayed cue. Pending old generations are discarded;
+  changing source or configuration clears the prepared results.
+- Add a draggable square glass control with keyboard movement, hide/show, display,
+  text size, contrast, placement and a fixed link to general settings.
+- Place translated text above original text; replace YouTube's native caption layer
+  at its position and restore its inline styling on disable.
+- Remove response hooks when disabled. Retain one bounded normalized track in page
+  memory for re-enable, expiring after 30 minutes; clear it on navigation/site opt-out.
+
+This remains a limited preview. Synthetic capture and UI tests are distinct from
+owner/live-provider verification; the signed-out live probe still received empty
+YouTube responses. No new required permissions, project backend or domain.
+
 # 0.1.4-preview.1 — 2026-10-31
 
 Limited preview: live YouTube timed-caption delivery is still unverified. The current

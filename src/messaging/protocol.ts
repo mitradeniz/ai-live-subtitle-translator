@@ -141,6 +141,11 @@ export const RequestSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('content.stop'), sessionId }),
   z.strictObject({
     ...envelope,
+    type: z.literal('content.open-settings'),
+    sessionId,
+  }),
+  z.strictObject({
+    ...envelope,
     type: z.literal('content.appearance'),
     sessionId,
     appearance: AppearanceSchema,

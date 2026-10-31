@@ -130,6 +130,7 @@ export function parseTimedCaptions(raw: unknown): Cue[] | null {
 
 export async function readTimedCaptions(
   response: Response,
+  signal?: AbortSignal,
 ): Promise<Cue[] | null> {
   if (
     !response.ok ||
@@ -137,10 +138,16 @@ export async function readTimedCaptions(
     !response.body ||
     Number(response.headers.get('content-length')) > TIMED_MAX_BYTES
   ) {
-    await response.body?.cancel().catch(() => {});
+    // Cancelling a tee branch can wait for the player to consume its branch.
+    void response.body?.cancel().catch(() => {});
     return null;
   }
   const reader = response.body.getReader();
+  const cancel = () => {
+    void reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) cancel();
   const decoder = new TextDecoder('utf-8', { fatal: true });
   let bytes = 0,
     text = '';
@@ -153,10 +160,11 @@ export async function readTimedCaptions(
       text += decoder.decode(value, { stream: true });
     }
     text += decoder.decode();
-    return parseTimedCaptions(JSON.parse(text));
+    return signal?.aborted ? null : parseTimedCaptions(JSON.parse(text));
   } catch {
     return null;
   } finally {
-    await reader.cancel().catch(() => {});
+    signal?.removeEventListener('abort', cancel);
+    cancel();
   }
 }

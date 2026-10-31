@@ -103,6 +103,40 @@ try {
   const options = await context.newPage();
   await options.goto(`chrome-extension://${id}/options.html`);
   await options.getByLabel('Target language', { exact: true }).waitFor();
+  // Migrate an older installation with only the original watcher registered.
+  await worker.evaluate(() =>
+    chrome.scripting.registerContentScripts([
+      {
+        id: 'youtube-auto',
+        matches: ['https://www.youtube.com/*'],
+        js: ['/content-scripts/auto.js'],
+        runAt: 'document_idle',
+      },
+    ]),
+  );
+  assert.equal(
+    (
+      await options.evaluate(() =>
+        chrome.runtime.sendMessage({
+          version: 1,
+          requestId: 'legacy-opt-out',
+          type: 'site.configure',
+          enabled: false,
+          originalConfirmed: false,
+        }),
+      )
+    ).ok,
+    true,
+  );
+  assert.equal(
+    (
+      await worker.evaluate(() =>
+        chrome.scripting.getRegisteredContentScripts(),
+      )
+    ).length,
+    0,
+  );
+
   // Keyboard-only navigation and save: start at first field, traverse to Save.
   await options.keyboard.press('Tab');
   assert.equal(
@@ -176,6 +210,39 @@ try {
         ?.shadowRoot.querySelector('.caption').textContent ===
       'Hello from the timing lab.\nÇeviri: Hello from the timing lab.',
   );
+  const logo = overlay.getByRole('button', { name: 'Quick subtitle settings' });
+  const beforeMove = await logo.boundingBox();
+  await logo.focus();
+  await page.keyboard.press('ArrowLeft');
+  assert.ok(
+    (await logo.boundingBox()).x < beforeMove.x,
+    'Keyboard can move the square control',
+  );
+  const from = await logo.boundingBox();
+  await page.mouse.move(from.x + 20, from.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(from.x - 100, from.y + 50, { steps: 6 });
+  await page.mouse.up();
+  assert.ok(
+    (await logo.boundingBox()).x < from.x - 50,
+    'Pointer drag moves the control',
+  );
+  await logo.click();
+  const sourceLine = caption.locator('.original-line');
+  const translatedLine = caption.locator('div').last();
+  assert.ok(
+    (await translatedLine.boundingBox()).y < (await sourceLine.boundingBox()).y,
+    'Translation is above the original',
+  );
+  await overlay.getByRole('button', { name: 'Hide controls' }).click();
+  await overlay.getByRole('button', { name: 'Show controls' }).click();
+  await logo.click();
+  await page.screenshot({ path: '.output/floating-controls.png' });
+  await overlay
+    .getByRole('button', { name: 'Open settings', exact: true })
+    .click();
+  await options.waitForFunction(() => document.hasFocus());
+  await page.bringToFront();
   await overlay
     .getByLabel('Display mode', { exact: true })
     .selectOption('translated');
@@ -288,6 +355,9 @@ try {
   assert.equal(await caption.textContent(), 'Failed native caption.');
   replyMode = 'normal';
   await overlay
+    .getByRole('button', { name: 'Quick subtitle settings' })
+    .click();
+  await overlay
     .getByLabel('Display mode', { exact: true })
     .selectOption('original');
   await options.waitForFunction(
@@ -386,7 +456,19 @@ try {
     await worker.evaluate(
       async () => (await chrome.scripting.getRegisteredContentScripts()).length,
     ),
-    1,
+    2,
+  );
+  assert.ok(
+    (
+      await worker.evaluate(
+        async () => await chrome.scripting.getRegisteredContentScripts(),
+      )
+    ).some(
+      (s) =>
+        s.id === 'youtube-caption-reader' &&
+        s.world === 'MAIN' &&
+        s.runAt === 'document_start',
+    ),
   );
   await page.reload();
   await overlay.waitFor();
@@ -396,6 +478,9 @@ try {
   await page.evaluate(() => window.fixture.replace());
   await overlay.waitFor({ state: 'detached' });
   await overlay.waitFor();
+  await overlay
+    .getByRole('button', { name: 'Quick subtitle settings' })
+    .click();
   await overlay
     .getByRole('button', { name: 'Disable captions', exact: true })
     .click();
@@ -427,7 +512,7 @@ try {
   await page.waitForTimeout(1500);
   assert.equal(await overlay.count(), 0);
   // The observed YouTube path also hides pending source text and rejects a late
-  // response for a replaced caption. YouTube's own CC layer stays untouched.
+  // response for a replaced caption. Native CC text is preserved while styling is replaced.
   assert.equal(
     (await send('controls.select', { provider: 'google' })).ok,
     true,

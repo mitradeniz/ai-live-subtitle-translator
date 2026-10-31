@@ -275,3 +275,73 @@ test('pending diagnostics have no success claim and disappear when their session
     'A stale completion cannot restore the revoked status',
   );
 });
+
+test('opening fixed options from the overlay requires the bound content session and is rate limited', async () => {
+  let opened = 0;
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async () => {
+      opened++;
+    },
+  );
+  const sender = contentSender();
+  const sessionId = controller.sessions.grant(sender);
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('content.open-settings', { sessionId }),
+        sender,
+      )
+    ).ok,
+    true,
+  );
+  assert.equal(opened, 1);
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('content.open-settings', { sessionId }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('content.open-settings', { sessionId }),
+        uiSender('popup'),
+      )
+    ).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('content.open-settings', {
+          sessionId,
+          url: 'https://other.test',
+        }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  controller.sessions.revokeAll();
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('content.open-settings', { sessionId }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  assert.equal(opened, 1);
+});

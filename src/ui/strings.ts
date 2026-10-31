@@ -1,5 +1,10 @@
 export type Locale = 'en' | 'tr';
 export const turkish: Record<string, string> = {
+  'For complete captions, enable automatic YouTube access in settings and refresh once.':
+    'Tam altyazı için ayarlardan otomatik YouTube erişimini açıp sayfayı bir kez yenile.',
+  'Quick subtitle settings': 'Hızlı altyazı ayarları',
+  'Show controls': 'Göster',
+  'Hide controls': 'Kontrolleri gizle',
   'Translation blocked · Key missing': 'Çeviri engellendi · Anahtar yok',
   'Translation needs attention': 'Çeviri için işlem gerekiyor',
   'Restart required': 'Yeniden başlatmak gerekiyor',
