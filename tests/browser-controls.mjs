@@ -211,32 +211,26 @@ try {
       'Hello from the timing lab.\nÇeviri: Hello from the timing lab.',
   );
   const logo = overlay.getByRole('button', { name: 'Quick subtitle settings' });
-  const videoBox = await page.locator('video').boundingBox();
-  const rightBox = await logo.boundingBox();
-  assert.ok(
-    Math.abs(rightBox.x + rightBox.width - (videoBox.x + videoBox.width - 6)) <
-      2,
+  const viewportWidth = await page.evaluate(
+    () => document.documentElement.clientWidth,
   );
+  const rightBox = await logo.boundingBox();
+  assert.ok(Math.abs(rightBox.x + rightBox.width - (viewportWidth - 6)) < 2);
   await logo.focus();
   await page.keyboard.press('ArrowLeft');
   const leftBox = await logo.boundingBox();
-  assert.ok(
-    Math.abs(leftBox.x - (videoBox.x + 6)) < 2,
-    'Left key docks to the left edge',
-  );
+  assert.ok(Math.abs(leftBox.x - 6) < 2, 'Left key docks to the left edge');
   await page.keyboard.press('ArrowDown');
   assert.ok((await logo.boundingBox()).y > leftBox.y);
   const from = await logo.boundingBox();
   await page.mouse.move(from.x + 20, from.y + 20);
   await page.mouse.down();
-  await page.mouse.move(videoBox.x + videoBox.width * 0.75, from.y + 70, {
+  await page.mouse.move(viewportWidth * 0.75, from.y + 70, {
     steps: 6,
   });
   const duringDrag = await logo.boundingBox();
   assert.ok(
-    Math.abs(
-      duringDrag.x + duringDrag.width - (videoBox.x + videoBox.width - 6),
-    ) < 2,
+    Math.abs(duringDrag.x + duringDrag.width - (viewportWidth - 6)) < 2,
     'Dragging stays on the nearest edge',
   );
   await page.mouse.up();
@@ -247,6 +241,59 @@ try {
     'false',
     'Dragging does not open settings',
   );
+  // Viewport docking must not follow the video when the page scrolls.
+  await page.evaluate(async () => {
+    window.scrollTo(0, 120);
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+  });
+  const scrolled = await logo.boundingBox();
+  assert.ok(
+    Math.abs(scrolled.x - docked.x) < 2 && Math.abs(scrolled.y - docked.y) < 2,
+  );
+  const videoAfterScroll = await page.locator('video').boundingBox();
+  const captionHost = await overlay.boundingBox();
+  assert.ok(
+    Math.abs(captionHost.y - videoAfterScroll.y) < 2,
+    'Captions still follow the video',
+  );
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await page.waitForFunction(() => {
+    const logo = document
+      .querySelector('subtitle-translator-overlay')
+      .shadowRoot.querySelector('.logo')
+      .getBoundingClientRect();
+    return (
+      Math.abs(logo.right - (document.documentElement.clientWidth - 6)) < 2
+    );
+  });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.evaluate(async () => {
+    window.scrollTo(0, 0);
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+  });
+  await page
+    .getByRole('button', { name: 'Container fullscreen', exact: true })
+    .click();
+  await page.waitForFunction(() => {
+    const host = document.querySelector('subtitle-translator-overlay');
+    return (
+      document.fullscreenElement?.contains(host) &&
+      Math.abs(
+        host.shadowRoot.querySelector('.logo').getBoundingClientRect().right -
+          (document.documentElement.clientWidth - 6),
+      ) < 2
+    );
+  });
+  await page.evaluate(async () => {
+    await document.exitFullscreen();
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve)),
+    );
+  });
   await logo.click();
   const sourceLine = caption.locator('.original-line');
   const translatedLine = caption.locator('div').last();
@@ -261,9 +308,7 @@ try {
     Math.abs(showBox.y - docked.y) < 2,
     'Restore tab keeps dock height',
   );
-  assert.ok(
-    Math.abs(showBox.x + showBox.width - (videoBox.x + videoBox.width - 6)) < 2,
-  );
+  assert.ok(Math.abs(showBox.x + showBox.width - (viewportWidth - 6)) < 2);
   await show.click();
   await logo.click();
   await page.screenshot({ path: '.output/floating-controls.png' });
