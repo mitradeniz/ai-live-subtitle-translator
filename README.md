@@ -476,10 +476,20 @@ If both tools are enabled, the page menu's Video controls opens the caption cont
 With page tools enabled, a smaller **A文** button also appears inside the largest
 visible main-document video’s recognized control bar, beside CC/settings. It opens a
 compact menu directly above the button with a **Subtitle translation** switch,
-**Download subtitles**, and **Settings**. The switch reads actual playback state;
+**Provider**, **Target language**, **Download subtitles**, and **Settings**. The switch reads actual playback state;
 it can stop captions immediately, and starting still requires your configured
 provider/access/key and a translated display mode. It does not change the edge
 button's selected Page/Video action. Opening the menu sends no text.
+
+Provider and target-language changes save the same preferences used by the popup.
+The menu stays open, stops old translation work, and lets you resume using its
+subtitle switch. Changes also stop translation on other open pages. A ✓ means a
+key is saved for that provider, not that its connection was tested. Only the current
+configured AI profile and the Cloud key are stored; other AI profiles require setup
+in Settings. Missing keys, access or experimental Google opt-in are shown beside
+disabled choices. Selecting a provider cannot grant access or make a paid request;
+its recipient and paid status are displayed before use. Target-language choices
+include common languages and preserve a custom code already saved in Settings.
 
 Download saves the already-loaded, unambiguous native source caption track as
 `subtitles-original.vtt`. It does not request translations or fetch a caption URL.

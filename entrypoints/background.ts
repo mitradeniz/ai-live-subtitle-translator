@@ -295,6 +295,8 @@ export default defineBackground(() => {
             'controls.update',
             'content.appearance',
             'controls.select',
+            'page.menu-provider',
+            'page.menu-language',
           ].includes(String(message.type))
         )
           await resetTranslations(
@@ -314,6 +316,8 @@ export default defineBackground(() => {
           [
             'page.configure',
             'controls.select',
+            'page.menu-provider',
+            'page.menu-language',
             'controls.update',
             'settings.update',
             'ai.configure',
@@ -330,7 +334,14 @@ export default defineBackground(() => {
           ].includes(String(message.type))
         ) {
           for (const tab of await browser.tabs.query({}))
-            if (tab.id !== undefined && !tab.incognito)
+            if (
+              tab.id !== undefined &&
+              !tab.incognito &&
+              !(
+                String(message.type).startsWith('page.menu-') &&
+                tab.id === sender.tab?.id
+              )
+            )
               await browser.tabs
                 .sendMessage(
                   tab.id,

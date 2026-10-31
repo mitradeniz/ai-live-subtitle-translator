@@ -62,6 +62,7 @@ export class PageTools {
     settings: Settings,
     label: string,
     ai: boolean,
+    reloadMenu: (sessionId: string) => Promise<void>,
   ) {
     this.sessionId = sessionId;
     this.prefs = prefs;
@@ -267,6 +268,29 @@ export class PageTools {
       this.#playerShortcut = new PlayerShortcut({
         t: (text) => this.t(text),
         recipient: `${label} · ${settings.sourceLanguage} → ${settings.targetLanguage}`,
+        read: async () => {
+          const result = await sendRequest({ type: 'page.menu', sessionId });
+          if (result.kind !== 'player-menu') throw new Error('Unavailable');
+          return result;
+        },
+        change: async (change) => {
+          const result = await sendRequest(
+            'provider' in change
+              ? {
+                  type: 'page.menu-provider',
+                  sessionId,
+                  provider: change.provider,
+                }
+              : {
+                  type: 'page.menu-language',
+                  sessionId,
+                  targetLanguage: change.targetLanguage,
+                },
+          );
+          if (result.kind !== 'player-menu-saved')
+            throw new Error('Unavailable');
+          if (!this.#closed) await reloadMenu(result.sessionId);
+        },
         status: async () => {
           const result = await sendRequest({
             type: 'page.caption-status',
@@ -495,6 +519,24 @@ export class PageTools {
     } finally {
       this.#pending--;
     }
+  }
+  get placement() {
+    return { ...this.#position, hidden: Boolean(this.#dock.hidden) };
+  }
+  restorePlacement(placement: {
+    side: number;
+    height: number;
+    hidden: boolean;
+  }) {
+    this.#position = { side: placement.side, height: placement.height };
+    this.#dock.hidden = placement.hidden;
+    this.#show.hidden = !placement.hidden;
+    this.layout();
+  }
+  openPlayerMenu() {
+    this.#playerShortcut?.open(
+      'Preferences saved. Turn subtitle translation on to resume.',
+    );
   }
   startPage() {
     if (!this.prefs.page || this.#page.active) return;

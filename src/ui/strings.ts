@@ -202,6 +202,13 @@ export const turkish: Record<string, string> = {
   'Subtitles, in your language.': 'Altyazılar, senin dilinde.',
   'Subtitle preferences': 'Altyazı tercihleri',
   'Source language': 'Kaynak dil',
+  'Add key in settings': 'Ayarlardan anahtar ekle',
+  'Allow access in settings': 'Ayarlardan erişim izni ver',
+  'Saving preferences…': 'Tercihler kaydediliyor…',
+  'Preferences saved. Turn subtitle translation on to resume.':
+    'Tercihler kaydedildi. Devam etmek için altyazı çevirisini aç.',
+  'Could not save. Check provider setup in settings or reopen the popup.':
+    'Kaydedilemedi. Sağlayıcı ayarlarını kontrol et veya eklentiyi yeniden aç.',
   'Target language': 'Hedef dil',
   'Auto-detect': 'Otomatik algıla',
   'Display mode': 'Görünüm',
@@ -295,8 +302,8 @@ export const turkish: Record<string, string> = {
   'Move captions': 'Altyazı konumunu değiştir',
   'Toggle contrast': 'Kontrastı değiştir',
   'Original captions': 'Orijinal altyazı',
-  'Translation stopped. Open the extension popup and choose Enable captions again.':
-    'Çeviri durdu. Eklenti popup’ından altyazıyı yeniden etkinleştir.',
+  'Translation stopped. Enable captions again from the player menu or extension popup.':
+    'Çeviri durdu. Oynatıcı menüsünden veya eklenti penceresinden altyazıları yeniden aç.',
   'Early development': 'Geliştirme aşamasında',
   Version: 'Sürüm',
   'Loading preferences…': 'Tercihler yükleniyor…',
@@ -501,8 +508,8 @@ Object.assign(turkish, {
     'Sağlayıcının yanıtı kullanılamıyor. Altyazıyı yeniden etkinleştir veya ayarlardan başka motor seç. Orijinaller gösteriliyor.',
   'Translation cancelled. Showing original captions.':
     'Çeviri iptal edildi. Orijinal altyazılar gösteriliyor.',
-  'Translation stopped. Open the extension popup and choose Enable captions again.':
-    'Çeviri durduruldu. Eklentiyi açıp altyazıyı yeniden etkinleştir.',
+  'Translation stopped. Enable captions again from the player menu or extension popup.':
+    'Çeviri durdu. Oynatıcı menüsünden veya eklenti penceresinden altyazıları yeniden aç.',
   'Original captions': 'Orijinal altyazılar',
   'Native timed track': 'Zamanlı video altyazısı',
   'Visible captions': 'Görünür altyazılar',

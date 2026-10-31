@@ -27,7 +27,8 @@ or a guarantee of exactly-once billing after interrupted requests.
 The page and its DOM remain untrusted, including the overlay controls. A bound
 content session may adjust appearance or stop translation, but cannot restart it
 from original-only mode; resume using the extension popup or settings. It cannot
-read credentials or change providers, endpoints or languages. Caption and model
+read credentials or change endpoints. Provider and target-language changes use the
+separate, narrower player-menu capability described below. Caption and model
 output is displayed as text. Do not interpret a model's caption output as trusted
 instructions.
 
@@ -39,6 +40,13 @@ original-only display; YouTube source confirmation comes from trusted preference
 The compact player switch uses the same enabled-caption capability and bound sender
 checks without changing the edge action. Status reads cannot start a provider;
 turning it off revokes playback work and pauses automatic captions for that tab.
+The player menu may change the selected provider and target language using narrowly
+validated messages bound to an enabled page-tools document. It can select only an
+already configured, permitted provider; it cannot change an endpoint, model, key,
+source confirmation, original-only display, or host grant. The background returns
+availability flags, never credentials. A change cancels work, revokes old sessions,
+and rotates only the requesting document's page capability. It does not restart
+translation or reset paid-request budgets. Synthetic DOM changes are ignored.
 Local VTT export reads only already-loaded source cues, escapes text, rejects
 ambiguous/oversized input and never accepts a URL or fetches remote captions.
 The content-side action picker is limited to enabled page/video features, uses a

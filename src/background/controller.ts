@@ -5,7 +5,11 @@ import { SitePreferences, YOUTUBE_ORIGIN, type SitePorts } from './sites.ts';
 import { isYouTubeWatch } from '../youtube/source.ts';
 import { WorkQueue } from './work-queue.ts';
 import { CLOUD_PROFILE } from '../translation/google-cloud.ts';
-import { AIProfileSchema, aiDefinition } from '../translation/ai-profile.ts';
+import {
+  AIProfileSchema,
+  AI_PROFILES,
+  aiDefinition,
+} from '../translation/ai-profile.ts';
 import { PaidCoordinator, type PaidPorts } from './paid.ts';
 import { ProviderSelection } from './provider-selection.ts';
 import { DEFAULT_SETTINGS } from '../messaging/protocol.ts';
@@ -15,6 +19,7 @@ import {
   withinMessageBudget,
   type Response,
   type PopupStatus,
+  type PlayerMenu,
 } from '../messaging/protocol.ts';
 import { CredentialStore } from './credentials.ts';
 import { BoundaryError } from './errors.ts';
@@ -124,6 +129,60 @@ export function createController(
   const pageEpochs = new Map<string, number>();
   let pending = 0;
   const settingsOpened = new Map<number, number>();
+
+  let menuUpdating = false;
+  async function playerMenu(): Promise<PlayerMenu> {
+    const profile = AIProfileSchema.parse(await ai.profile());
+    const selected = await selection.read();
+    const aiKey = await credentials.status(
+      'ai',
+      new URL(profile.endpoint).origin,
+    );
+    const cloudKey = await credentials.status(
+      'google-cloud',
+      new URL(CLOUD_PROFILE.endpoint).origin,
+    );
+    const aiAllowed = await ai.permitted(),
+      cloudAllowed = await cloud.permitted();
+    return {
+      kind: 'player-menu',
+      selected: selected === 'ai' ? aiDefinition(profile).name : selected,
+      targetLanguage: (await settings.read()).targetLanguage,
+      choices: [
+        { id: 'none', label: 'Original only', state: 'ready', keySaved: false },
+        {
+          id: 'google',
+          label: 'Google · Experimental · translate.googleapis.com',
+          state: (await google.enabled()) ? 'ready' : 'setup-required',
+          keySaved: false,
+        },
+        {
+          id: 'google-cloud',
+          label: 'Google Cloud · Paid · translation.googleapis.com',
+          state: !cloudKey.configured
+            ? 'key-required'
+            : !cloudAllowed
+              ? 'permission-required'
+              : 'ready',
+          keySaved: cloudKey.configured,
+        },
+        ...AI_PROFILES.map((item) => {
+          const configured =
+            item.endpoint === profile.endpoint && aiKey.configured;
+          return {
+            id: item.name,
+            label: `${item.name} · Paid · ${new URL(item.endpoint).hostname}`,
+            state: !configured
+              ? ('key-required' as const)
+              : !aiAllowed
+                ? ('permission-required' as const)
+                : ('ready' as const),
+            keySaved: configured,
+          };
+        }),
+      ],
+    };
+  }
 
   async function dispatch(
     raw: unknown,
@@ -316,6 +375,67 @@ export function createController(
             ),
           },
         };
+      } else if (
+        request.type === 'page.menu' ||
+        request.type === 'page.menu-provider' ||
+        request.type === 'page.menu-language'
+      ) {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        const ticket = epoch;
+        const valid = () => {
+          if (ticket !== epoch) throw new BoundaryError('INVALID_SESSION');
+          pageSessions.assertBound(request.sessionId, sender.identity);
+        };
+        valid();
+        if (!(await pageSettings.read()).captions)
+          throw new BoundaryError('FORBIDDEN');
+        const menu = await playerMenu();
+        valid();
+        if (request.type === 'page.menu') {
+          response = { ok: true, data: menu };
+        } else {
+          if (menuUpdating) throw new BoundaryError('BUSY');
+          // Only already configured and permitted profiles can be selected here.
+          // A page cannot configure endpoints, change keys or grant host access.
+          if (
+            request.type === 'page.menu-provider' &&
+            menu.choices.find((item) => item.id === request.provider)?.state !==
+              'ready'
+          )
+            throw new BoundaryError('FORBIDDEN');
+          menuUpdating = true;
+          try {
+            cancelAll();
+            const updateEpoch = epoch;
+            // Create the replacement before awaiting storage, so tab closure,
+            // navigation or access removal can revoke it while saving.
+            const sessionId = pageSessions.grant(browserSender);
+            const current = () => {
+              if (updateEpoch !== epoch) return false;
+              pageSessions.assertBound(sessionId, sender.identity);
+              return true;
+            };
+            if (request.type === 'page.menu-language') {
+              await settings.updateTarget(request.targetLanguage, () => {
+                if (!current()) throw new BoundaryError('INVALID_SESSION');
+              });
+            } else {
+              const provider = ['OpenAI', 'DeepSeek', 'Gemini'].includes(
+                request.provider,
+              )
+                ? 'ai'
+                : (request.provider as 'none' | 'google' | 'google-cloud');
+              await selection.set(provider, current);
+            }
+            if (!current()) throw new BoundaryError('INVALID_SESSION');
+            response = {
+              ok: true,
+              data: { kind: 'player-menu-saved', sessionId },
+            };
+          } finally {
+            menuUpdating = false;
+          }
+        }
       } else if (
         request.type === 'page.settings' ||
         request.type === 'page.cancel' ||

@@ -27,6 +27,36 @@ export const PreferencesSchema = z.strictObject({
   position: z.enum(['bottom', 'top']).default('bottom'),
   uiLanguage: z.enum(['en', 'tr']).default('en'),
 });
+export const MenuProviderSchema = z.enum([
+  'none',
+  'google',
+  'google-cloud',
+  'OpenAI',
+  'DeepSeek',
+  'Gemini',
+]);
+export const PlayerMenuSchema = z.strictObject({
+  kind: z.literal('player-menu'),
+  selected: MenuProviderSchema,
+  targetLanguage: PreferencesSchema.shape.targetLanguage,
+  choices: z
+    .array(
+      z.strictObject({
+        id: MenuProviderSchema,
+        label: z.string().max(160),
+        state: z.enum([
+          'ready',
+          'key-required',
+          'permission-required',
+          'setup-required',
+        ]),
+        keySaved: z.boolean(),
+      }),
+    )
+    .max(6),
+});
+export type PlayerMenu = z.infer<typeof PlayerMenuSchema>;
+export type MenuProvider = z.infer<typeof MenuProviderSchema>;
 export const AppearanceSchema = PreferencesSchema.pick({
   displayMode: true,
   fontSize: true,
@@ -136,6 +166,19 @@ export const RequestSchema = z.discriminatedUnion('type', [
   ).map((type) =>
     z.strictObject({ ...envelope, type: z.literal(type), sessionId }),
   ),
+  z.strictObject({ ...envelope, type: z.literal('page.menu'), sessionId }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.menu-provider'),
+    sessionId,
+    provider: MenuProviderSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.menu-language'),
+    sessionId,
+    targetLanguage: PreferencesSchema.shape.targetLanguage,
+  }),
   z.strictObject({
     ...envelope,
     type: z.literal('page.caption-toggle'),
@@ -315,6 +358,11 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
         ai: z.boolean(),
       }),
 
+      PlayerMenuSchema,
+      z.strictObject({
+        kind: z.literal('player-menu-saved'),
+        sessionId: z.uuid(),
+      }),
       PopupStatusSchema,
       z.strictObject({ kind: z.literal('site-status'), enabled: z.boolean() }),
       z.strictObject({

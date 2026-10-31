@@ -79,6 +79,20 @@ export class SettingsStore {
     });
   }
 
+  updateTarget(targetLanguage: string, valid: () => void): Promise<Settings> {
+    const target = PreferencesSchema.shape.targetLanguage.parse(targetLanguage);
+    return this.#storage.run(async ({ local }) => {
+      const current = SettingsSchema.safeParse(
+        (await local.get(SETTINGS_KEY))[SETTINGS_KEY],
+      );
+      if (!current.success) throw new BoundaryError('UNAVAILABLE');
+      valid();
+      const next = { ...current.data, targetLanguage: target };
+      await local.set({ [SETTINGS_KEY]: next });
+      return next;
+    });
+  }
+
   async export() {
     return {
       format: 'subtitle-translator-settings' as const,

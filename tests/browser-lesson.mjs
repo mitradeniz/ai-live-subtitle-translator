@@ -335,6 +335,79 @@ try {
         ?.shadowRoot.querySelector('[role="switch"]')
         ?.getAttribute('aria-checked') === 'true',
   );
+  const languages = mini.getByRole('combobox', { name: 'Target language' });
+  const providers = mini.getByRole('combobox', {
+    name: 'Translation provider',
+  });
+  // Page-dispatched form events cannot change privileged preferences.
+  await languages.evaluate((select) => {
+    select.value = 'ar';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  assert.equal((await send('popup.read')).data.settings.targetLanguage, 'tr');
+  await languages.evaluate((select) => {
+    select.value = 'tr';
+  });
+  await languages.focus();
+  await page.keyboard.press('e');
+  await page.keyboard.press('Tab');
+  await mini
+    .getByText('Preferences saved. Turn subtitle translation on to resume.', {
+      exact: true,
+    })
+    .waitFor();
+  await page.waitForFunction(() => {
+    const select = document
+      .querySelector('translator-player-shortcut')
+      ?.shadowRoot.querySelector('select[aria-label="Target language"]');
+    return select?.value === 'en' && !select.disabled;
+  });
+  assert.equal((await send('popup.read')).data.settings.targetLanguage, 'en');
+  assert.equal(await toggle.getAttribute('aria-checked'), 'false');
+  const afterChange = providerRequests;
+  await providers.focus();
+  await page.keyboard.press('o');
+  await page.keyboard.press('Tab');
+  await page.waitForFunction(() => {
+    const select = document
+      .querySelector('translator-player-shortcut')
+      ?.shadowRoot.querySelector('select[aria-label="Translation provider"]');
+    return select?.value === 'none' && !select.disabled;
+  });
+  assert.equal((await send('controls.read')).data.selected, 'none');
+  await providers.focus();
+  await page.keyboard.press('g');
+  await page.keyboard.press('Tab');
+  await page.waitForFunction(() => {
+    const select = document
+      .querySelector('translator-player-shortcut')
+      ?.shadowRoot.querySelector('select[aria-label="Translation provider"]');
+    return select?.value === 'google' && !select.disabled;
+  });
+  assert.equal((await send('controls.read')).data.selected, 'google');
+  await languages.focus();
+  await page.keyboard.press('t');
+  await page.keyboard.press('Tab');
+  await page.waitForFunction(() => {
+    const select = document
+      .querySelector('translator-player-shortcut')
+      ?.shadowRoot.querySelector('select[aria-label="Target language"]');
+    return select?.value === 'tr' && !select.disabled;
+  });
+  assert.equal(
+    providerRequests,
+    afterChange,
+    'Preference changes never start provider traffic',
+  );
+  assert.equal(
+    await providers
+      .locator('option[value="DeepSeek"]')
+      .evaluate((option) => option.disabled),
+    true,
+  );
+  await page.screenshot({ path: '.output/lesson-player.png' });
+  // Keep the existing one-second caption-activation rate gate intact.
+  await page.waitForTimeout(1100);
   await send('playback.disable');
   await page.waitForFunction(
     () =>

@@ -1,3 +1,4 @@
+import type { PlayerMenu, MenuProvider } from '../messaging/protocol.ts';
 import { nativeSourceWebVtt } from './download.ts';
 import { readWithDeadline } from '../messaging/deadline.ts';
 import type { PlaybackState } from '../messaging/playback.ts';
@@ -42,6 +43,10 @@ function controlRow(video: HTMLVideoElement): HTMLElement | null {
 export interface PlayerMenuOptions {
   t(text: string): string;
   recipient: string;
+  read(): Promise<PlayerMenu>;
+  change(
+    change: { provider: MenuProvider } | { targetLanguage: string },
+  ): Promise<void>;
   status(): Promise<PlaybackState>;
   toggle(enabled: boolean): Promise<PlaybackState>;
   settings(): Promise<void>;
@@ -54,6 +59,9 @@ export class PlayerShortcut {
   #switch = document.createElement('button');
   #download = document.createElement('button');
   #status = document.createElement('p');
+  #provider = document.createElement('select');
+  #language = document.createElement('select');
+  #config: PlayerMenu | undefined;
   #timer: ReturnType<typeof setInterval>;
   #closed = false;
   #busy = false;
@@ -66,7 +74,7 @@ export class PlayerShortcut {
   constructor(private options: PlayerMenuOptions) {
     const shadow = this.#host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host{all:initial;display:inline-flex;flex:0 0 34px;align-self:stretch;align-items:center;justify-content:center;width:34px;vertical-align:middle;color-scheme:dark}*{box-sizing:border-box}button{cursor:pointer;font:500 13px/1.4 system-ui;color:#f3f6ff}button:focus-visible{outline:2px solid #b0d6ff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.trigger{width:28px;height:28px;padding:0;font-weight:700;border:1px solid #d4e4ff65;border-radius:7px;background:linear-gradient(145deg,#7187a980,#152139cc);box-shadow:inset 0 1px #ffffff45}.trigger:hover{background:#536987}.menu{position:fixed;inset:auto;margin:0;width:270px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:8px;border:1px solid #d6e5ff35;border-radius:17px;background:linear-gradient(140deg,#263447f2,#0b1522f2);color:#f3f6ff;box-shadow:0 10px 35px #0005,inset 0 1px #ffffff16;backdrop-filter:blur(18px);font:12px/1.4 system-ui}.item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:10px;background:transparent;text-align:start}.item:hover:not(:disabled){background:#ffffff12}.icon{flex:0 0 20px;white-space:nowrap;width:20px;text-align:center;color:#c9d7ee}.caption{flex:1}.caption small{display:block;font-size:10px;color:#aebed7;margin-top:2px}.track{width:30px;height:17px;padding:2px;border-radius:20px;background:#63728b;flex-shrink:0}.thumb{display:block;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0005}[aria-checked="true"] .track{background:#9dbbff}[aria-checked="true"] .thumb{transform:translateX(13px)}.recipient{font-size:10px;color:#b9c8df;border-top:1px solid #ffffff16;padding:8px 10px 2px;margin:3px 0 0;overflow-wrap:anywhere}.status{font-size:11px;color:#e2cf9b;margin:4px 10px;overflow-wrap:anywhere}.status:empty{display:none}`;
+    style.textContent = `:host{all:initial;display:inline-flex;flex:0 0 34px;align-self:stretch;align-items:center;justify-content:center;width:34px;vertical-align:middle;color-scheme:dark}*{box-sizing:border-box}button{cursor:pointer;font:500 13px/1.4 system-ui;color:#f3f6ff}select:focus-visible,button:focus-visible{outline:2px solid #b0d6ff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.trigger{width:28px;height:28px;padding:0;font-weight:700;border:1px solid #d4e4ff65;border-radius:7px;background:linear-gradient(145deg,#7187a980,#152139cc);box-shadow:inset 0 1px #ffffff45}.trigger:hover{background:#536987}.menu{position:fixed;inset:auto;margin:0;width:270px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:8px;border:1px solid #d6e5ff35;border-radius:17px;background:linear-gradient(140deg,#263447f2,#0b1522f2);color:#f3f6ff;box-shadow:0 10px 35px #0005,inset 0 1px #ffffff16;backdrop-filter:blur(18px);font:12px/1.4 system-ui}.item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:10px;background:transparent;text-align:start}.item:hover:not(:disabled){background:#ffffff12}.icon{flex:0 0 20px;white-space:nowrap;width:20px;text-align:center;color:#c9d7ee}.caption{flex:1}.caption small{display:block;font-size:10px;color:#aebed7;margin-top:2px}.track{width:30px;height:17px;padding:2px;border-radius:20px;background:#63728b;flex-shrink:0}.thumb{display:block;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0005}[aria-checked="true"] .track{background:#9dbbff}[aria-checked="true"] .thumb{transform:translateX(13px)}.recipient{font-size:10px;color:#b9c8df;border-top:1px solid #ffffff16;padding:8px 10px 2px;margin:3px 0 0;overflow-wrap:anywhere}.status{font-size:11px;color:#e2cf9b;margin:4px 10px;overflow-wrap:anywhere}.status:empty{display:none}.field{display:block;padding:6px 10px;font-size:11px;color:#c4d1e7}.field select{display:block;width:100%;min-width:0;margin-top:5px;padding:7px;border:1px solid #d6e5ff35;border-radius:8px;background:#152033;color:#f3f6ff;font:12px system-ui}.field select:disabled{opacity:.5}`;
     this.button.type = 'button';
     this.button.className = 'trigger';
     this.button.textContent = 'A文';
@@ -103,11 +111,7 @@ export class PlayerShortcut {
       if (!event.isTrusted) return;
       if (this.#menu.matches(':popover-open')) this.#menu.hidePopover();
       else {
-        this.#menu.showPopover();
-        this.#position();
-        this.#menu.focus();
-        this.#download.disabled = !this.#source();
-        void this.#refresh();
+        this.open();
       }
     });
     for (const type of ['pointerdown', 'keydown', 'keyup'])
@@ -183,8 +187,31 @@ export class PlayerShortcut {
     recipient.textContent = options.recipient;
     this.#status.className = 'status';
     this.#status.setAttribute('role', 'status');
+    const fields = [
+      ['Translation provider', this.#provider],
+      ['Target language', this.#language],
+    ] as const;
+    const labels = fields.map(([text, select]) => {
+      const label = document.createElement('label');
+      label.className = 'field';
+      label.textContent = options.t(text);
+      select.setAttribute('aria-label', options.t(text));
+      select.disabled = true;
+      label.append(select);
+      select.addEventListener('change', (event) => {
+        event.stopPropagation();
+        if (!event.isTrusted || this.#busy || !this.#config) return;
+        void this.#change(
+          select === this.#provider
+            ? { provider: select.value as MenuProvider }
+            : { targetLanguage: select.value },
+        );
+      });
+      return label;
+    });
     this.#menu.append(
       this.#switch,
+      ...labels,
       this.#download,
       settings,
       recipient,
@@ -203,6 +230,91 @@ export class PlayerShortcut {
     window.addEventListener('resize', this.layout);
     document.addEventListener('fullscreenchange', this.layout);
     this.layout();
+  }
+  open(notice = '') {
+    if (this.#closed || !this.#host.isConnected) return;
+    this.#menu.showPopover();
+    this.#menu.focus();
+    this.#download.disabled = !this.#source();
+    this.#notice(notice);
+    void this.#refresh();
+  }
+  #paintConfig(config: PlayerMenu) {
+    this.#config = config;
+    this.#provider.replaceChildren();
+    const states = {
+      ready: '',
+      'key-required': 'Add key in settings',
+      'permission-required': 'Allow access in settings',
+      'setup-required': 'Set up in settings',
+    };
+    for (const choice of config.choices) {
+      const option = document.createElement('option');
+      option.value = choice.id;
+      const name =
+        choice.id === 'none'
+          ? this.options.t('Original only')
+          : choice.id === 'google-cloud'
+            ? 'Google Cloud'
+            : choice.id === 'google'
+              ? this.options.t('Google · Experimental')
+              : choice.id;
+      option.textContent = `${choice.keySaved ? '✓ ' : ''}${name}${!['google', 'none'].includes(choice.id) ? ` · ${this.options.t('Paid API')}` : ''}${choice.state === 'ready' ? '' : ` · ${this.options.t(states[choice.state])}`}`;
+      option.disabled = choice.state !== 'ready';
+      option.title = choice.label;
+      this.#provider.append(option);
+    }
+    this.#provider.value = config.selected;
+    this.#provider.title =
+      config.choices.find((choice) => choice.id === config.selected)?.label ??
+      '';
+    const languages: [string, string][] = [
+      ['tr', 'Türkçe'],
+      ['en', 'English'],
+      ['de', 'Deutsch'],
+      ['fr', 'Français'],
+      ['es', 'Español'],
+      ['it', 'Italiano'],
+      ['pt', 'Português'],
+      ['ar', 'العربية'],
+      ['he', 'עברית'],
+      ['ja', '日本語'],
+      ['ko', '한국어'],
+      ['zh-CN', '简体中文'],
+      ['ru', 'Русский'],
+      ['hi', 'हिन्दी'],
+    ];
+    if (!languages.some(([code]) => code === config.targetLanguage))
+      languages.push([config.targetLanguage, config.targetLanguage]);
+    this.#language.replaceChildren(
+      ...languages.map(([code, label]) => {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = label;
+        return option;
+      }),
+    );
+    this.#language.value = config.targetLanguage;
+    this.#position();
+  }
+  async #change(
+    change: { provider: MenuProvider } | { targetLanguage: string },
+  ) {
+    this.#busy = true;
+    this.#epoch++;
+    this.#paint();
+    this.#notice('Saving preferences…');
+    try {
+      await this.options.change(change);
+    } catch {
+      if (this.#config) this.#paintConfig(this.#config);
+      this.#notice(
+        'Could not save. Check provider setup in settings or reopen the popup.',
+      );
+    } finally {
+      this.#busy = false;
+      if (!this.#closed) this.#paint();
+    }
   }
   #row(
     button: HTMLButtonElement,
@@ -239,6 +351,8 @@ export class PlayerShortcut {
       String(this.#state === 'enabled'),
     );
     this.#switch.disabled = this.#busy || this.#state === 'unavailable';
+    this.#provider.disabled = this.#language.disabled =
+      this.#busy || !this.#config;
   }
   async #refresh() {
     if (this.#closed || this.#busy || this.#refreshing) return;
@@ -246,9 +360,16 @@ export class PlayerShortcut {
     this.#refreshing = true;
     this.#lastRead = Date.now();
     try {
-      const state = await readWithDeadline(this.options.status(), 3000);
-      if (!this.#closed && epoch === this.#epoch && !this.#busy)
+      const [state, config] = await readWithDeadline(
+        Promise.all([this.options.status(), this.options.read()]),
+        3000,
+      );
+      if (!this.#closed && epoch === this.#epoch && !this.#busy) {
         this.#state = state;
+        // Avoid replacing options under an open native select during polling.
+        if (JSON.stringify(config) !== JSON.stringify(this.#config))
+          this.#paintConfig(config);
+      }
     } catch {
       if (!this.#closed && epoch === this.#epoch) this.#state = 'unavailable';
     } finally {

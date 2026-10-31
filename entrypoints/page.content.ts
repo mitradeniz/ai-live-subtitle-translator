@@ -10,6 +10,29 @@ export default defineContentScript({
   main(ctx) {
     let tools: PageTools | undefined;
     let generation = 0;
+    const reloadMenu = async (sessionId: string) => {
+      const ticket = ++generation;
+      const placement = tools?.placement;
+      tools?.dispose();
+      tools = undefined;
+      const data = await sendRequest({ type: 'page.settings', sessionId });
+      if (
+        !ctx.isValid ||
+        ticket !== generation ||
+        data.kind !== 'page-settings'
+      )
+        return;
+      tools = new PageTools(
+        sessionId,
+        data.preferences,
+        data.settings,
+        data.label,
+        data.ai,
+        reloadMenu,
+      );
+      if (placement) tools.restorePlacement(placement);
+      tools.openPlayerMenu();
+    };
     const onMessage: Parameters<
       typeof browser.runtime.onMessage.addListener
     >[0] = (raw: unknown, sender, respond) => {
@@ -52,6 +75,7 @@ export default defineContentScript({
             data.settings,
             data.label,
             data.ai,
+            reloadMenu,
           );
           if (message.run) tools.startPage();
           respond(tools.state);
