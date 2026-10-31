@@ -53,7 +53,7 @@ export default defineContentScript({
             data.label,
             data.ai,
           );
-          if (message.run) tools.togglePage();
+          if (message.run) tools.startPage();
           respond(tools.state);
         },
         () => respond('unavailable'),

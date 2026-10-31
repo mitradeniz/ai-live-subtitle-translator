@@ -95,7 +95,7 @@ export class PageTools {
     this.#result.dir = 'auto';
     this.#result.setAttribute('aria-live', 'polite');
     this.#panel.append(heading, destination, consent);
-    const main = this.button('Translate visible page', () => this.togglePage());
+    const main = this.button('Translate visible page', () => this.startPage());
     main.className = 'primary';
     main.disabled = !prefs.page;
     this.#panel.append(main);
@@ -254,7 +254,11 @@ export class PageTools {
       this.#drag = undefined;
     });
     this.#button.addEventListener('click', (event) => {
-      if (event.isTrusted && !this.#drag?.moved) this.action();
+      if (event.isTrusted && !this.#drag?.moved) {
+        clearTimeout(this.#menuTimer);
+        this.open(false);
+        this.action();
+      }
       this.#drag = undefined;
     });
     this.#button.addEventListener('keydown', (event) => {
@@ -274,7 +278,9 @@ export class PageTools {
         this.#panel.querySelector('button')?.focus();
       }
     });
-    this.#button.addEventListener('focus', () => this.open(true));
+    this.#button.addEventListener('focus', () => {
+      if (this.#button.matches(':focus-visible')) this.open(true);
+    });
     this.#dock.addEventListener('pointerenter', (event) => {
       if (event.isTrusted) {
         clearTimeout(this.#menuTimer);
@@ -353,7 +359,10 @@ export class PageTools {
     if (this.#closed) return;
     switch (this.prefs.clickAction) {
       case 'page':
-        this.togglePage();
+        this.startPage();
+        break;
+      case 'captions':
+        void this.startCaptions();
         break;
       case 'selection':
         void this.selected();
@@ -366,15 +375,45 @@ export class PageTools {
         break;
     }
   }
-  togglePage() {
-    if (!this.prefs.page) return;
-    if (this.#page.active) {
-      this.#page.restore();
-      this.state = 'ready';
-    } else {
-      this.#page.start();
-      this.state = 'translating';
+  private async startCaptions() {
+    if (!this.prefs.captions || this.#pending) return;
+    this.#pending++;
+    try {
+      const result = await sendRequest({
+        type: 'page.captions',
+        sessionId: this.sessionId,
+      });
+      if (this.#closed) return;
+      const state = result.kind === 'playback' ? result.state : 'unavailable';
+      const messages = {
+        enabled: 'Video subtitles started.',
+        'no-video': 'No supported video found on this page.',
+        'source-required':
+          'Confirm the original YouTube caption track in Customize translation.',
+        'key-required': 'Add your provider key in settings, then try again.',
+        'permission-required':
+          'Allow provider access in settings, then try again.',
+        'needs-restart':
+          'Choose a provider and translated display in the popup first.',
+        disabled: 'Video subtitles could not start. Try again from the popup.',
+        unavailable:
+          'Video subtitles could not start. Try again from the popup.',
+      };
+      this.showStatus(messages[state]);
+      if (state !== 'enabled') this.open(true);
+    } catch {
+      this.showStatus(
+        'Video subtitles could not start. Try again from the popup.',
+      );
+      this.open(true);
+    } finally {
+      this.#pending--;
     }
+  }
+  startPage() {
+    if (!this.prefs.page || this.#page.active) return;
+    this.#page.start();
+    this.state = 'translating';
   }
   private cancel() {
     this.#epoch++;

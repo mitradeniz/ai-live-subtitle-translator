@@ -17,6 +17,7 @@ export function createPlaybackHandler(
     automaticTab?: number,
     expectedDocument?: string,
     authorized?: () => Promise<boolean>,
+    pageAction = false,
   ) => {
     // No tab/document identity is accepted from the popup payload.
     const tab =
@@ -30,7 +31,11 @@ export function createPlaybackHandler(
     operations.set(tabId, ticket);
     const current = async () =>
       (!authorized || (await authorized())) && ticket === operations.get(tabId);
-    if (automaticTab !== undefined && !isYouTubeWatch(tab.url ?? ''))
+    if (
+      automaticTab !== undefined &&
+      !pageAction &&
+      !isYouTubeWatch(tab.url ?? '')
+    )
       return 'unavailable';
     if (automaticTab === undefined && type !== 'playback.status')
       await pause(tabId, type === 'playback.disable');
@@ -136,6 +141,31 @@ export function createPlaybackHandler(
   };
   return {
     handle: ((type, confirmed) => perform(type, confirmed)) as PlaybackHandler,
+    fromPage: async (
+      tabId: number,
+      documentId: string,
+      confirmed: boolean,
+      authorized: () => Promise<boolean>,
+    ) => {
+      if (!(await authorized())) return 'disabled';
+      const state = await browser.tabs
+        .sendMessage(
+          tabId,
+          { version: 1, type: 'playback.inspect' },
+          { documentId },
+        )
+        .catch(() => null);
+      if (!(await authorized())) return 'disabled';
+      if (state === 'enabled') return 'enabled';
+      return perform(
+        'playback.enable',
+        confirmed,
+        tabId,
+        documentId,
+        authorized,
+        true,
+      );
+    },
     auto: (
       tabId: number,
       documentId: string,

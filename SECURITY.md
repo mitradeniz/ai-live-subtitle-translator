@@ -31,6 +31,12 @@ read credentials or change providers, endpoints or languages. Caption and model
 output is displayed as text. Do not interpret a model's caption output as trusted
 instructions.
 
+Choosing the video edge action in the trusted popup delegates caption activation
+to that document's page-tools session. The background derives tab/document identity
+from the browser sender, checks the selected capability and existing provider setup,
+and bounds repeated activation. This action cannot enable a provider or change
+original-only display; YouTube source confirmation comes from trusted preferences.
+
 ## Reporting and fixes
 
 Do not post keys, authorization headers, personal captions, signed URLs or full

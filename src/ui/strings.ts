@@ -10,6 +10,19 @@ export const turkish: Record<string, string> = {
   'Customize translation': 'Çeviri özelleştirmeleri',
   'Choose your tools': 'Araçlarını seç',
   'Web page translation': 'Web sayfası çevirisi',
+  'Video subtitles started.': 'Video altyazıları başlatıldı.',
+  'No supported video found on this page.':
+    'Bu sayfada desteklenen video bulunamadı.',
+  'Confirm the original YouTube caption track in Customize translation.':
+    'Çeviri özelleştirmelerinden orijinal YouTube altyazısını onayla.',
+  'Add your provider key in settings, then try again.':
+    'Ayarlardan sağlayıcı anahtarını ekleyip tekrar dene.',
+  'Allow provider access in settings, then try again.':
+    'Ayarlardan sağlayıcı erişimine izin verip tekrar dene.',
+  'Choose a provider and translated display in the popup first.':
+    'Önce eklenti menüsünden sağlayıcı ve çeviri görünümünü seç.',
+  'Video subtitles could not start. Try again from the popup.':
+    'Video altyazıları başlatılamadı. Eklenti menüsünden tekrar dene.',
   'Video subtitles': 'Video altyazıları',
   'Selected text translation': 'Seçili metin çevirisi',
   'Hover translation (Alt + hover)': 'Üzerine gelince çeviri (Alt ile)',

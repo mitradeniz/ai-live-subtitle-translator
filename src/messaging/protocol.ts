@@ -106,6 +106,7 @@ export const RequestSchema = z.discriminatedUnion('type', [
   }),
   ...(
     [
+      'page.captions',
       'page.settings',
       'page.cancel',
       'page.open-popup',

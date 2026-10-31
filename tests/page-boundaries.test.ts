@@ -220,3 +220,104 @@ test('long page text is chunked within provider limits without corrupting Unicod
     ),
   );
 });
+
+test('video edge action requires a selected capability and browser-bound identity', async () => {
+  let calls = 0;
+  let check: (() => Promise<boolean>) | undefined;
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    undefined,
+    { permitted: async () => true },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async (tabId, documentId, confirmed, authorized) => {
+      calls++;
+      assert.equal(tabId, 7);
+      assert.equal(documentId, contentSender().documentId);
+      assert.equal(confirmed, true);
+      assert.equal(await authorized(), true);
+      check = authorized;
+      return 'enabled';
+    },
+  );
+  const sender = contentSender();
+  let sessionId = controller.pageSessions.grant(sender);
+  const call = (extra = {}, from = sender) =>
+    controller.dispatch(
+      request('page.captions', { sessionId, ...extra }),
+      from,
+    );
+  assert.equal((await call()).ok, false);
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: {
+        ...DEFAULT_PAGE_PREFERENCES,
+        clickAction: 'captions',
+        youtubeSourceConfirmed: true,
+      },
+    }),
+    uiSender('popup'),
+  );
+  sessionId = controller.pageSessions.grant(sender);
+  assert.equal((await call({ tabId: 99 })).ok, false);
+  assert.equal((await call({ youtubeSourceConfirmed: true })).ok, false);
+  assert.equal((await call({}, { ...sender, documentId: 'forged' })).ok, false);
+  const unselected = await call();
+  assert.ok(
+    unselected.ok &&
+      unselected.data.kind === 'playback' &&
+      unselected.data.state === 'needs-restart',
+    JSON.stringify(unselected),
+  );
+  assert.equal(calls, 0);
+  await controller.dispatch(request('google.enable'), uiSender());
+  sessionId = controller.pageSessions.grant(sender);
+  const preferences = {
+    sourceLanguage: 'auto',
+    targetLanguage: 'tr',
+    displayMode: 'original',
+    fontSize: 24,
+    contrast: 'glass',
+    position: 'bottom',
+    uiLanguage: 'en',
+  };
+  await controller.dispatch(
+    request('settings.update', { preferences }),
+    uiSender(),
+  );
+  const originalOnly = await call();
+  assert.ok(
+    originalOnly.ok &&
+      originalOnly.data.kind === 'playback' &&
+      originalOnly.data.state === 'needs-restart',
+  );
+  assert.equal(
+    calls,
+    0,
+    'A page action cannot resume original-only translation',
+  );
+  await controller.dispatch(
+    request('settings.update', {
+      preferences: { ...preferences, displayMode: 'bilingual' },
+    }),
+    uiSender(),
+  );
+  const accepted = await call();
+  assert.ok(
+    accepted.ok &&
+      accepted.data.kind === 'playback' &&
+      accepted.data.state === 'enabled',
+  );
+  assert.equal(calls, 1);
+  assert.equal((await call()).ok, false, 'Repeated activation is rate bounded');
+  controller.pageSessions.revokeTab(7);
+  await assert.rejects(check!);
+  assert.equal((await call()).ok, false);
+  assert.equal(calls, 1);
+});

@@ -294,7 +294,8 @@ try {
       requestAnimationFrame(() => requestAnimationFrame(resolve)),
     );
   });
-  await logo.click();
+  await logo.focus();
+  await page.keyboard.press('F2');
   const sourceLine = caption.locator('.original-line');
   const translatedLine = caption.locator('div').last();
   assert.ok(
@@ -310,7 +311,8 @@ try {
   );
   assert.ok(Math.abs(showBox.x + showBox.width - (viewportWidth - 6)) < 2);
   await show.click();
-  await logo.click();
+  await logo.focus();
+  await page.keyboard.press('F2');
   await page.screenshot({ path: '.output/floating-controls.png' });
   await overlay
     .getByRole('button', { name: 'Open settings', exact: true })
@@ -430,7 +432,8 @@ try {
   replyMode = 'normal';
   await overlay
     .getByRole('button', { name: 'Quick subtitle settings' })
-    .click();
+    .focus();
+  await page.keyboard.press('F2');
   await overlay
     .getByLabel('Display mode', { exact: true })
     .selectOption('original');
@@ -554,7 +557,8 @@ try {
   await overlay.waitFor();
   await overlay
     .getByRole('button', { name: 'Quick subtitle settings' })
-    .click();
+    .focus();
+  await page.keyboard.press('F2');
   await overlay
     .getByRole('button', { name: 'Disable captions', exact: true })
     .click();

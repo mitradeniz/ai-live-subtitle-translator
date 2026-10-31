@@ -20,6 +20,7 @@ export class CaptionOverlay {
   #nativePriority = '';
   #parts = '';
   #quickRequested = false;
+  #menuTimer: ReturnType<typeof setTimeout> | undefined;
   #showControls = () => {
     this.#quickRequested = true;
     this.#toolbar.hidden = false;
@@ -102,9 +103,27 @@ export class CaptionOverlay {
       this.#logo.setAttribute('aria-expanded', String(open));
       this.layout();
     };
-    this.#logo.addEventListener('click', () => {
-      if (!this.#drag?.moved) toggle(this.#toolbar.hidden === true);
+    // This control exists only while captions are running. Clicking must not
+    // toggle the menu or restart a provider job; hover/focus opens the controls.
+    this.#logo.addEventListener('click', (event) => {
+      if (event.isTrusted && !this.#drag?.moved) {
+        clearTimeout(this.#menuTimer);
+        toggle(false);
+      }
       this.#drag = undefined;
+    });
+    this.#dock.addEventListener('pointerenter', () => {
+      clearTimeout(this.#menuTimer);
+      toggle(true);
+    });
+    this.#dock.addEventListener('pointerleave', () => {
+      clearTimeout(this.#menuTimer);
+      this.#menuTimer = setTimeout(() => {
+        if (!this.#toolbar.contains(shadow.activeElement)) toggle(false);
+      }, 350);
+    });
+    this.#logo.addEventListener('focus', () => {
+      if (this.#logo.matches(':focus-visible')) toggle(true);
     });
     this.#logo.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
@@ -141,6 +160,12 @@ export class CaptionOverlay {
       this.#drag = undefined;
     });
     this.#logo.addEventListener('keydown', (event) => {
+      if (event.key === 'F2') {
+        event.preventDefault();
+        toggle(true);
+        this.#toolbar.querySelector<HTMLElement>('select,button')?.focus();
+        return;
+      }
       const delta: Record<string, [number, number]> = {
         ArrowLeft: [-1, 0],
         ArrowRight: [1, 0],
@@ -397,6 +422,7 @@ export class CaptionOverlay {
       this.#status.textContent = rendered;
   }
   dispose() {
+    clearTimeout(this.#menuTimer);
     this.nativeCaption(null);
     document.removeEventListener(
       'subtitle-translator:show-controls',

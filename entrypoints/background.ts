@@ -62,6 +62,8 @@ export default defineBackground(() => {
     () => browser.runtime.openOptionsPage(),
     (operation, run) => page.handle(operation, run),
     () => browser.action.openPopup(),
+    (tabId, documentId, confirmed, authorized) =>
+      playback.fromPage(tabId, documentId, confirmed, authorized),
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
     createPlaybackHandler(controller.sessions, (id, paused) =>

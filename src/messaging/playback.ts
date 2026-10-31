@@ -43,3 +43,11 @@ export const PlaybackControlSchema = z.discriminatedUnion('type', [
     type: z.literal('playback.inspect'),
   }),
 ]);
+
+// Identity is supplied only by the background's validated browser sender.
+export type PageCaptionHandler = (
+  tabId: number,
+  documentId: string,
+  confirmed: boolean,
+  authorized: () => Promise<boolean>,
+) => Promise<PlaybackState>;

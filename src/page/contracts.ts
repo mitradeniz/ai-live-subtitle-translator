@@ -16,12 +16,13 @@ export type WritingStyle = z.infer<typeof WritingStyleSchema>;
 export const PagePreferencesSchema = z.strictObject({
   page: z.boolean().default(true),
   captions: z.boolean().default(true),
+  youtubeSourceConfirmed: z.boolean().default(false),
   selection: z.boolean().default(false),
   hover: z.boolean().default(false),
   input: z.boolean().default(false),
   writing: z.boolean().default(false),
   clickAction: z
-    .enum(['page', 'selection', 'input', 'writing'])
+    .enum(['page', 'captions', 'selection', 'input', 'writing'])
     .default('page'),
   display: z.enum(['bilingual', 'translated']).default('bilingual'),
 });

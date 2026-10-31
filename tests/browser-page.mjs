@@ -152,8 +152,13 @@ try {
     await page.keyboard.press('F2');
   };
   await enable(false);
-  await menu();
-  assert.equal(sent.length, 0, 'Opening tools does not transmit text');
+  await trigger.hover();
+  await tools.locator('.panel').waitFor({ state: 'visible' });
+  assert.equal(
+    sent.length,
+    0,
+    'Hovering opens the menu without transmitting text',
+  );
   // Synthetic page clicks must not trigger requests.
   await tools
     .getByRole('button', { name: 'Translate visible page', exact: true })
@@ -161,6 +166,7 @@ try {
   await page.waitForTimeout(250);
   assert.equal(sent.length, 0);
   await trigger.click();
+  assert.equal(await trigger.getAttribute('aria-expanded'), 'false');
   await page.waitForFunction(() =>
     document
       .querySelector('#first [data-page-translation]')
@@ -182,6 +188,19 @@ try {
         { cause: error },
       );
     });
+  const completedRequests = sent.length;
+  const completedSpans = await page.locator('[data-page-translation]').count();
+  await trigger.click();
+  await page.waitForTimeout(250);
+  assert.equal(
+    await page.locator('[data-page-translation]').count(),
+    completedSpans,
+  );
+  assert.equal(
+    sent.length,
+    completedRequests,
+    'Repeated click does not stop or resend translated text',
+  );
   assert.ok(!sent.some((text) => text.includes('Lower paragraph')));
   assert.ok(
     !sent.some((text) =>
@@ -354,6 +373,48 @@ try {
       }),
     );
   });
+  // The selected video action starts native captions on this document only.
+  await page.evaluate(() => {
+    const video = document.createElement('video');
+    video.style.cssText = 'width:320px;height:180px';
+    document.body.append(video);
+    const track = video.addTextTrack('subtitles', 'Synthetic', 'en');
+    track.addCue(new VTTCue(0, 10, 'Native video sentence.'));
+    track.mode = 'showing';
+  });
+  await send('page.configure', {
+    preferences: { ...prefs, clickAction: 'captions' },
+  });
+  await enable();
+  await trigger.hover();
+  await tools.locator('.panel').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('subtitle-translator-overlay').count(), 0);
+  await trigger.evaluate((button) => button.click());
+  await page.waitForTimeout(250);
+  assert.equal(await page.locator('subtitle-translator-overlay').count(), 0);
+  await trigger.click();
+  await page.locator('subtitle-translator-overlay').waitFor();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-page-tools')
+        ?.shadowRoot.querySelector('.status')?.textContent ===
+      'Video subtitles started.',
+  );
+  assert.equal(
+    await page.locator('[data-page-translation]').count(),
+    0,
+    'Video click must not translate page text',
+  );
+  await popup.evaluate(() =>
+    chrome.runtime.sendMessage({
+      version: 1,
+      requestId: 'stop-video',
+      type: 'playback.disable',
+    }),
+  );
+  await send('page.configure', { preferences: prefs });
+  await page.evaluate(() => document.querySelector('video').remove());
   mode = 'malformed';
   const beforeMalformed = sent.length;
   await enable(true);

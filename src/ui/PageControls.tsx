@@ -44,7 +44,11 @@ export function PageControls({
     setBusy(true);
     try {
       const next = { ...prefs, ...patch };
-      if (!next[next.clickAction]) next.clickAction = 'page';
+      if (!next[next.clickAction])
+        next.clickAction =
+          (['page', 'captions', 'selection', 'input', 'writing'] as const).find(
+            (key) => next[key],
+          ) ?? 'page';
       await sendRequest({ type: 'page.configure', preferences: next });
       if (patch.captions === false)
         await sendRequest({ type: 'playback.disable' });
@@ -138,6 +142,7 @@ export function PageControls({
               {(
                 [
                   ['page', 'Translate visible page'],
+                  ['captions', 'Video subtitles'],
                   ['selection', 'Translate selection'],
                   ['input', 'Translate focused field'],
                   ['writing', 'AI Writing'],
@@ -149,6 +154,20 @@ export function PageControls({
               ))}
             </select>
           </label>
+          {prefs.clickAction === 'captions' && (
+            <label>
+              <input
+                type="checkbox"
+                checked={prefs.youtubeSourceConfirmed}
+                onChange={(event) =>
+                  void update({ youtubeSourceConfirmed: event.target.checked })
+                }
+              />
+              {t(
+                'For YouTube: I selected an original caption track, not Auto-translate.',
+              )}
+            </label>
+          )}
           <label>
             {t('Page display')}
             <select

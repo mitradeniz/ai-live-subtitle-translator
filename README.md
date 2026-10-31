@@ -433,10 +433,15 @@ mode and enabled tools are separate.
   next text to translate; it does not send the whole document in advance. Choose
   bilingual or translated-only page display. Links retain their original elements.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
-  the square runs the chosen action; hovering opens its glass menu. Focus/F2 opens
+  the square starts the chosen action (page, video subtitles, selection, field or
+  writing); hovering opens its glass menu. Clicking an already running page/video
+  action does not stop or restart it; use Restore/Disable from the menu. Focus/F2 opens
   the menu by keyboard, Escape closes it, and arrow keys move the dock. Hide/Show
   preserves its page edge and height. **Change provider / languages** opens the
   trusted toolbar popup; keys and new provider permissions stay in extension UI.
+  For the video click action, select Video subtitles in Customize translation and
+  confirm an original YouTube track there when applicable. Choose a provider and
+  translated/bilingual caption display first; original-only is not silently changed.
 - **Selected text**: enable tools first, select up to 1,000 characters, then choose
   Translate selection or use that edge-button action. Output appears in a preview.
 - **Hover**: opt in, then hold Alt while hovering over ordinary text for 650 ms.

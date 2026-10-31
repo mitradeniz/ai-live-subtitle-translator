@@ -21,7 +21,10 @@ import { identifySender } from './senders.ts';
 import { SessionRegistry } from './sessions.ts';
 import { SettingsStore } from './settings.ts';
 import { TrustedStorage, type StorageAreas } from './storage.ts';
-import type { PlaybackHandler } from '../messaging/playback.ts';
+import type {
+  PlaybackHandler,
+  PageCaptionHandler,
+} from '../messaging/playback.ts';
 import { GoogleCoordinator, type GooglePorts } from './google.ts';
 import {
   TranslationFailure,
@@ -51,6 +54,7 @@ export function createController(
   openPopup: () => Promise<void> = async () => {
     throw new BoundaryError('UNAVAILABLE');
   },
+  pageCaptions?: PageCaptionHandler,
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
@@ -160,6 +164,77 @@ export function createController(
           data: {
             kind: 'page-preferences',
             preferences: await pageSettings.read(),
+          },
+        };
+      } else if (request.type === 'page.captions') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        const ticket = epoch;
+        const authorized = async () => {
+          if (epoch !== ticket) return false;
+          pageSessions.assertBound(request.sessionId, sender.identity);
+          const prefs = await pageSettings.read();
+          pageSessions.assertBound(request.sessionId, sender.identity);
+          return (
+            epoch === ticket &&
+            prefs.captions &&
+            prefs.clickAction === 'captions'
+          );
+        };
+        if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
+        if (!pageCaptions) throw new BoundaryError('UNAVAILABLE');
+        const preferences = await settings.read();
+        const selected = await selection.read();
+        // The page action cannot change engines, languages or resume original-only.
+        if (
+          preferences.displayMode === 'original' ||
+          selected === 'none' ||
+          (selected === 'google' && !(await google.enabled()))
+        )
+          return {
+            ok: true,
+            data: { kind: 'playback', state: 'needs-restart' },
+          };
+        if (selected === 'ai' || selected === 'google-cloud') {
+          const paid = selected === 'ai' ? ai : cloud;
+          const profile = await paid.profile();
+          if (
+            !(
+              await credentials.status(
+                selected,
+                new URL(profile.endpoint).origin,
+              )
+            ).configured
+          )
+            return {
+              ok: true,
+              data: { kind: 'playback', state: 'key-required' },
+            };
+          if (!(await paid.permitted()))
+            return {
+              ok: true,
+              data: { kind: 'playback', state: 'permission-required' },
+            };
+        }
+        if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
+        // Bound repeated activation even if an authorized content script misbehaves.
+        if (
+          Date.now() - (settingsOpened.get(sender.identity.tabId) ?? 0) <
+          1000
+        )
+          throw new BoundaryError('BUSY');
+        if (settingsOpened.size >= 32)
+          settingsOpened.delete(settingsOpened.keys().next().value!);
+        settingsOpened.set(sender.identity.tabId, Date.now());
+        response = {
+          ok: true,
+          data: {
+            kind: 'playback',
+            state: await pageCaptions(
+              sender.identity.tabId,
+              sender.identity.documentId,
+              (await pageSettings.read()).youtubeSourceConfirmed,
+              authorized,
+            ),
           },
         };
       } else if (
