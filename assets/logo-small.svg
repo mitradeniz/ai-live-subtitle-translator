@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="AI Live Subtitle Translator">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c2766"/>
+      <stop offset="1" stop-color="#080b1a"/>
+    </linearGradient>
+    <clipPath id="tile"><rect width="32" height="32" rx="8"/></clipPath>
+    <filter id="aurora" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3.4"/></filter>
+    <linearGradient id="han" gradientUnits="userSpaceOnUse" x1="18" y1="6" x2="29" y2="17">
+      <stop offset="0" stop-color="#bff5ff"/>
+      <stop offset="1" stop-color="#cdb9ff"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".4"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".16"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="32" height="32" fill="url(#bg)"/>
+    <g filter="url(#aurora)">
+      <circle cx="6" cy="5" r="9" fill="#3f5bff"/>
+      <circle cx="31" cy="18" r="8" fill="#14b9d0" opacity=".85"/>
+      <circle cx="10" cy="32" r="9" fill="#8a4fff" opacity=".9"/>
+    </g>
+  </g>
+  <g fill="none" stroke="url(#han)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18.5 7.5h10"/>
+    <path d="M20.5 8.5c.8 4 3.2 6.6 7 8.2"/>
+    <path d="M26.6 8.5c-1 4.2-3.4 6.8-7.4 8.4"/>
+  </g>
+  <rect x="2.5" y="12" width="19" height="17.5" rx="6.5" fill="url(#glass)" stroke="#ffffff" stroke-opacity=".7" stroke-width=".9"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7.4 25.6 12 15.4l4.6 10.2"/>
+    <path d="M9 22.3h6"/>
+  </g>
+</svg>
