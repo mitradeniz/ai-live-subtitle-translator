@@ -37,7 +37,7 @@ export class NativeTrackAdapter {
     for (const track of tracks) {
       if (track === selected || track.mode === 'showing') {
         if (!this.#original.has(track)) this.#original.set(track, track.mode);
-        track.mode = 'hidden';
+        if (track.mode !== 'hidden') track.mode = 'hidden';
       }
     }
     const list = selected.cues;

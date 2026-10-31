@@ -27,7 +27,6 @@ export class CaptionPlayer {
   #frame = 0;
   #poll: ReturnType<typeof setInterval>;
   #closed = false;
-  #observer: MutationObserver;
   #url = location.href;
   #source: string;
   #expiresAt = Date.now() + 30 * 60_000;
@@ -76,15 +75,8 @@ export class CaptionPlayer {
     window.addEventListener('popstate', this.dispose);
     window.addEventListener('hashchange', this.dispose);
     document.addEventListener('fullscreenchange', this.#paint);
-    for (const name of ['addtrack', 'removetrack', 'change'])
-      video.textTracks.addEventListener(name, this.#scan);
-    this.#observer = new MutationObserver(this.#scan);
-    this.#observer.observe(video, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['src'],
-    });
+    // Player libraries may synchronously react to track.mode. A bounded poll
+    // handles track/revision changes without an event-driven feedback loop.
     this.#poll = setInterval(this.#scan, 150);
     this.#scan();
     this.#animate();
@@ -221,9 +213,6 @@ export class CaptionPlayer {
     window.removeEventListener('hashchange', this.dispose);
     document.removeEventListener('fullscreenchange', this.#paint);
     this.#adapter.dispose();
-    this.#observer.disconnect();
-    for (const name of ['addtrack', 'removetrack', 'change'])
-      this.#video.textTracks.removeEventListener(name, this.#scan);
     this.#overlay.dispose();
   };
 }

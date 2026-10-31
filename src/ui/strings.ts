@@ -1,5 +1,10 @@
 export type Locale = 'en' | 'tr';
 export const turkish: Record<string, string> = {
+  'Video translation settings': 'Video çeviri ayarları',
+  'Start video subtitles': 'Video altyazılarını başlat',
+  'Page status unavailable': 'Sayfa durumu alınamıyor',
+  'The page is not responding. Provider controls remain available; refresh the page to reconnect.':
+    'Sayfa yanıt vermiyor. Sağlayıcı seçimlerini kullanabilirsin; yeniden bağlanmak için sayfayı yenile.',
   'Writing options': 'Yazım seçenekleri',
   'Paid API · Text sent to': 'Ücretli API · Metin alıcısı',
   'Text sent to': 'Metin alıcısı',

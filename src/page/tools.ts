@@ -1,4 +1,5 @@
 import { PageText, EXCLUDED } from './dom';
+import { PlayerShortcut } from '../playback/shortcut';
 import type { PagePreferences, PageState, WritingStyle } from './contracts';
 import type { Settings } from '../messaging/protocol';
 import { sendRequest } from '../messaging/client';
@@ -32,6 +33,7 @@ export class PageTools {
   #apply: HTMLButtonElement;
   #restore: HTMLButtonElement;
   #page: PageText;
+  #playerShortcut: PlayerShortcut | undefined;
   #closed = false;
   #epoch = 0;
   #serial = 0;
@@ -138,6 +140,11 @@ export class PageTools {
     main.className = 'primary';
     main.disabled = !prefs.page;
     this.#panel.append(main);
+    const videoStart = this.button('Start video subtitles', () =>
+      this.startCaptions(),
+    );
+    videoStart.disabled = !prefs.captions;
+    this.#panel.append(videoStart);
     const row = document.createElement('div');
     row.className = 'row';
     this.#restore = this.button('Restore original page', () => {
@@ -256,6 +263,21 @@ export class PageTools {
     });
     this.#dock.append(this.#button, this.#panel);
     this.#shadow.append(css, this.#dock, this.#show);
+    const playerStyle = document.createElement('style');
+    playerStyle.textContent =
+      '.player-shortcut{position:fixed;pointer-events:auto;width:38px;height:38px;padding:0;font:700 16px system-ui;color:#f3f6ff;border:1px solid #d4e4ff85;border-radius:10px;background:linear-gradient(145deg,#7187a9e8,#152139f2);box-shadow:inset 0 1px #ffffff65,0 3px 12px #0005}.player-shortcut:hover{background:#36476a}';
+    this.#shadow.append(playerStyle);
+    if (prefs.captions)
+      this.#playerShortcut = new PlayerShortcut(
+        this.#shadow,
+        this.t('Video translation settings'),
+        () => {
+          this.#dock.hidden = false;
+          this.#show.hidden = true;
+          this.open(true);
+          videoStart.focus();
+        },
+      );
     this.#button.addEventListener('pointerdown', (event) => {
       if (!event.isTrusted || event.button !== 0) return;
       this.#drag = {
@@ -733,6 +755,7 @@ export class PageTools {
     this.#closed = true;
     this.#serial++;
     this.#page.dispose();
+    this.#playerShortcut?.dispose();
     clearInterval(this.#expiry);
     clearTimeout(this.#hoverTimer);
     clearTimeout(this.#menuTimer);

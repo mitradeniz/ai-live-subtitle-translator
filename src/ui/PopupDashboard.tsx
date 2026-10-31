@@ -1,4 +1,5 @@
 import { PageControls } from './PageControls';
+import { readWithDeadline } from '../messaging/deadline';
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
@@ -25,26 +26,45 @@ export default function PopupDashboard() {
   const [edited, setEdited] = useState(false);
   const mounted = useRef(false);
   const sequence = useRef(0);
+  const loading = useRef<Promise<void> | null>(null);
 
   function load() {
+    if (loading.current) return loading.current;
     const ticket = ++sequence.current;
-    return Promise.all([
-      sendRequest({ type: 'popup.read' }),
-      sendRequest({ type: 'playback.status' }),
-    ])
-      .then(([summary, playback]) => {
+    const summary = readWithDeadline(sendRequest({ type: 'popup.read' }), 5000)
+      .then((summary) => {
         if (!mounted.current || ticket !== sequence.current) return;
         setLoadError('');
         if (summary.kind === 'popup-status') {
           setData(summary);
           if (!dirty.current) setDraft(summary.settings);
         }
-        if (playback.kind === 'playback') setState(playback.state);
       })
       .catch(() => {
         if (mounted.current && ticket === sequence.current)
           setLoadError('Provider status unavailable.');
       });
+    // A busy/blocked page must not gate trusted settings or provider controls.
+    const playback = readWithDeadline(
+      sendRequest({ type: 'playback.status' }),
+      5000,
+    )
+      .then((playback) => {
+        if (
+          mounted.current &&
+          ticket === sequence.current &&
+          playback.kind === 'playback'
+        )
+          setState(playback.state);
+      })
+      .catch(() => {
+        if (mounted.current && ticket === sequence.current)
+          setState('unavailable');
+      });
+    loading.current = Promise.all([summary, playback]).then(() => {
+      loading.current = null;
+    });
+    return loading.current;
   }
   useEffect(() => {
     mounted.current = true;
@@ -184,22 +204,28 @@ export default function PopupDashboard() {
   const isOn = state === 'enabled';
   const restart = state === 'needs-restart' || (isOn && edited);
   const attention = Boolean((warning && !originalOnly) || missingKey);
-  const title = missingKey
-    ? 'Translation blocked · Key missing'
-    : warning && !originalOnly
-      ? 'Translation needs attention'
-      : restart
-        ? 'Restart required'
-        : isOn
-          ? originalOnly
-            ? 'ON · Original captions'
-            : data.recent?.phase === 'pending'
-              ? 'ON · Translating…'
-              : 'ON · Captions enabled'
-          : 'OFF · Captions disabled';
+  const title =
+    state === 'unavailable'
+      ? 'Page status unavailable'
+      : missingKey
+        ? 'Translation blocked · Key missing'
+        : warning && !originalOnly
+          ? 'Translation needs attention'
+          : restart
+            ? 'Restart required'
+            : isOn
+              ? originalOnly
+                ? 'ON · Original captions'
+                : data.recent?.phase === 'pending'
+                  ? 'ON · Translating…'
+                  : 'ON · Captions enabled'
+              : 'OFF · Captions disabled';
   const summary =
     loadError ||
     error ||
+    (state === 'unavailable'
+      ? 'The page is not responding. Provider controls remain available; refresh the page to reconnect.'
+      : '') ||
     warning ||
     (restart
       ? 'Preferences changed. Restart captions to resume translation.'

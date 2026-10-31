@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { readWithDeadline, ReadTimeout } from '../messaging/deadline.ts';
 import {
   PlaybackStateSchema,
   type PlaybackHandler,
@@ -44,7 +45,7 @@ export function createPlaybackHandler(
         sessions.revokeTab(tabId);
       }
       try {
-        const state: unknown = await browser.tabs.sendMessage(
+        const response = browser.tabs.sendMessage(
           tabId,
           {
             version: 1,
@@ -55,9 +56,13 @@ export function createPlaybackHandler(
           },
           { frameId: 0 },
         );
+        const state: unknown =
+          type === 'playback.status'
+            ? await readWithDeadline(response, 1500)
+            : await response;
         return PlaybackStateSchema.parse(state);
-      } catch {
-        return 'disabled';
+      } catch (error) {
+        return error instanceof ReadTimeout ? 'unavailable' : 'disabled';
       }
     }
     try {

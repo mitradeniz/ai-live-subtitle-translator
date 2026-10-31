@@ -1,5 +1,12 @@
 # 0.2.0-preview.1 — 2026-10-31
 
+- Keep popup provider controls usable when the page does not answer status reads;
+  bound status waits and prevent overlapping popup polls.
+- Avoid repeated native track-mode writes and event-driven player feedback loops.
+  Discover page text in small batches on large, changing documents.
+- Add an in-video glass shortcut to translation tools while page tools are enabled.
+  Opening it does not translate; starting captions remains an explicit action.
+
 - Add opt-in visible-page translation, loading new text as it scrolls into view.
   Restore original text without replacing existing link elements or submitting forms.
 - Add a large popup action, feature customization, separate page display mode and

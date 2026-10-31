@@ -1,6 +1,6 @@
 // Page text is untrusted. Preserve nodes/listeners and never parse provider HTML.
 export const EXCLUDED =
-  'script,style,noscript,template,svg,math,pre,code,kbd,samp,textarea,input,select,button,form,[contenteditable]:not([contenteditable="false"]),[hidden],[aria-hidden="true"],[translate="no"],.notranslate,translator-page-tools,subtitle-translator-overlay,[data-page-translation]';
+  'script,style,noscript,template,svg,math,video,audio,pre,code,kbd,samp,textarea,input,select,button,form,[contenteditable]:not([contenteditable="false"]),[hidden],[aria-hidden="true"],[translate="no"],.notranslate,translator-page-tools,subtitle-translator-overlay,[data-page-translation]';
 export function safeText(node: Text): boolean {
   const parent = node.parentElement;
   if (
@@ -61,6 +61,8 @@ export class PageText {
   #observer: IntersectionObserver;
   #mutation: MutationObserver;
   #timer: ReturnType<typeof setTimeout> | undefined;
+  #scanTimer: ReturnType<typeof setTimeout> | undefined;
+  #scanning = false;
   #active = false;
   #closed = false;
   #busy = false;
@@ -121,11 +123,6 @@ export class PageText {
       });
       if (changed) this.#schedule(true);
     });
-    this.#mutation.observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-    });
     window.addEventListener('scroll', this.#scroll, true);
     window.addEventListener('resize', this.#scroll);
   }
@@ -147,32 +144,70 @@ export class PageText {
     }, 160);
   }
   #scan() {
+    if (this.#scanning) {
+      this.#rescan = true;
+      return;
+    }
+    this.#scanning = true;
     const walker = document.createTreeWalker(
       document.body,
-      NodeFilter.SHOW_TEXT,
+      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: (node) =>
+          node instanceof Element && node.matches(EXCLUDED)
+            ? NodeFilter.FILTER_REJECT
+            : NodeFilter.FILTER_ACCEPT,
+      },
     );
     const parents = new Map<Element, Text[]>();
     let visited = 0;
-    while (walker.nextNode() && visited++ < 12_000 && parents.size < 1500) {
-      const node = walker.currentNode as Text;
-      if (!safeText(node)) continue;
-      const parent = node.parentElement!;
-      const nodes = parents.get(parent) ?? [];
-      if (nodes.length < 50) nodes.push(node);
-      parents.set(parent, nodes);
-    }
-    for (const parent of this.#parents.keys())
-      if (!parents.has(parent)) {
-        this.#observer.unobserve(parent);
-        this.#visible.delete(parent);
+    const step = () => {
+      this.#scanTimer = undefined;
+      if (!this.#active || this.#closed) {
+        this.#scanning = false;
+        return;
       }
-    for (const parent of parents.keys())
-      if (!this.#parents.has(parent)) this.#observer.observe(parent);
-    this.#parents = parents;
+      const started = performance.now();
+      let count = 0;
+      // Yield between small batches: course pages can contain large transcripts
+      // and another translator can keep mutating the document during playback.
+      while (visited < 12_000 && parents.size < 1500 && walker.nextNode()) {
+        visited++;
+        const node = walker.currentNode;
+        if (node instanceof Text && safeText(node)) {
+          const parent = node.parentElement!;
+          const nodes = parents.get(parent) ?? [];
+          if (nodes.length < 50) nodes.push(node);
+          parents.set(parent, nodes);
+          if (!this.#parents.has(parent)) this.#observer.observe(parent);
+          this.#parents.set(parent, nodes);
+        }
+        if (++count >= 150 || performance.now() - started >= 4) {
+          this.#scanTimer = setTimeout(step, 16);
+          return;
+        }
+      }
+      for (const parent of this.#parents.keys())
+        if (!parents.has(parent)) {
+          this.#observer.unobserve(parent);
+          this.#visible.delete(parent);
+        }
+      this.#parents = parents;
+      this.#scanning = false;
+      this.#schedule();
+    };
+    step();
   }
+
   start() {
     if (this.#closed) return;
     this.#active = true;
+    // An idle automatic logo must not watch every edit in a course application.
+    this.#mutation.observe(document.body, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+    });
     this.status('Translating visible text…');
     this.#scan();
     this.#schedule();
@@ -301,6 +336,7 @@ export class PageText {
     } catch (error) {
       if (epoch === this.#epoch) {
         this.#active = false;
+        this.#mutation.disconnect();
         this.status(
           error instanceof Error ? error.message : 'Translation paused.',
         );
@@ -312,9 +348,13 @@ export class PageText {
   }
   restore() {
     this.#active = false;
+    this.#mutation.disconnect();
     this.#epoch++;
     clearTimeout(this.#timer);
     this.#timer = undefined;
+    clearTimeout(this.#scanTimer);
+    this.#scanTimer = undefined;
+    this.#scanning = false;
     this.cancel();
     for (const record of this.#records.values()) {
       record.span?.remove();

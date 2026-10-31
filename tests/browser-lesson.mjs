@@ -1,0 +1,303 @@
+import assert from 'node:assert/strict';
+import { cp, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { chromium } from 'playwright';
+const temp = await mkdtemp(join(tmpdir(), 'lesson-controls-'));
+let context;
+let providerRequests = 0;
+try {
+  const extension = join(temp, 'extension');
+  await cp(resolve('.output/chrome-mv3'), extension, { recursive: true });
+  const manifest = JSON.parse(
+    await readFile(join(extension, 'manifest.json'), 'utf8'),
+  );
+  await writeFile(
+    join(extension, 'manifest.json'),
+    JSON.stringify({
+      ...manifest,
+      host_permissions: [
+        'https://lesson.example.test/*',
+        'https://translate.googleapis.com/*',
+      ],
+    }),
+  );
+  context = await chromium.launchPersistentContext(join(temp, 'profile'), {
+    channel: 'chromium',
+    headless: true,
+    chromiumSandbox: true,
+    viewport: { width: 1280, height: 800 },
+    args: [
+      `--load-extension=${extension}`,
+      `--disable-extensions-except=${extension}`,
+    ],
+  });
+  context.setDefaultTimeout(15000);
+  await context.setOffline(true);
+  await context.route('**/*', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.protocol === 'chrome-extension:') return route.continue();
+    if (url.origin === 'https://lesson.example.test') {
+      if (url.pathname === '/pattern.webm')
+        return route.fulfill({
+          contentType: 'video/webm',
+          body: await readFile('tests/fixtures/native/pattern.webm'),
+        });
+      return route.fulfill({
+        contentType: 'text/html',
+        body: '<!doctype html><title>Synthetic lesson</title><style>body{margin:20px;font:16px system-ui}video{width:800px;height:450px}#transcript{height:200px;overflow:auto}</style><video controls muted loop src="/pattern.webm"></video><p id="tick">Lesson controls</p><div id="transcript"></div>',
+      });
+    }
+    if (url.origin === 'https://translate.googleapis.com') {
+      providerRequests++;
+      const text = url.searchParams.get('q');
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify([[[`TR ${text}`, text]], null, 'en']),
+      });
+    }
+    return route.abort();
+  });
+  const worker =
+    context.serviceWorkers()[0] ??
+    (await context.waitForEvent('serviceworker'));
+  const id = new URL(worker.url()).hostname;
+  const popup = await context.newPage();
+  // Simulate a page-status port that never responds. Trusted settings must paint
+  // independently, polls must not overlap, and a read timeout must be visible.
+  await popup.addInitScript(() => {
+    const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+    window.statusReads = 0;
+    chrome.runtime.sendMessage = (message, ...rest) => {
+      if (message.type === 'playback.status') {
+        window.statusReads++;
+        return new Promise(() => {});
+      }
+      return send(message, ...rest);
+    };
+  });
+  await popup.goto(`chrome-extension://${id}/popup.html`);
+  await popup
+    .getByRole('button', { name: 'Google · Select provider', exact: true })
+    .waitFor({ timeout: 2000 });
+  await popup
+    .getByText('Page status unavailable', { exact: true })
+    .waitFor({ timeout: 6500 });
+  assert.ok(
+    (await popup.evaluate(() => window.statusReads)) <= 2,
+    'No overlapping status polls',
+  );
+  const page = await context.newPage();
+  await page.goto('https://lesson.example.test/course');
+  await page.evaluate(() => {
+    window.ticks = 0;
+    window.modeChanges = 0;
+    const video = document.querySelector('video');
+    const track = video.addTextTrack('subtitles', 'Synthetic', 'en');
+    track.addCue(new VTTCue(0, 30, 'A complete synthetic lesson sentence.'));
+    track.mode = 'showing';
+    window.track = track;
+    // Reproduce a player trying to own caption visibility, without an unbounded
+    // test-page loop. The old event-driven scanner immediately fights each change.
+    video.textTracks.addEventListener('change', () => {
+      window.modeChanges++;
+      if (track.mode === 'hidden' && window.modeChanges < 500)
+        track.mode = 'showing';
+    });
+    const transcript = document.querySelector('#transcript');
+    for (let i = 0; i < 8000; i++) {
+      const p = document.createElement('p');
+      p.textContent = `Synthetic paragraph ${i}.`;
+      transcript.append(p);
+    }
+    window.pulse = setInterval(() => {
+      window.ticks++;
+      document.querySelector('#tick').textContent =
+        `Lesson clock ${window.ticks}`;
+    }, 20);
+  });
+  const send = (type, extra = {}) =>
+    popup.evaluate((body) => chrome.runtime.sendMessage(body), {
+      version: 1,
+      requestId: 'lesson-check',
+      type,
+      ...extra,
+    });
+  await page.bringToFront();
+  await popup.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id, frameIds: [0] },
+      world: 'ISOLATED',
+      func: () => {
+        const watching = new Set();
+        const observe = MutationObserver.prototype.observe;
+        const disconnect = MutationObserver.prototype.disconnect;
+        const report = () => {
+          document.documentElement.dataset.bodyObservers = String(
+            watching.size,
+          );
+        };
+        MutationObserver.prototype.observe = function (...args) {
+          const result = observe.apply(this, args);
+          if (args[0] === document.body) {
+            watching.add(this);
+            report();
+          }
+          return result;
+        };
+        MutationObserver.prototype.disconnect = function () {
+          watching.delete(this);
+          report();
+          return disconnect.call(this);
+        };
+        report();
+      },
+    });
+  });
+  assert.equal((await send('page.enable', { run: false })).data.state, 'ready');
+  assert.equal(
+    await page.locator('html').getAttribute('data-body-observers'),
+    '0',
+    'Idle logo must not observe all page mutations',
+  );
+  const tools = page.locator('translator-page-tools');
+  const shortcut = tools.getByRole('button', {
+    name: 'Video translation settings',
+    exact: true,
+  });
+  await shortcut.waitFor();
+  const videoRect = await page.locator('video').boundingBox();
+  const buttonRect = await shortcut.boundingBox();
+  assert.ok(
+    buttonRect.x >= videoRect.x &&
+      buttonRect.x + buttonRect.width <= videoRect.x + videoRect.width,
+  );
+  assert.ok(
+    buttonRect.y >= videoRect.y &&
+      buttonRect.y + buttonRect.height <= videoRect.y + videoRect.height,
+  );
+  await shortcut.evaluate((button) => button.click());
+  assert.equal(
+    await tools.locator('.panel').isVisible(),
+    false,
+    'Page-script click cannot open controls',
+  );
+  await shortcut.click();
+  await tools
+    .getByRole('button', { name: 'Start video subtitles', exact: true })
+    .waitFor();
+  assert.equal(providerRequests, 0, 'Opening settings does not translate');
+  await page.screenshot({ path: '.output/lesson-player.png' });
+  await page.keyboard.press('Escape');
+  await shortcut.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await tools.locator('.panel').isVisible(), true);
+  await page.evaluate(async () => {
+    const player = document.createElement('div');
+    const video = document.querySelector('video');
+    video.before(player);
+    player.append(video);
+    await player.requestFullscreen();
+  });
+  await shortcut.waitFor();
+  assert.equal(
+    await tools.evaluate(
+      (host) => host.parentElement === document.fullscreenElement,
+    ),
+    true,
+  );
+  await page.evaluate(() => document.exitFullscreen());
+
+  const settings = (await send('popup.read')).data.settings;
+  const { schemaVersion, ...preferences } = settings;
+  void schemaVersion;
+  await send('controls.update', {
+    preferences: { ...preferences, displayMode: 'original' },
+  });
+  await page.bringToFront();
+  assert.equal(
+    (await send('playback.enable', { youtubeSourceConfirmed: false })).data
+      .state,
+    'enabled',
+  );
+  await page.waitForTimeout(2000);
+  const heartbeat = await page.evaluate(() => ({
+    ticks: window.ticks,
+    changes: window.modeChanges,
+  }));
+  assert.ok(heartbeat.ticks >= 50, JSON.stringify(heartbeat));
+  assert.ok(heartbeat.changes < 80, JSON.stringify(heartbeat));
+  assert.equal((await send('playback.disable')).data.state, 'disabled');
+  assert.equal(await page.evaluate(() => window.track.mode), 'showing');
+  // Busy, large DOM with ongoing changes must still yield to input/timers while
+  // visible text is discovered and translated.
+  assert.equal(
+    (await send('controls.select', { provider: 'google' })).ok,
+    true,
+  );
+  await page.bringToFront();
+  const before = await page.evaluate(() => window.ticks);
+  assert.equal((await send('page.enable', { run: true })).ok, true);
+  await page.waitForFunction(() =>
+    document.querySelector('[data-page-translation]'),
+  );
+  assert.equal(
+    await page.locator('html').getAttribute('data-body-observers'),
+    '1',
+  );
+  await page.waitForTimeout(1000);
+  const after = await page.evaluate(() => window.ticks);
+  assert.ok(
+    after - before >= 20,
+    `Page heartbeat only advanced ${after - before}`,
+  );
+  await page.evaluate(() => {
+    const prior = document.querySelector('video');
+    const replacement = prior.cloneNode(true);
+    replacement.style.width = '600px';
+    prior.replaceWith(replacement);
+  });
+  await page.waitForTimeout(1100);
+  const replacementRect = await page.locator('video').boundingBox();
+  const replacementButton = await shortcut.boundingBox();
+  assert.ok(
+    replacementButton.x + replacementButton.width <=
+      replacementRect.x + replacementRect.width,
+  );
+  await page.evaluate(() => {
+    const spacer = document.createElement('div');
+    spacer.style.height = '1600px';
+    document.body.append(spacer);
+    window.scrollTo(0, 900);
+  });
+  await shortcut.waitFor({ state: 'hidden' });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shortcut.waitFor();
+  await page.bringToFront();
+  await send('page.disable');
+  assert.equal(await shortcut.count(), 0);
+  assert.equal(
+    await page.locator('html').getAttribute('data-body-observers'),
+    '0',
+    'Disabling must disconnect page observation',
+  );
+  assert.equal(await page.locator('[data-page-translation]').count(), 0);
+  console.log(
+    JSON.stringify({
+      result: 'passed',
+      browser: context.browser().version(),
+      heartbeat,
+      scanningTicks: after - before,
+      providerRequests,
+      checks:
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, no automatic request, track event feedback bounded, large live DOM responsiveness, restore and cleanup',
+    }),
+  );
+} finally {
+  await context?.close();
+  await rm(temp, { recursive: true, force: true });
+}

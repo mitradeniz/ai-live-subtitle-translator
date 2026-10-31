@@ -70,3 +70,17 @@ opt-in. The chosen scope survives restart until disabled or access is revoked.
 Hover-menu Page/Video choices are saved. The idle logo reconnects after session
 expiry without restarting translation. Browser-internal/private pages are excluded;
 nonstandard-port pages remain manual-only.
+
+## Course players and responsiveness
+
+The popup loads provider/settings data without waiting for the page. Native track
+mode changes are observed by a bounded poll, and page-text discovery yields between
+small batches. An isolated synthetic lesson covers a large changing transcript, a
+player that reasserts native captions, and unresponsive status reads. This does not
+verify DeepLearning.AI's signed-in player or any other course site's account state.
+
+With page tools enabled, a glass button inside the largest visible main-document
+video opens translation tools without starting a request. It is positioned above
+native controls rather than inserted into a site's private toolbar. Main-document
+HTML5 tracks and supported container fullscreen are required; iframe/shadow-root
+players, video-element fullscreen and Picture-in-Picture remain unsupported.

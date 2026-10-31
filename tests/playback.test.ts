@@ -201,3 +201,31 @@ test('only popup may request playback; content cannot choose a tab or grant itse
   );
   assert.equal(calls, 1);
 });
+
+test('native snapshots do not repeatedly write an unchanged mode into a player', () => {
+  let mode: TextTrackMode = 'showing';
+  let writes = 0;
+  const track = {
+    kind: 'subtitles',
+    cues: [{ startTime: 0, endTime: 3, text: 'Synthetic lesson.' }],
+    get mode() {
+      return mode;
+    },
+    set mode(value: TextTrackMode) {
+      writes++;
+      mode = value;
+    },
+  };
+  const adapter = new NativeTrackAdapter({
+    textTracks: [track],
+  } as unknown as HTMLVideoElement);
+  for (let i = 0; i < 100; i++) adapter.snapshot();
+  assert.equal(
+    writes,
+    1,
+    'Only the transition to hidden should notify the player',
+  );
+  adapter.dispose();
+  assert.equal(mode, 'showing');
+  assert.equal(writes, 2);
+});

@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import { readWithDeadline, ReadTimeout } from '../messaging/deadline.ts';
 import { PageStateSchema, type PageHandler } from '../page/contracts.ts';
 import type { SessionRegistry } from './sessions.ts';
 export function createPageHandler(sessions: SessionRegistry) {
@@ -26,18 +27,21 @@ export function createPageHandler(sessions: SessionRegistry) {
     if (operation !== 'page.enable') {
       if (operation === 'page.disable') invalidate(tabId);
       try {
-        return PageStateSchema.parse(
-          await browser.tabs.sendMessage(
-            tabId,
-            {
-              version: 1,
-              type: operation === 'page.disable' ? 'page.stop' : 'page.inspect',
-            },
-            { frameId: 0 },
-          ),
+        const response = browser.tabs.sendMessage(
+          tabId,
+          {
+            version: 1,
+            type: operation === 'page.disable' ? 'page.stop' : 'page.inspect',
+          },
+          { frameId: 0 },
         );
-      } catch {
-        return 'off';
+        return PageStateSchema.parse(
+          operation === 'page.status'
+            ? await readWithDeadline(response, 1500)
+            : await response,
+        );
+      } catch (error) {
+        return error instanceof ReadTimeout ? 'unavailable' : 'off';
       }
     }
     invalidate(tabId);

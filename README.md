@@ -473,11 +473,22 @@ changes restore the page. Opted-in sites restore the idle logo automatically;
 translation still requires a new click. Navigation or expiry ends the translation
 session; automatic mode reconnects idle controls without resuming translation. Page translation and caption sessions are authorized separately.
 If both tools are enabled, the page menu's Video controls opens the caption controls.
+With page tools enabled, a smaller **A文** button also appears inside the largest
+visible main-document video, above its native controls. It opens translation tools;
+choose **Start video subtitles** to start captions, **Video controls** for an active
+caption overlay, or **Open settings** for provider setup. Opening this menu sends
+no text. This button is an overlay, not a modification of the site's toolbar.
+It follows scroll, player replacement and supported container fullscreen.
+
+Popup provider controls load independently of page-status replies. A busy page can
+show **Page status unavailable** while settings remain usable. Refresh the page to
+reconnect. Native track changes are polled at a bounded interval to avoid feedback
+loops with player libraries that also manage caption visibility.
 
 This is an experimental main-document feature, not support for every site/editor.
 Iframes, shadow-root text, PDFs, browser-internal pages, code, forms, hidden text,
 `translate="no"` and editable areas are excluded from automatic translation.
-It scans at most 12,000 text nodes / 1,500 parent elements, processes at most 300 text
+It examines at most 12,000 DOM nodes / 1,500 text parent elements in small batches, processes at most 300 text
 nodes / 60,000 source characters per activation, and skips individual nodes over
 6,000 characters. Inline markup can split translation context. Highly dynamic
 sites may replace translated nodes; changed originals are never blindly overwritten
@@ -487,6 +498,8 @@ unbounded retry is added. Page results/drafts stay in page memory, not the optio
 persistent caption cache. Feature preferences survive reload; page activation does not.
 
 Run `pnpm test:page` for the packaged synthetic page/selection/field/writing tests.
+After `pnpm build`, `node tests/browser-lesson.mjs` checks a large synthetic lesson,
+player track feedback, the in-video button and unresponsive page-status handling.
 The test uses mocked providers and a temporary test-only host grant. Live provider
 quality, actual activeTab prompts and site/editor compatibility remain owner checks.
 
