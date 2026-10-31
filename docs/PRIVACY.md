@@ -44,14 +44,15 @@ options page and receives no credentials or configurable destination.
 ## Page and writing tools
 
 Page tools require a deliberate popup action on the current HTTP(S) main document.
-The optional automatic logo stores the exact sites you opt into (up to 64). It
-requests access to one HTTP(S) host at a time, registers a packaged main-frame script
-for those sites, and rechecks access on restart. The manifest declares optional
-HTTP(S) wildcard patterns to permit these individual requests, but installation
-grants no hosts and the UI never requests all sites. The logo and its hover-menu
-action picker do not send page text or start translation. Revoking access removes
-that site from the saved list. Turning off the logo leaves the Chrome host grant
-unchanged, because another feature may still use it. There is no automatic page translation. Visible
+The optional automatic logo stores either an all-sites opt-in or exact sites you
+allow (up to 64). “Show the logo on all sites” explicitly requests HTTP(S) access
+across websites once. Alternatively, the per-site option requests one host at a time.
+Installation itself grants no hosts. Packaged main-frame scripts run on the chosen
+scope; they show idle controls, and no text is transmitted by showing the logo or
+choosing Page/Video. Access is rechecked on restart. Revoking broad access disables
+the all-sites mode; turning that mode off also clears earlier per-site choices.
+Turning off automatic display leaves Chrome host grants unchanged because other
+features may use them. There is no automatic page translation. Visible
 ordinary text is processed as you scroll; mutation and intersection observers track
 new visible content within fixed scan/node/character bounds. Automatic translation
 skips form controls, editable areas, hidden text, code, and translate-disabled regions.

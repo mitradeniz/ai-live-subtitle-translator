@@ -354,11 +354,28 @@ export class PageTools {
     window.addEventListener('resize', this.layout);
     document.addEventListener('fullscreenchange', this.layout);
     this.#expiry = setInterval(() => {
-      if (
-        location.href !== this.#url ||
-        Date.now() - this.#started >= 30 * 60_000
-      )
-        this.dispose();
+      if (location.href !== this.#url) this.dispose();
+      else if (
+        Date.now() - this.#started >= 30 * 60_000 &&
+        !this.host.dataset.edgeExpired
+      ) {
+        this.#page.dispose();
+        this.#epoch++;
+        this.#serial++;
+        this.#draft.value = '';
+        this.#result.textContent = '';
+        this.#selection = '';
+        this.#fieldResult = '';
+        this.#fieldOriginal = '';
+        this.#field = null;
+        this.#lastHover = '';
+        this.#apply.disabled = true;
+        this.state = 'ready';
+        // The permitted bootstrap replaces this expired session with idle tools.
+        // Keep the logo visible while doing so; never resume translation automatically.
+        this.host.dataset.edgeExpired = 'true';
+        this.showStatus('Open the extension popup to re-enable these tools.');
+      }
     }, 1000);
     this.layout();
     this.showStatus('Ready. Click the edge button to run your chosen action.');

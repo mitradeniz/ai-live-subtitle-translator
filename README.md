@@ -432,13 +432,16 @@ mode and enabled tools are separate.
 - **Translate visible page** translates visible ordinary text. Scrolling exposes the
   next text to translate; it does not send the whole document in advance. Choose
   bilingual or translated-only page display. Links retain their original elements.
-- **Always show the logo on this site** asks once for the current site's host access.
-  After you allow it, the logo appears on refresh, same-site navigation and browser
-  restart without sending text. Optional HTTP(S) host declarations let Chrome ask for
-  a specific site at runtime; the extension never requests all sites at once. Sites
-  using nonstandard ports are manual-only. Disable this checkbox to remove automatic
-  controls; revoke the host in Chrome to remove access itself. Site opt-in is separate
-  from automatic YouTube captions and does not enable translation.
+- **Show the logo on all sites** asks once for HTTP(S) access across websites.
+  With that explicit grant, the idle logo appears across supported websites after
+  refresh/navigation and browser restart until you turn the switch off. It does not
+  start translation. Chrome's first permission prompt cannot be skipped; subsequent
+  sites need no individual grant while that permission remains active. Restricted
+  browser pages and incognito are excluded; nonstandard-port sites remain manual-only.
+  Turning this off stops all automatic logos, including older per-site choices.
+  Chrome's host grant stays available to other features; remove it in Chrome if desired.
+- **Always show the logo on this site**, under Customize translation, retains the
+  narrower one-host alternative. You can use this instead of all-sites access.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
   the square starts the chosen action (page, video subtitles, selection, field or
   writing); hovering opens its glass menu. Clicking an already running page/video
@@ -468,7 +471,7 @@ Restore original page stops pending page work and restores owned text changes.
 The popup's Restore action also removes page tools. Provider/language/feature/key
 changes restore the page. Opted-in sites restore the idle logo automatically;
 translation still requires a new click. Navigation or expiry ends the translation
-session; on opted-in sites, navigation creates a fresh idle control. Page translation and caption sessions are authorized separately.
+session; automatic mode reconnects idle controls without resuming translation. Page translation and caption sessions are authorized separately.
 If both tools are enabled, the page menu's Video controls opens the caption controls.
 
 This is an experimental main-document feature, not support for every site/editor.

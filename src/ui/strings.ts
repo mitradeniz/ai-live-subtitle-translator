@@ -25,6 +25,15 @@ export const turkish: Record<string, string> = {
     'Video altyazıları başlatılamadı. Eklenti menüsünden tekrar dene.',
   'Preferences saved. The logo will refresh automatically.':
     'Tercihler kaydedildi. Logo otomatik yenilenecek.',
+  'Show the logo on all sites': 'Logoyu tüm sitelerde göster',
+  'All-sites access was not granted. You can try again.':
+    'Tüm siteler için erişim izni verilmedi. Tekrar deneyebilirsin.',
+  'The logo stays on across sites until you turn it off. Translation starts only on click.':
+    'Sen kapatana kadar logo sitelerde görünür. Çeviri yalnızca tıklayınca başlar.',
+  'Automatic logo turned off on all sites.':
+    'Otomatik logo tüm sitelerde kapatıldı.',
+  'Allow access once for all websites. The logo stays visible until you turn this off; showing it does not translate anything.':
+    'Tüm siteler için bir kez izin ver. Sen kapatana kadar logo görünür; görünmesi çeviri başlatmaz.',
   'Always show the logo on this site': 'Bu sitede logoyu otomatik göster',
   'Site access was not granted. You can still enable tools for this visit.':
     'Site erişimine izin verilmedi. Bu ziyaret için araçları yine de açabilirsin.',

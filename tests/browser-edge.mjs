@@ -13,12 +13,12 @@ try {
     await readFile(join(extension, 'manifest.json'), 'utf8'),
   );
   assert.equal(manifest.host_permissions, undefined);
-  // Only this isolated copy has a fixture grant. Native permission dialogs remain owner checks.
+  // Only this isolated copy pregrants the hosts for both permission modes. Native permission dialogs remain owner checks.
   await writeFile(
     join(extension, 'manifest.json'),
     JSON.stringify({
       ...manifest,
-      host_permissions: ['https://edge.example.test/*'],
+      host_permissions: ['https://*/*', 'http://*/*'],
     }),
   );
   async function launch() {
@@ -67,6 +67,7 @@ try {
     });
   await page.bringToFront();
   await popup.reload();
+  await popup.getByText('Customize translation', { exact: true }).click();
   await popup.getByText('https://edge.example.test', { exact: true }).waitFor();
   const automatic = popup.getByLabel('Always show the logo on this site');
   await popup.evaluate(() => {
@@ -144,6 +145,54 @@ try {
   const other = await context.newPage();
   await other.goto('https://other.example.test/article');
   assert.equal(await other.locator('translator-page-tools').count(), 0);
+  // Explicit all-sites opt-in is one gesture; denial must not turn it on.
+  await page.bringToFront();
+  await popup.reload();
+  const everywhere = popup.getByLabel('Show the logo on all sites');
+  await popup.evaluate(() => {
+    window.savedRequest = chrome.permissions.request;
+    chrome.permissions.request = async (request) => {
+      window.requested = request;
+      return false;
+    };
+  });
+  await everywhere.click();
+  await popup
+    .getByText('All-sites access was not granted. You can try again.')
+    .waitFor();
+  assert.deepEqual(await popup.evaluate(() => window.requested), {
+    origins: ['https://*/*', 'http://*/*'],
+  });
+  assert.equal(await everywhere.isChecked(), false);
+  await popup.evaluate(() => {
+    chrome.permissions.request = window.savedRequest;
+  });
+  await page.bringToFront();
+  await everywhere.click();
+  await popup
+    .getByText(
+      'The logo stays on across sites until you turn it off. Translation starts only on click.',
+    )
+    .waitFor();
+  assert.equal((await message('page.site-status')).data.allSites, true);
+  assert.deepEqual(
+    (await popup.evaluate(() => chrome.scripting.getRegisteredContentScripts()))
+      .find((entry) => entry.id === 'edge-tools-auto')
+      .matches.sort(),
+    ['http://*/*', 'https://*/*'],
+  );
+  await other.reload();
+  await other.locator('translator-page-tools').waitFor();
+  assert.equal(requests, 0);
+  // The expiry hint reconnects only idle tools under the saved host authorization.
+  await other
+    .locator('translator-page-tools')
+    .evaluate((host) => (host.dataset.edgeExpired = 'true'));
+  await other.waitForFunction(() => {
+    const host = document.querySelector('translator-page-tools');
+    return host && !host.hasAttribute('data-edge-expired');
+  });
+  assert.equal(requests, 0);
   // Relaunch the isolated browser profile: persistent registration/settings survive.
   await context.close();
   context = undefined;
@@ -156,8 +205,13 @@ try {
   await tools.waitFor();
   assert.equal(requests, 0);
   await page.bringToFront();
-  const disabled = await message('page.site-configure', { enabled: false });
+  const second = await context.newPage();
+  await second.goto('https://other.example.test/restart');
+  await second.locator('translator-page-tools').waitFor();
+  await page.bringToFront();
+  const disabled = await message('page.global-configure', { enabled: false });
   assert.equal(disabled.data.enabled, false);
+  await second.locator('translator-page-tools').waitFor({ state: 'detached' });
   await tools.waitFor({ state: 'detached' });
   registrations = await popup.evaluate(() =>
     chrome.scripting.getRegisteredContentScripts(),
@@ -171,7 +225,7 @@ try {
   assert.equal(await tools.count(), 0);
   await page.bringToFront();
   assert.equal(
-    (await message('page.site-configure', { enabled: true })).data.enabled,
+    (await message('page.global-configure', { enabled: true })).data.enabled,
     true,
   );
   await tools.waitFor();
@@ -195,7 +249,7 @@ try {
       browser: context.browser().version(),
       providerRequests: requests,
       checks:
-        'exact-host grant, denial, idle auto logo, refresh, hover choice, SPA, browser restart, other-origin isolation, opt-out, clear data',
+        'exact-host grant, denial, idle auto logo, refresh, hover choice, SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
     }),
   );
 } finally {

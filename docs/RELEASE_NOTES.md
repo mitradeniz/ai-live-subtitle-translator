@@ -11,7 +11,9 @@
   bypass translation caches. Required permissions are unchanged.
 - Add an opt-in automatic logo on individually granted HTTP(S) sites, with saved
   Page/Video choices in the hover menu. Optional wildcard host declarations support
-  exact-site requests; no all-sites grant or automatic page translation is requested.
+  exact-site requests. A separate all-sites switch requests HTTP(S) access once and
+  keeps the idle logo visible across supported sites until disabled. Neither mode
+  starts page translation automatically.
 - Keep provider/language changes in the trusted popup; changes stop page work and
   restore originals. Navigation/expiry ends page activation.
 

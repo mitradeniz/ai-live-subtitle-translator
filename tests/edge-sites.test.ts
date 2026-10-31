@@ -103,6 +103,25 @@ test('automatic bootstrap uses browser sender identity and cannot configure host
   );
   const sender = contentSender();
   assert.equal(
+    (
+      await controller.dispatch(
+        request('page.global-configure', { enabled: true }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.global-configure', { enabled: true }),
+        uiSender('popup'),
+      )
+    ).ok,
+    false,
+    'Missing broad grant fails closed',
+  );
+  assert.equal(
     (await controller.dispatch(request('page.auto'), sender)).ok,
     false,
   );
@@ -195,4 +214,45 @@ test('hover-menu action can only select already enabled page/video tools in a bo
   assert.equal((await choose('page')).ok, true);
   controller.pageSessions.revokeTab(7);
   assert.equal((await choose('page')).ok, false);
+});
+
+test('all-sites mode requires its own broad consent, survives restart, and clears on disable/revocation', async () => {
+  const areas = fakeAreas();
+  let broad = false;
+  const ports = {
+    current: async () => ({ origin: 'https://first.example.test', tabId: 7 }),
+    permitted: async () => true,
+    allPermitted: async () => broad,
+    changed: async () => {},
+    activate: async () => {},
+  };
+  let sites = new EdgeSites(new TrustedStorage(areas), ports);
+  await assert.rejects(sites.configureAll(true));
+  assert.equal((await sites.status()).allSites, false);
+  await sites.configure(true);
+  assert.equal(await sites.allowed('https://second.example.test'), false);
+  broad = true;
+  assert.equal(
+    await sites.allowed('https://second.example.test'),
+    false,
+    'Grant alone does not opt in',
+  );
+  await sites.configureAll(true);
+  sites = new EdgeSites(new TrustedStorage(areas), ports);
+  assert.equal(await sites.allowed('https://second.example.test'), true);
+  assert.equal(await sites.allowed('http://third.example.test'), true);
+  assert.equal(await sites.allowed('file:///private'), false);
+  assert.deepEqual(await sites.matches(), ['https://*/*', 'http://*/*']);
+  broad = false;
+  await sites.prune();
+  broad = true;
+  assert.equal(
+    await sites.allowed('https://second.example.test'),
+    false,
+    'Lost grant cannot silently reenable',
+  );
+  await sites.configureAll(true);
+  await sites.configureAll(false);
+  assert.deepEqual(await sites.matches(), []);
+  assert.equal((await sites.status()).enabled, false);
 });

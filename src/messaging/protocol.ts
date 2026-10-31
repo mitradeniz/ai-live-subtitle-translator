@@ -96,6 +96,11 @@ export const RequestSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...envelope, type: z.literal('page.auto') }),
   z.strictObject({
     ...envelope,
+    type: z.literal('page.global-configure'),
+    enabled: z.boolean(),
+  }),
+  z.strictObject({
+    ...envelope,
     type: z.literal('page.site-configure'),
     enabled: z.boolean(),
   }),
@@ -395,6 +400,7 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
       }),
       z.strictObject({
         kind: z.literal('edge-site'),
+        allSites: z.boolean(),
         origin: EdgeOriginSchema.nullable(),
         enabled: z.boolean(),
       }),

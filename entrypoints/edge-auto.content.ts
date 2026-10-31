@@ -8,7 +8,14 @@ export default defineContentScript({
     let pending = false;
     let retry = false;
     const inspect = () => {
-      if (!ctx.isValid || pending || (previous === location.href && !retry))
+      const expired = document.querySelector(
+        'translator-page-tools[data-edge-expired]',
+      );
+      if (
+        !ctx.isValid ||
+        pending ||
+        (previous === location.href && !retry && !expired)
+      )
         return;
       previous = location.href;
       retry = false;
@@ -31,7 +38,8 @@ export default defineContentScript({
           pending = false;
         });
     };
-    // Only navigation triggers a message. This does not keep the worker alive.
+    // Navigation, settings reset or session expiry can reconnect idle tools.
+    // Unchanged pages send no heartbeat. The DOM expiry hint grants no authority.
     const timer = setInterval(inspect, 1800);
     inspect();
     const refresh: Parameters<

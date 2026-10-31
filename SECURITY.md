@@ -38,9 +38,10 @@ and bounds repeated activation. This action cannot enable a provider or change
 original-only display; YouTube source confirmation comes from trusted preferences.
 The content-side action picker is limited to enabled page/video features, uses a
 bound document session, and cannot modify other settings or source confirmation.
-Automatic logo access is a separate per-site opt-in: optional wildcard declarations
-support exact-host permission requests, never a wildcard grant. Registrations use
-only saved, currently granted origins and do not automatically translate text.
+Automatic logo access requires a saved opt-in plus a current browser grant. The
+all-sites switch explicitly requests HTTP(S) wildcard access; the narrower per-site
+option remains available. Registrations follow the chosen authorized scope. Showing
+controls or renewing an expired idle session never starts translation.
 
 ## Reporting and fixes
 

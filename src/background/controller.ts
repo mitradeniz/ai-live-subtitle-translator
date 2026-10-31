@@ -142,14 +142,17 @@ export function createController(
       let response: Response;
       if (
         request.type === 'page.site-status' ||
-        request.type === 'page.site-configure'
+        request.type === 'page.site-configure' ||
+        request.type === 'page.global-configure'
       ) {
         if (sender.kind !== 'ui' || sender.page !== 'popup')
           throw new BoundaryError('FORBIDDEN');
         const status =
           request.type === 'page.site-status'
             ? await edgeSites.status()
-            : await edgeSites.configure(request.enabled);
+            : request.type === 'page.global-configure'
+              ? await edgeSites.configureAll(request.enabled)
+              : await edgeSites.configure(request.enabled);
         response = { ok: true, data: { kind: 'edge-site', ...status } };
       } else if (request.type === 'page.auto') {
         if (sender.kind !== 'content' || sender.identity.frameId !== 0)

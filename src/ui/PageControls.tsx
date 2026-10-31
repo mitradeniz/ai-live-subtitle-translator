@@ -1,3 +1,4 @@
+import { EDGE_ALL_HOSTS } from '../background/edge-sites';
 import { browser } from 'wxt/browser';
 import { useEffect, useState } from 'react';
 import { sendRequest } from '../messaging/client';
@@ -18,9 +19,11 @@ export function PageControls({
   const [prefs, setPrefs] = useState<PagePreferences>(DEFAULT_PAGE_PREFERENCES);
   const [state, setState] = useState<PageState>('off');
   const [busy, setBusy] = useState(false);
-  const [site, setSite] = useState<{ origin: string | null; enabled: boolean }>(
-    { origin: null, enabled: false },
-  );
+  const [site, setSite] = useState<{
+    origin: string | null;
+    enabled: boolean;
+    allSites: boolean;
+  }>({ origin: null, enabled: false, allSites: false });
   const [message, setMessage] = useState('');
   const enabled = state !== 'off' && state !== 'unavailable';
   useEffect(() => {
@@ -46,6 +49,35 @@ export function PageControls({
       active = false;
     };
   }, [captions]);
+  async function everywhere(enabled: boolean) {
+    setBusy(true);
+    try {
+      if (
+        enabled &&
+        !(await browser.permissions.request({ origins: EDGE_ALL_HOSTS }))
+      ) {
+        setMessage('All-sites access was not granted. You can try again.');
+        return;
+      }
+      const result = await sendRequest({
+        type: 'page.global-configure',
+        enabled,
+      });
+      if (result.kind === 'edge-site') setSite(result);
+      setState(enabled ? 'ready' : 'off');
+      setMessage(
+        enabled
+          ? 'The logo stays on across sites until you turn it off. Translation starts only on click.'
+          : 'Automatic logo turned off on all sites.',
+      );
+    } catch {
+      setMessage(
+        'Could not update site access. Open this page again and retry.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   async function automatic(enabled: boolean) {
     if (!site.origin) return;
     setBusy(true);
@@ -149,15 +181,31 @@ export function PageControls({
       <label className="page-auto-site">
         <input
           type="checkbox"
-          checked={site.enabled}
-          disabled={busy || !site.origin}
-          onChange={(event) => void automatic(event.target.checked)}
+          checked={site.allSites}
+          disabled={busy}
+          onChange={(event) => void everywhere(event.target.checked)}
         />
-        {t('Always show the logo on this site')}
+        {t('Show the logo on all sites')}
       </label>
-      {site.origin && <small className="page-consent">{site.origin}</small>}
+      <p className="page-consent">
+        {t(
+          'Allow access once for all websites. The logo stays visible until you turn this off; showing it does not translate anything.',
+        )}
+      </p>
       <details className="page-customize">
         <summary>{t('Customize translation')}</summary>
+        {!site.allSites && (
+          <label className="page-auto-site">
+            <input
+              type="checkbox"
+              checked={site.enabled}
+              disabled={busy || !site.origin}
+              onChange={(event) => void automatic(event.target.checked)}
+            />
+            {t('Always show the logo on this site')}
+          </label>
+        )}
+        {site.origin && <small className="page-consent">{site.origin}</small>}
         <fieldset disabled={busy}>
           <legend>{t('Choose your tools')}</legend>
           {(

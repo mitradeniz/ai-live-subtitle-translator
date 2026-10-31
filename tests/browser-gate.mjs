@@ -114,10 +114,9 @@ try {
     await readFile(join(extension, 'manifest.json'), 'utf8'),
   );
   assert.equal(manifest.host_permissions, undefined);
-  manifest.host_permissions = [
-    'https://api.openai.com/*',
-    'https://translation.googleapis.com/*',
-  ];
+  // Simulate the explicit all-sites grant in this isolated copy. Fixed provider
+  // destinations, redirect handling and CSP must still hold with broad host access.
+  manifest.host_permissions = ['https://*/*', 'http://*/*'];
   await writeFile(join(extension, 'manifest.json'), JSON.stringify(manifest));
   await launch();
   await options.getByLabel('Target language', { exact: true }).waitFor();

@@ -25,7 +25,7 @@ profiles with captions; writing requires an AI profile. All previews are plain t
 field application requires an explicit click and an unchanged target value. No form
 submission is automated. Rich editors/contenteditable, iframe/shadow-root text,
 PDFs and browser-internal pages are unsupported. Provider changes happen in the
-trusted popup opened by the page menu. Automatic logo access is optional per host;
+trusted popup opened by the page menu. Automatic logo access is an explicit all-sites or per-host opt-in;
 manual activation continues to use temporary activeTab access.
 
 Synthetic packaged tests cover data exclusions, visible-only dispatch, scrolling,
@@ -65,7 +65,8 @@ retried; exactly-once billing cannot be guaranteed after worker interruption.
 The project has no public backend, proxy or telemetry. Read [privacy](PRIVACY.md),
 [release notes](RELEASE_NOTES.md) and the [README](../README.md) before installing.
 
-Automatic edge controls are opt-in per HTTP(S) host, with a one-time Chrome grant.
-They reappear after refresh/navigation/restart and remain idle until clicked. The
-hover menu remembers Page/Video selection. Nonstandard-port pages, incognito and
-browser-internal pages remain manual-only or unsupported as described above.
+Automatic edge controls offer a one-time all-sites HTTP(S) grant or narrower per-host
+opt-in. The chosen scope survives restart until disabled or access is revoked.
+Hover-menu Page/Video choices are saved. The idle logo reconnects after session
+expiry without restarting translation. Browser-internal/private pages are excluded;
+nonstandard-port pages remain manual-only.

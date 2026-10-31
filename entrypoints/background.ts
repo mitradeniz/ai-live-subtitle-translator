@@ -1,4 +1,4 @@
-import { edgeOrigin } from '../src/background/edge-sites.ts';
+import { edgeOrigin, EDGE_ALL_HOSTS } from '../src/background/edge-sites.ts';
 import { createPageHandler } from '../src/background/page-activation.ts';
 import { isYouTubeWatch } from '../src/youtube/source.ts';
 import { YOUTUBE_HOST, YOUTUBE_ORIGIN } from '../src/background/sites.ts';
@@ -66,6 +66,10 @@ export default defineBackground(() => {
     (tabId, documentId, confirmed, authorized) =>
       playback.fromPage(tabId, documentId, confirmed, authorized),
     {
+      allPermitted: () =>
+        import.meta.env.MODE === 'mock'
+          ? Promise.resolve(false)
+          : browser.permissions.contains({ origins: EDGE_ALL_HOSTS }),
       current: async () => {
         const [tab] = await browser.tabs.query({
           active: true,
@@ -101,11 +105,11 @@ export default defineBackground(() => {
             ids: ['edge-tools-auto'],
           });
         const previous = registrations[0]?.matches ?? [];
-        const origins =
+        const matches = (
           import.meta.env.MODE === 'mock'
             ? []
-            : await controller.edgeSites.prune();
-        const matches = origins.map((origin) => `${origin}/*`).sort();
+            : await controller.edgeSites.matches()
+        ).sort();
         if (JSON.stringify([...previous].sort()) !== JSON.stringify(matches)) {
           if (registrations.length)
             await browser.scripting.unregisterContentScripts({
@@ -128,7 +132,11 @@ export default defineBackground(() => {
         for (const tab of await browser.tabs.query({})) {
           const origin = tab.url && edgeOrigin(tab.url);
           if (tab.id === undefined || tab.incognito || !origin) continue;
-          if (previous.includes(`${origin}/*`) && !origins.includes(origin)) {
+          if (
+            (previous.includes(`${origin}/*`) ||
+              previous.includes(`${new URL(origin).protocol}//*/*`)) &&
+            !(await controller.edgeSites.allowed(origin))
+          ) {
             page.invalidate(tab.id);
             await browser.tabs
               .sendMessage(
@@ -241,7 +249,9 @@ export default defineBackground(() => {
           typeof message === 'object' &&
           message !== null &&
           'type' in message &&
-          message.type === 'page.site-configure' &&
+          ['page.site-configure', 'page.global-configure'].includes(
+            String(message.type),
+          ) &&
           response.data.kind === 'edge-site' &&
           response.data.enabled
         ) {
