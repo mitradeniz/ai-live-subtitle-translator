@@ -1,8 +1,8 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.2.0-preview.1.
-This describes the implemented extension. This file has not been published as a
-hosted privacy-policy page and does not imply store approval.
+Last updated: 2026-10-31. Applies to AI Video Subtitle Translator 0.2.1-preview.1.
+This notice describes the implemented extension and its optional translation
+services. Publication of this notice does not imply store approval.
 
 Contact for privacy questions and private security reports:
 **mitradenizkaratas@gmail.com**. Do not email API keys or personal transcripts.
@@ -146,8 +146,8 @@ folder after clearing extension data; delete it there if no longer needed.
 
 - Disable captions to stop that playback session and restore native caption state.
   Disable automatic YouTube activation separately if you do not want it after refresh.
-- Use **Original only** to pause translation. Resume via popup/settings, not page
-  controls. Switching providers or languages invalidates pending results.
+- Use **Original only** to pause translation. Resume through the popup/settings or the player menu after explicitly choosing
+  a configured provider. Switching providers or languages invalidates pending results.
 - Delete keys in **Open settings → API keys and privacy**. Remove provider/site access
   using the corresponding controls or Chrome's extension settings.
 - **Clear translation cache** clears session and device translations and stops active
@@ -163,3 +163,6 @@ folder after clearing extension data; delete it there if no longer needed.
 The developer does not receive caption text or keys through a project service and
 does not sell extension data or use it for advertising. Text transmission to your
 selected translation provider is the extension's disclosed purpose.
+
+The extension's use of information received from Google APIs adheres to the
+Chrome Web Store User Data Policy, including the Limited Use requirements.
