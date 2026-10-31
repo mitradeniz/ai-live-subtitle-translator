@@ -1,3 +1,4 @@
+import type { SelectionLanguages } from '../messaging/protocol.ts';
 import { EXCLUDED } from './dom.ts';
 
 type Selected = { text: string; range: Range; snapshot: string };
@@ -41,10 +42,13 @@ export class SelectionPopup {
   #source = document.createElement('p');
   #result = document.createElement('p');
   #status = document.createElement('p');
+  #recipient = document.createElement('p');
   #selected: Selected | null = null;
   #down: { before: Selected | null; x: number; y: number } | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
-  #pending: { selected: Selected; generation: number } | undefined;
+  #pending:
+    | { selected: Selected; generation: number; languages: SelectionLanguages }
+    | undefined;
   #generation = 0;
   #busy = false;
   #closed = false;
@@ -52,13 +56,14 @@ export class SelectionPopup {
     private options: {
       t(text: string): string;
       recipient: string;
-      translate(text: string): Promise<string>;
+      languages: SelectionLanguages;
+      translate(text: string, languages: SelectionLanguages): Promise<string>;
       settings(): Promise<void>;
     },
   ) {
     const shadow = this.#host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host{all:initial;color-scheme:dark}*{box-sizing:border-box}.panel{position:fixed;inset:auto;margin:0;width:380px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:18px;border:1px solid #c8dcff40;border-radius:20px;background:linear-gradient(140deg,#26344af5,#101723f7);backdrop-filter:blur(20px);box-shadow:0 16px 48px #0006,inset 0 1px #ffffff18;color:#f0f4ff;font:14px/1.55 system-ui}header{display:flex;align-items:center;gap:10px}strong{flex:1;font-size:13px}.logo{padding:3px 5px;border:1px solid #d4e4ff65;border-radius:7px;background:linear-gradient(140deg,#9caec6aa,#24364c);font-weight:700}.source{font-size:13px;color:#c7d2e8}.result{background:#ffffff08;border:1px solid #ffffff15;border-radius:12px;padding:14px;font-size:17px}.result:empty{display:none}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0}.status{font-size:12px;color:#e4d6ac}.status:empty{display:none}.recipient{font-size:10px;color:#b7c6df;border-top:1px solid #ffffff18;padding-top:10px;margin-bottom:0}button{font:inherit;color:inherit;background:#ffffff09;border:1px solid #ffffff20;border-radius:8px;cursor:pointer;padding:4px 8px}button:hover{background:#ffffff20}button:focus-visible{outline:2px solid #b6d4ff;outline-offset:2px}footer{display:flex;justify-content:flex-end}`;
+    style.textContent = `:host{all:initial;color-scheme:dark}*{box-sizing:border-box}.panel{position:fixed;inset:auto;margin:0;width:380px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;padding:18px;border:1px solid #c8dcff40;border-radius:20px;background:linear-gradient(140deg,#26344af5,#101723f7);backdrop-filter:blur(20px);box-shadow:0 16px 48px #0006,inset 0 1px #ffffff18;color:#f0f4ff;font:14px/1.55 system-ui}header{display:flex;align-items:center;gap:10px}strong{flex:1;font-size:13px}.logo{padding:3px 5px;border:1px solid #d4e4ff65;border-radius:7px;background:linear-gradient(140deg,#9caec6aa,#24364c);font-weight:700}.source{font-size:13px;color:#c7d2e8}.result{background:#ffffff08;border:1px solid #ffffff15;border-radius:12px;padding:14px;font-size:17px}.result:empty{display:none}p{white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0}.status{font-size:12px;color:#e4d6ac}.status:empty{display:none}.recipient{font-size:10px;color:#b7c6df;border-top:1px solid #ffffff18;padding-top:10px;margin-bottom:0}button{font:inherit;color:inherit;background:#ffffff09;border:1px solid #ffffff20;border-radius:8px;cursor:pointer;padding:4px 8px}button:hover{background:#ffffff20}select:focus-visible,button:focus-visible{outline:2px solid #b6d4ff;outline-offset:2px}footer{display:flex;justify-content:flex-end}.languages{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.languages label{font-size:11px;color:#c7d2e8;min-width:0}.languages select{display:block;width:100%;margin-top:4px;padding:8px;color:#f0f4ff;background:#172234;border:1px solid #ffffff30;border-radius:8px;font:13px system-ui}`;
     this.#panel.className = 'panel';
     this.#panel.popover = 'auto';
     this.#panel.setAttribute('role', 'dialog');
@@ -87,9 +92,9 @@ export class SelectionPopup {
     this.#result.setAttribute('aria-live', 'polite');
     this.#status.className = 'status';
     this.#status.setAttribute('role', 'status');
-    const recipient = document.createElement('p');
-    recipient.className = 'recipient';
-    recipient.textContent = options.recipient;
+    this.#recipient.className = 'recipient';
+    this.#updateRecipient();
+    const languages = this.#languageControls();
     const footer = document.createElement('footer');
     const settings = document.createElement('button');
     settings.type = 'button';
@@ -105,11 +110,12 @@ export class SelectionPopup {
     footer.append(settings);
     this.#panel.append(
       header,
+      languages,
       this.#source,
       this.#result,
       this.#status,
       footer,
-      recipient,
+      this.#recipient,
     );
     shadow.append(style, this.#panel);
     (document.body ?? document.documentElement).append(this.#host);
@@ -124,6 +130,85 @@ export class SelectionPopup {
     document.addEventListener('pointerup', this.#pointerUp, true);
     window.addEventListener('scroll', this.#position, true);
     window.addEventListener('resize', this.#position);
+  }
+  #updateRecipient() {
+    this.#recipient.textContent = `${this.options.recipient} · ${this.options.languages.sourceLanguage} → ${this.options.languages.targetLanguage}`;
+  }
+  #languageControls() {
+    const row = document.createElement('div');
+    row.className = 'languages';
+    const choices: [string, string][] = [
+      ['tr', 'Türkçe'],
+      ['en', 'English'],
+      ['de', 'Deutsch'],
+      ['fr', 'Français'],
+      ['es', 'Español'],
+      ['it', 'Italiano'],
+      ['pt', 'Português'],
+      ['ar', 'العربية'],
+      ['he', 'עברית'],
+      ['ja', '日本語'],
+      ['ko', '한국어'],
+      ['zh-CN', '简体中文'],
+      ['ru', 'Русский'],
+      ['hi', 'हिन्दी'],
+    ];
+    for (const [key, title] of [
+      ['sourceLanguage', 'Source language'],
+      ['targetLanguage', 'Target language'],
+    ] as const) {
+      const label = document.createElement('label');
+      label.textContent = this.options.t(title);
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', this.options.t(title));
+      const items =
+        key === 'sourceLanguage'
+          ? [['auto', this.options.t('Auto-detect')], ...choices]
+          : [...choices];
+      const value = this.options.languages[key];
+      if (!items.some(([code]) => code === value)) items.push([value, value]);
+      for (const [code, name] of items) {
+        const option = document.createElement('option');
+        option.value = code!;
+        option.textContent = name!;
+        select.append(option);
+      }
+      select.value = value;
+      select.addEventListener('change', (event) => {
+        event.stopPropagation();
+        if (
+          !event.isTrusted ||
+          this.#closed ||
+          !this.#selected ||
+          !this.#panel.matches(':popover-open')
+        )
+          return;
+        this.options.languages = {
+          ...this.options.languages,
+          [key]: select.value,
+        };
+        this.#updateRecipient();
+        this.#queue();
+      });
+      label.append(select);
+      row.append(label);
+    }
+    return row;
+  }
+  #queue() {
+    if (!this.#selected) return;
+    const generation = ++this.#generation;
+    this.#pending = {
+      selected: this.#selected,
+      generation,
+      languages: { ...this.options.languages },
+    };
+    this.#source.textContent = this.#selected.text;
+    this.#result.textContent = '';
+    this.#status.textContent = this.options.t('Translating selected text…');
+    this.#panel.showPopover();
+    this.#position();
+    void this.#pump();
   }
   #invalidate() {
     this.#generation++;
@@ -169,13 +254,7 @@ export class SelectionPopup {
       )
         return;
       this.#selected = value;
-      this.#pending = { selected: value, generation };
-      this.#source.textContent = value.text;
-      this.#result.textContent = '';
-      this.#status.textContent = this.options.t('Translating selected text…');
-      this.#panel.showPopover();
-      this.#position();
-      void this.#pump();
+      this.#queue();
     }, 250);
   };
   async #pump() {
@@ -191,7 +270,10 @@ export class SelectionPopup {
       job.selected.range.toString() === job.selected.snapshot;
     try {
       if (!current()) return;
-      const text = await this.options.translate(job.selected.text);
+      const text = await this.options.translate(
+        job.selected.text,
+        job.languages,
+      );
       if (current()) {
         this.#result.textContent = text;
         this.#status.textContent = '';

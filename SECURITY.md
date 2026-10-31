@@ -56,7 +56,9 @@ trusted mouse gestures, excludes form/editable/extension content, caps selection
 at 1,000 characters and keeps at most one request plus the latest waiting selection.
 The background checks the automatic-selection flag and enabled document capability;
 opt-out revokes page work. Dismissal discards queued/late results but cannot undo
-an already sent provider request or its charge. Output is rendered as plain text.
+an already sent provider request or its charge. Selection-specific source/target
+language overrides are schema-validated, require the automatic-selection capability,
+and do not mutate global settings or configure destinations. Output is plain text.
 Automatic logo access requires a saved opt-in plus a current browser grant. The
 all-sites switch explicitly requests HTTP(S) wildcard access; the narrower per-site
 option remains available. Registrations follow the chosen authorized scope. Showing

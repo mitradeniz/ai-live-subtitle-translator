@@ -8,6 +8,7 @@ let context;
 let hold = false,
   release;
 const sent = [];
+const languagesSent = [];
 try {
   const extension = join(temp, 'extension');
   await cp(resolve('.output/chrome-mv3'), extension, { recursive: true });
@@ -47,6 +48,10 @@ try {
     if (url.origin === 'https://translate.googleapis.com') {
       const text = url.searchParams.get('q');
       sent.push(text);
+      languagesSent.push({
+        source: url.searchParams.get('sl'),
+        target: url.searchParams.get('tl'),
+      });
       if (hold)
         await new Promise((resolve) => {
           release = resolve;
@@ -54,7 +59,11 @@ try {
       return route
         .fulfill({
           contentType: 'application/json',
-          body: JSON.stringify([[[`TR ${text}`, text]], null, 'en']),
+          body: JSON.stringify([
+            [[`${url.searchParams.get('tl').toUpperCase()} ${text}`, text]],
+            null,
+            'en',
+          ]),
         })
         .catch(() => {});
     }
@@ -146,6 +155,55 @@ try {
     .waitFor();
   assert.equal(sent.length, 1);
   assert.match(await card.locator('.recipient').textContent(), /Google.*tr/);
+  const targetLanguage = card.getByRole('combobox', {
+    name: 'Target language',
+  });
+  const sourceLanguage = card.getByRole('combobox', {
+    name: 'Source language',
+  });
+  await targetLanguage.evaluate((select) => {
+    select.value = 'en';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    select.value = 'tr';
+  });
+  await page.waitForTimeout(350);
+  assert.equal(sent.length, 1, 'Synthetic language changes cannot send text');
+  await targetLanguage.focus();
+  await page.keyboard.press('e');
+  await page.keyboard.press('Tab');
+  await card
+    .locator('.result')
+    .filter({ hasText: 'EN Selection preview sentence.' })
+    .waitFor();
+  assert.equal(languagesSent.at(-1).target, 'en');
+  await sourceLanguage.focus();
+  await page.keyboard.press('t');
+  await page.keyboard.press('Tab');
+  await card
+    .locator('.result')
+    .filter({ hasText: 'EN Selection preview sentence.' })
+    .waitFor();
+  assert.equal(languagesSent.at(-1).source, 'tr');
+  await sourceLanguage.focus();
+  await page.keyboard.press('a');
+  await page.keyboard.press('Tab');
+  await card
+    .locator('.result')
+    .filter({ hasText: 'EN Selection preview sentence.' })
+    .waitFor();
+  assert.equal(languagesSent.at(-1).source, 'auto');
+  await targetLanguage.focus();
+  await page.keyboard.press('t');
+  await page.keyboard.press('Tab');
+  await card
+    .locator('.result')
+    .filter({ hasText: 'TR Selection preview sentence.' })
+    .waitFor();
+  const stored = (await send('settings.read')).data.settings;
+  assert.equal(stored.sourceLanguage, 'auto');
+  assert.equal(stored.targetLanguage, 'tr');
+  const afterLanguages = sent.length;
+
   const rect = await card.boundingBox();
   assert.ok(
     rect.x >= 0 &&
@@ -158,7 +216,7 @@ try {
   await card.waitFor({ state: 'hidden' });
   await select('form p');
   await page.waitForTimeout(400);
-  assert.equal(sent.length, 1, 'Form text stays excluded');
+  assert.equal(sent.length, afterLanguages, 'Form text stays excluded');
   await page.evaluate(() => {
     const p = document.createElement('p');
     p.id = 'long-selection';
@@ -167,7 +225,11 @@ try {
   });
   await select('#long-selection');
   await page.waitForTimeout(400);
-  assert.equal(sent.length, 1, 'Oversized selection is not truncated or sent');
+  assert.equal(
+    sent.length,
+    afterLanguages,
+    'Oversized selection is not truncated or sent',
+  );
   await page.locator('#long-selection').evaluate((node) => node.remove());
   hold = true;
   await page.locator('#selectable').evaluate((node) => {
@@ -237,6 +299,24 @@ try {
   release();
   release = undefined;
   await card.waitFor({ state: 'hidden' });
+  hold = true;
+  await page.locator('#selectable').evaluate((node) => {
+    node.textContent = 'Language change during a request.';
+  });
+  await select('#selectable');
+  for (let i = 0; i < 100 && !release; i++) await page.waitForTimeout(50);
+  assert.ok(release);
+  await targetLanguage.focus();
+  await page.keyboard.press('e');
+  await page.keyboard.press('Tab');
+  hold = false;
+  release();
+  release = undefined;
+  await card
+    .locator('.result')
+    .filter({ hasText: 'EN Language change during a request.' })
+    .waitFor();
+  assert.equal(languagesSent.at(-1).target, 'en');
   await send('page.configure', {
     preferences: { ...prefs, selection: true, autoSelection: false },
   });

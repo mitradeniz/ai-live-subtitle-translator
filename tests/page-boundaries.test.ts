@@ -467,3 +467,74 @@ test('automatic selection requires its own opt-in and never authorizes another f
       wrongFeature.data.result.error === 'OFF',
   );
 });
+
+test('selection language overrides are scoped, validated, and never saved as global preferences', async () => {
+  const calls: URL[] = [];
+  const controller = createController(EXTENSION_ID, fakeAreas(), undefined, {
+    permitted: async () => true,
+    fetch: async (url) => {
+      calls.push(new URL(String(url)));
+      return new Response(
+        JSON.stringify([[['Result.', 'Synthetic visible text.']]]),
+        { headers: { 'content-type': 'application/json' } },
+      );
+    },
+  });
+  await controller.dispatch(request('google.enable'), uiSender());
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: {
+        ...DEFAULT_PAGE_PREFERENCES,
+        selection: true,
+        autoSelection: true,
+      },
+    }),
+    uiSender(),
+  );
+  const sender = contentSender();
+  const sessionId = controller.pageSessions.grant(sender);
+  const languages = { sourceLanguage: 'tr', targetLanguage: 'en' };
+  const send = (extra = {}) =>
+    controller.dispatch(
+      request('page.translate', {
+        sessionId,
+        feature: 'selection',
+        automaticSelection: true,
+        selectionLanguages: languages,
+        job: job(),
+        ...extra,
+      }),
+      sender,
+    );
+  for (const selectionLanguages of [
+    { ...languages, endpoint: 'https://attacker.test' },
+    { ...languages, targetLanguage: 'auto' },
+    { ...languages, sourceLanguage: '<img>' },
+  ])
+    assert.equal((await send({ selectionLanguages })).ok, false);
+  for (const extra of [
+    { feature: 'page' },
+    { automaticSelection: undefined },
+  ]) {
+    const denied = await send(extra);
+    assert.ok(
+      !denied.ok ||
+        (denied.data.kind === 'translation' && !denied.data.result.ok),
+    );
+  }
+  assert.equal(calls.length, 0);
+  const result = await send();
+  assert.ok(
+    result.ok && result.data.kind === 'translation' && result.data.result.ok,
+    JSON.stringify(result),
+  );
+  assert.equal(calls[0]?.searchParams.get('sl'), 'tr');
+  assert.equal(calls[0]?.searchParams.get('tl'), 'en');
+  const settings = await controller.dispatch(
+    request('settings.read'),
+    uiSender(),
+  );
+  assert.ok(settings.ok && settings.data.kind === 'settings');
+  assert.equal(settings.data.settings.sourceLanguage, 'auto');
+  assert.equal(settings.data.settings.targetLanguage, 'tr');
+});

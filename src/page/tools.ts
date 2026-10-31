@@ -2,7 +2,7 @@ import { SelectionPopup } from './selection-popup';
 import { PageText, EXCLUDED } from './dom';
 import { PlayerShortcut } from '../playback/shortcut';
 import type { PagePreferences, PageState, WritingStyle } from './contracts';
-import type { Settings } from '../messaging/protocol';
+import type { Settings, SelectionLanguages } from '../messaging/protocol';
 import { sendRequest } from '../messaging/client';
 import { translate } from '../ui/strings';
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
@@ -406,14 +406,19 @@ export class PageTools {
     if (prefs.selection && prefs.autoSelection)
       this.#selectionPopup = new SelectionPopup({
         t: (text) => this.t(text),
-        recipient: `${label} · ${settings.sourceLanguage} → ${settings.targetLanguage}${ai || label.startsWith('Google Cloud') ? ` · ${this.t('Paid API')}` : label.startsWith('Google ·') ? ` · ${this.t('Experimental')}` : ''}`,
-        translate: async (text) => {
+        languages: {
+          sourceLanguage: settings.sourceLanguage,
+          targetLanguage: settings.targetLanguage,
+        },
+        recipient: `${label}${ai || label.startsWith('Google Cloud') ? ` · ${this.t('Paid API')}` : label.startsWith('Google ·') ? ` · ${this.t('Experimental')}` : ''}`,
+        translate: async (text, languages) => {
           const serial = ++this.#serial;
           const [result] = await this.request(
             'selection',
             [{ id: `selection-${serial}`, revision: serial, text }],
             undefined,
             true,
+            languages,
           );
           return result!;
         },
@@ -575,6 +580,7 @@ export class PageTools {
     items: { id: string; revision: number; text: string }[],
     style?: WritingStyle,
     automaticSelection = false,
+    selectionLanguages?: SelectionLanguages,
   ) {
     if (this.#closed || !this.prefs[feature])
       throw new Error(this.t('This feature is disabled.'));
@@ -589,6 +595,7 @@ export class PageTools {
         sessionId: this.sessionId,
         feature,
         ...(automaticSelection ? { automaticSelection: true as const } : {}),
+        ...(selectionLanguages ? { selectionLanguages } : {}),
         ...(style ? { style } : {}),
         job: {
           jobId: crypto.randomUUID(),

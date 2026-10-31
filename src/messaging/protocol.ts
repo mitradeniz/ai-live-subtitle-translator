@@ -27,6 +27,11 @@ export const PreferencesSchema = z.strictObject({
   position: z.enum(['bottom', 'top']).default('bottom'),
   uiLanguage: z.enum(['en', 'tr']).default('en'),
 });
+export const SelectionLanguagesSchema = PreferencesSchema.pick({
+  sourceLanguage: true,
+  targetLanguage: true,
+});
+export type SelectionLanguages = z.infer<typeof SelectionLanguagesSchema>;
 export const MenuProviderSchema = z.enum([
   'none',
   'google',
@@ -190,6 +195,7 @@ export const RequestSchema = z.discriminatedUnion('type', [
     type: z.literal('page.translate'),
     sessionId,
     automaticSelection: z.literal(true).optional(),
+    selectionLanguages: SelectionLanguagesSchema.optional(),
     feature: PageFeatureSchema,
     style: WritingStyleSchema.optional(),
     job: TranslationJobSchema,

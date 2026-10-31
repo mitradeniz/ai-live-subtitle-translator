@@ -460,7 +460,10 @@ mode and enabled tools are separate.
   popup → Customize translation. This separate opt-in defaults off. On pages with
   enabled tools, completing a mouse selection shows a nearby glass preview with the
   original, translation, provider and target language. Escape, × or clicking outside
-  closes it. It uses the selected provider (paid usage may apply), skips forms/editable
+  closes it. Source (including Auto-detect) and target language can be changed inside
+  the preview; each change retranslates the same selection. These choices last for
+  this page-tools session and do not change caption/global language preferences.
+  It uses the selected provider (paid usage may apply), skips forms/editable
   and excluded content, and limits selections to 1,000 characters. Rapid selections
   keep only the latest waiting result; closing prevents late results reopening it.
   This is translation, not a dictionary, pronunciation or example-sentence service.

@@ -731,6 +731,14 @@ export function createController(
                 (request.feature !== 'selection' || !enabled.autoSelection)
               )
                 throw new TranslationFailure('OFF');
+              if (request.selectionLanguages) {
+                if (
+                  !request.automaticSelection ||
+                  request.feature !== 'selection'
+                )
+                  throw new TranslationFailure('OFF');
+                Object.assign(preferences, request.selectionLanguages);
+              }
               if (!enabled[request.feature])
                 throw new TranslationFailure('OFF');
               if (request.feature === 'writing' && selected !== 'ai')
