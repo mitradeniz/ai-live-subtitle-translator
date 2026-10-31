@@ -24,6 +24,22 @@ blob-report/
 .env
 .env.*
 !.env.example
+.npmrc
+
+# Extension signing keys and packed builds (never publish a private key)
+*.pem
+*.crx
+*.key
+*.p12
+*.pfx
+
+# Local editor and AI-assistant workspace settings
+.idea/
+.vscode/
+.claude/
+*.code-workspace
+*.swp
+*~
 
 # Logs and operating-system files
 *.log
