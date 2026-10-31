@@ -1,5 +1,88 @@
 export type Locale = 'en' | 'tr';
 export const turkish: Record<string, string> = {
+  'Writing options': 'Yazım seçenekleri',
+  'Paid API · Text sent to': 'Ücretli API · Metin alıcısı',
+  'Text sent to': 'Metin alıcısı',
+  'Your language, everywhere.': 'Her yerde senin dilin.',
+  'Page translation': 'Sayfa çevirisi',
+  'Page tools on': 'Sayfa araçları açık',
+  Off: 'Kapalı',
+  'Customize translation': 'Çeviri özelleştirmeleri',
+  'Choose your tools': 'Araçlarını seç',
+  'Web page translation': 'Web sayfası çevirisi',
+  'Video subtitles': 'Video altyazıları',
+  'Selected text translation': 'Seçili metin çevirisi',
+  'Hover translation (Alt + hover)': 'Üzerine gelince çeviri (Alt ile)',
+  'Text field translation': 'Metin kutusu çevirisi',
+  'AI Writing': 'AI Yazım',
+  'Edge button action': 'Kenar düğmesinin işlemi',
+  'Page display': 'Sayfa görünümü',
+  'Translate visible page': 'Görünen sayfayı çevir',
+  'Translate selection': 'Seçili metni çevir',
+  'Translate focused field': 'Seçili yazı alanını çevir',
+  'Enable edge tools': 'Kenar araçlarını aç',
+  'Restore original page': 'Orijinal sayfayı göster',
+  'Visible text goes to your selected provider as you scroll. User-key services may charge. Fields are sent only by an explicit action.':
+    'Kaydırdıkça görünen metin seçili sağlayıcıya gönderilir. API hizmeti ücretlendirebilir. Yazı alanları yalnızca sen başlattığında gönderilir.',
+  'Page tools unavailable.': 'Sayfa araçlarına erişilemiyor.',
+  'Preferences saved. Enable page tools to use them here.':
+    'Tercihler kaydedildi. Bu sayfada kullanmak için kenar araçlarını aç.',
+  'Could not save page preferences.': 'Sayfa tercihleri kaydedilemedi.',
+  'Page access unavailable. Open a regular webpage and click the extension again.':
+    'Sayfaya erişilemiyor. Normal bir web sayfasında eklenti simgesine tekrar tıkla.',
+  'Translating visible text. Scroll to translate more.':
+    'Görünen metin çevriliyor. Devamı için sayfayı kaydır.',
+  'Page tools ready. Hover over the edge button for actions.':
+    'Sayfa araçları hazır. İşlemler için kenar düğmesinin üzerine gel.',
+  'Original page restored.': 'Orijinal sayfa geri getirildi.',
+  'Could not restore the page. Refresh it to show originals.':
+    'Sayfa geri getirilemedi. Orijinaller için sayfayı yenile.',
+  'Translate · hover for tools': 'Çevir · araçlar için üzerine gel',
+  'Translation tools': 'Çeviri araçları',
+  'Requested text goes to this provider. User-key services may charge.':
+    'İstediğin metin bu sağlayıcıya gönderilir. API hizmeti ücretlendirebilir.',
+  'Change provider / languages': 'Sağlayıcı / dil değiştir',
+  'Hold Alt over text to preview its translation.':
+    'Çeviriyi görmek için Alt basılıyken metnin üzerinde bekle.',
+  'Text or writing brief — sent only when you click Generate':
+    'Metin veya yazım konusu — yalnızca Önizleme oluştur ile gönderilir',
+  'Writing text': 'Yazılacak metin',
+  'Writing style': 'Yazım biçimi',
+  'Improve writing': 'Yazımı iyileştir',
+  Shorten: 'Kısalt',
+  'Formal tone': 'Resmî üslup',
+  'Draft from brief': 'Konudan taslak yaz',
+  'Generate preview': 'Önizleme oluştur',
+  'Apply to focused field': 'Seçili yazı alanına uygula',
+  'Video controls': 'Video kontrolleri',
+  'Open the extension popup to re-enable these tools.':
+    'Araçları yeniden açmak için eklentinin popup penceresini kullan.',
+  'Ready. Click the edge button to run your chosen action.':
+    'Hazır. Seçtiğin işlem için kenar düğmesine tıkla.',
+  'This feature is disabled.': 'Bu özellik kapalı.',
+  'Local request limit reached. Try again later.':
+    'Yerel istek sınırına ulaşıldı. Biraz sonra tekrar dene.',
+  'Translation cancelled.': 'Çeviri iptal edildi.',
+  'Translation unavailable.': 'Çeviri kullanılamıyor.',
+  'Select or enter up to 1,000 characters.':
+    'En fazla 1.000 karakter seç veya yaz.',
+  'Preparing preview…': 'Önizleme hazırlanıyor…',
+  'Preview ready. No form was submitted.': 'Önizleme hazır. Form gönderilmedi.',
+  'Focus a plain text field first. Sensitive fields are excluded.':
+    'Önce normal bir yazı alanına tıkla. Hassas alanlar kapsam dışıdır.',
+  'Choose an AI provider in the extension popup for writing.':
+    'Yazım için eklentinin popup penceresinde bir AI sağlayıcısı seç.',
+  'The field changed. Generate a fresh preview.':
+    'Yazı alanı değişti. Yeni bir önizleme oluştur.',
+  'Applied to the field. Review before sending.':
+    'Yazı alanına uygulandı. Göndermeden önce gözden geçir.',
+  'Translating visible text…': 'Görünen metin çevriliyor…',
+  'Page limit reached. Restore originals or reload to start a new session.':
+    'Sayfa sınırına ulaşıldı. Orijinali göster veya yeni oturum için sayfayı yenile.',
+  'Visible text ready. Scroll to translate more.':
+    'Görünen metin hazır. Devamı için sayfayı kaydır.',
+  'Translation paused.': 'Çeviri duraklatıldı.',
+
   'For complete captions, enable automatic YouTube access in settings and refresh once.':
     'Tam altyazı için ayarlardan otomatik YouTube erişimini açıp sayfayı bir kez yenile.',
   'Quick subtitle settings': 'Hızlı altyazı ayarları',

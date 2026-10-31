@@ -754,3 +754,27 @@ test('cancelled spacing wait releases the provider lane immediately for a cached
     'An abandoned spacing wait must not hold the cache hit for the remaining second',
   );
 });
+
+test('keyless multi-item batches leave spacing after their last subrequest', async () => {
+  const queue = new WorkQueue(new TrustedStorage(fakeAreas()));
+  const first = job('first');
+  first.items.push({ ...first.items[0]!, id: 'second', text: 'second' });
+  const make = (batch: TranslationJob) => ({
+    provider: 'google',
+    config,
+    paid: false,
+    tabId: 1,
+    sessionId: 'page-spacing',
+    job: batch,
+    valid: () => {},
+    perform: async () => result(batch),
+  });
+  await queue.run(make(first));
+  await tick();
+  const started = performance.now();
+  await queue.run(make(job('next')));
+  assert.ok(
+    performance.now() - started >= 1000,
+    'The next batch must wait after the final Google item',
+  );
+});

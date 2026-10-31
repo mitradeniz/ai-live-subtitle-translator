@@ -1,3 +1,4 @@
+import { createPageHandler } from '../src/background/page-activation.ts';
 import { isYouTubeWatch } from '../src/youtube/source.ts';
 import { YOUTUBE_HOST, YOUTUBE_ORIGIN } from '../src/background/sites.ts';
 import { CLOUD_HOST } from '../src/translation/google-cloud.ts';
@@ -59,11 +60,14 @@ export default defineBackground(() => {
         : null;
     },
     () => browser.runtime.openOptionsPage(),
+    (operation, run) => page.handle(operation, run),
+    () => browser.action.openPopup(),
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
     createPlaybackHandler(controller.sessions, (id, paused) =>
       controller.sites.pause(id, paused),
     );
+  const page = createPageHandler(controller.pageSessions);
   let reconciliation: Promise<void> = Promise.resolve();
   function reconcileSites(stop = false) {
     reconciliation = reconciliation
@@ -190,12 +194,61 @@ export default defineBackground(() => {
               ? 'playback.preferences'
               : 'playback.translation-reset',
           );
+        if (
+          response.ok &&
+          message &&
+          typeof message === 'object' &&
+          'type' in message &&
+          [
+            'page.configure',
+            'controls.select',
+            'controls.update',
+            'settings.update',
+            'ai.configure',
+            'google.enable',
+            'google.disable',
+            'ai.enable',
+            'ai.disable',
+            'cloud.enable',
+            'cloud.disable',
+            'credentials.set',
+            'credentials.delete',
+            'cache.clear',
+            'data.clear',
+          ].includes(String(message.type))
+        ) {
+          for (const tab of await browser.tabs.query({}))
+            if (tab.id !== undefined && !tab.incognito)
+              await browser.tabs
+                .sendMessage(
+                  tab.id,
+                  { version: 1, type: 'page.reset' },
+                  { frameId: 0 },
+                )
+                .catch(() => {});
+        }
         sendResponse(response);
       });
       return true;
     },
   );
   browser.permissions.onRemoved.addListener((removed) => {
+    controller.pageSessions.revokeAll();
+    void browser.tabs
+      .query({})
+      .then((tabs) =>
+        Promise.allSettled(
+          tabs
+            .filter((tab) => tab.id !== undefined)
+            .map((tab) =>
+              browser.tabs.sendMessage(
+                tab.id!,
+                { version: 1, type: 'page.reset' },
+                { frameId: 0 },
+              ),
+            ),
+        ),
+      );
     if (removed.origins?.includes(YOUTUBE_HOST)) {
       void controller.sites
         .configure(false, false)
@@ -234,6 +287,7 @@ export default defineBackground(() => {
       void controller.sessions.ready
         .then(async () => {
           playback.invalidate(tabId);
+          page.invalidate(tabId);
           if (change.status === 'loading')
             await controller.sites.pause(tabId, false);
         })

@@ -25,6 +25,7 @@ const Records = z
 type Work = {
   provider: string;
   config: unknown;
+  cachePolicy?: 'none';
   paid: boolean;
   tabId: number;
   sessionId: string;
@@ -168,7 +169,8 @@ export class WorkQueue {
     };
     valid();
     const key = await cacheIdentity(work.config, work.job);
-    const hit = await this.cache.get(key, work.job);
+    const hit =
+      work.cachePolicy === 'none' ? null : await this.cache.get(key, work.job);
     valid();
     if (hit) return hit;
     const delay = (this.#next.get(work.provider) ?? 0) - this.#now();
@@ -202,7 +204,12 @@ export class WorkQueue {
       // Space actual dispatch starts, not cache hits, cancelled waiters or completion.
       // Provider budgets and Retry-After gates still apply inside perform().
       this.#next.set(work.provider, this.#now() + 1100);
-      const result = await work.perform(valid);
+      const result = await work.perform(valid).finally(() => {
+        // Keyless Google sends each item separately. Its final item, not the
+        // batch start, determines when another batch may dispatch safely.
+        if (work.provider === 'google' && work.job.items.length > 1)
+          this.#next.set(work.provider, this.#now() + 1100);
+      });
       valid();
       if (
         result.generation !== work.job.generation ||
@@ -221,7 +228,7 @@ export class WorkQueue {
       result.items = work.job.items.map((source) =>
         result.items.find((i) => i.id === source.id)!,
       );
-      await this.cache.put(key, result, valid);
+      if (work.cachePolicy !== 'none') await this.cache.put(key, result, valid);
       await this.#remove(key, work.job.jobId);
       valid();
       return result;

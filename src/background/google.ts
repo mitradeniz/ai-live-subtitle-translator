@@ -76,6 +76,9 @@ export class GoogleCoordinator {
     this.#epoch++;
     this.#job?.abort.abort();
   }
+  cancelSession(sessionId: string) {
+    if (this.#job?.sessionId === sessionId) this.#job.abort.abort();
+  }
   cancelTab(tabId: number) {
     if (this.#job?.tabId === tabId) this.#job.abort.abort();
   }

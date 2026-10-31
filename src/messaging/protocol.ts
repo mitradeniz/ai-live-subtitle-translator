@@ -1,3 +1,9 @@
+import {
+  PagePreferencesSchema,
+  PageFeatureSchema,
+  WritingStyleSchema,
+  PageStateSchema,
+} from '../page/contracts.ts';
 import { AIProfileSchema } from '../translation/ai-profile.ts';
 import { z } from './schema.ts';
 import { PlaybackStateSchema } from './playback.ts';
@@ -85,6 +91,38 @@ const envelope = {
 };
 const sessionId = z.uuid();
 export const RequestSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.enable'),
+    run: z.boolean().default(true),
+  }),
+  ...(['page.disable', 'page.status', 'page.preferences'] as const).map(
+    (type) => z.strictObject({ ...envelope, type: z.literal(type) }),
+  ),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.configure'),
+    preferences: PagePreferencesSchema,
+  }),
+  ...(
+    [
+      'page.settings',
+      'page.cancel',
+      'page.open-popup',
+      'page.open-settings',
+    ] as const
+  ).map((type) =>
+    z.strictObject({ ...envelope, type: z.literal(type), sessionId }),
+  ),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.translate'),
+    sessionId,
+    feature: PageFeatureSchema,
+    style: WritingStyleSchema.optional(),
+    job: TranslationJobSchema,
+  }),
+
   z.strictObject({
     ...envelope,
     type: z.literal('playback.enable'),
@@ -236,6 +274,19 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('page-state'), state: PageStateSchema }),
+      z.strictObject({
+        kind: z.literal('page-preferences'),
+        preferences: PagePreferencesSchema,
+      }),
+      z.strictObject({
+        kind: z.literal('page-settings'),
+        preferences: PagePreferencesSchema,
+        settings: SettingsSchema,
+        label: z.string().max(200),
+        ai: z.boolean(),
+      }),
+
       PopupStatusSchema,
       z.strictObject({ kind: z.literal('site-status'), enabled: z.boolean() }),
       z.strictObject({

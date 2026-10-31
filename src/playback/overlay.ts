@@ -19,6 +19,13 @@ export class CaptionOverlay {
   #nativeOpacity = '';
   #nativePriority = '';
   #parts = '';
+  #quickRequested = false;
+  #showControls = () => {
+    this.#quickRequested = true;
+    this.#toolbar.hidden = false;
+    this.#logo.setAttribute('aria-expanded', 'true');
+    this.layout();
+  };
   #drag: { id: number; x: number; y: number; moved: boolean } | undefined;
   #video: HTMLVideoElement;
   #text = '';
@@ -41,6 +48,10 @@ export class CaptionOverlay {
     },
   ) {
     this.#video = video;
+    document.addEventListener(
+      'subtitle-translator:show-controls',
+      this.#showControls,
+    );
     this.#settings = options?.settings ?? {
       fontSize,
       displayMode: 'bilingual',
@@ -87,6 +98,7 @@ export class CaptionOverlay {
     }
     const toggle = (open: boolean) => {
       this.#toolbar.hidden = !open;
+      if (!open) this.#quickRequested = false;
       this.#logo.setAttribute('aria-expanded', String(open));
       this.layout();
     };
@@ -287,6 +299,10 @@ export class CaptionOverlay {
     this.setTranslationStatus(this.#statusText);
   }
   layout() {
+    const pageTools = document.querySelector('translator-page-tools');
+    this.#dock.style.visibility =
+      pageTools && !this.#quickRequested ? 'hidden' : '';
+    this.#peek.style.visibility = pageTools ? 'hidden' : '';
     const fullscreen = document.fullscreenElement;
     const unsupported =
       fullscreen === this.#video ||
@@ -382,6 +398,10 @@ export class CaptionOverlay {
   }
   dispose() {
     this.nativeCaption(null);
+    document.removeEventListener(
+      'subtitle-translator:show-controls',
+      this.#showControls,
+    );
     this.host.remove();
   }
 }

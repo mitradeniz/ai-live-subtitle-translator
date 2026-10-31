@@ -7,7 +7,7 @@ excludes compatibility and live-provider claims that have not been verified.
 
 Name: AI Live Subtitle Translator
 
-Short description: Translate available video captions with an experimental Google mode or your own API key. Limited preview.
+Short description: Translate visible page text and available captions with Google or your own API key. Limited preview.
 
 Detailed description:
 
@@ -28,7 +28,15 @@ and quota. Only specific endpoints/models are supported; live account verificati
 is still pending for this preview. Keyless Google relies on undocumented behavior
 and can stop working. No paid provider is selected automatically.
 
-Caption text is sent directly to the provider you choose. There is no project
+Opt into visible-page translation, selected-text and Alt-hover previews, plain
+text-field translation, or AI Writing previews. A page-edge glass menu offers quick
+actions; provider changes open the trusted popup. Page translation processes new
+visible text as you scroll and can restore originals. Writing requires a configured
+AI profile. Field edits need explicit application; no form submission is automated.
+Rich editors, iframes and PDFs are unsupported. Requested page/writing text stays out
+of the persistent caption cache; see the privacy notice for exact retention.
+
+Requested text is sent directly to the provider you choose. There is no project
 backend or analytics service. Keys use session storage unless you explicitly choose
 device retention. Clear keys/cache in settings and revoke site/provider access at
 any time. Device storage is not an encrypted vault. Read the privacy notice before use.
@@ -37,7 +45,7 @@ any time. Device storage is not an encrypted vault. Read the privacy notice befo
 
 Ad: AI Live Subtitle Translator
 
-Kısa açıklama: Mevcut video altyazılarını deneysel Google modu veya kendi API anahtarınla çevir. Sınırlı önizleme.
+Kısa açıklama: Görünen sayfa metnini ve altyazıları Google veya kendi API anahtarınla çevir. Sınırlı önizleme.
 
 Açıklama:
 
@@ -59,7 +67,15 @@ belirli adres/model eşleşmeleri desteklenir. Bu önizlemenin canlı hesap doğ
 henüz tamamlanmamıştır. Anahtarsız Google belgelenmemiş davranışa dayanır ve kesilebilir.
 Ücretli bir hizmet otomatik seçilmez.
 
-Altyazılar doğrudan seçtiğin sağlayıcıya gönderilir. Proje sunucusu veya analitik yoktur.
+Görünen sayfa çevirisini, seçili metin/Alt ile üzerine gelme önizlemelerini,
+normal yazı alanı çevirisini ve AI Yazım araçlarını ayrı ayrı açabilirsin. Kenardaki
+cam menü hızlı işlemler sunar; sağlayıcı değişimi eklentinin popup penceresinde yapılır.
+Kaydırdıkça yeni görünen metinler çevrilir ve orijinal görünüm geri getirilebilir.
+AI Yazım için yapılandırılmış AI sağlayıcısı gerekir. Yazı alanına uygulama açık bir
+tıklama gerektirir; form gönderilmez. Zengin editörler, iframe ve PDF desteklenmez.
+Sayfa/yazım sonuçları kalıcı altyazı önbelleğine alınmaz.
+
+İstenen metin doğrudan seçtiğin sağlayıcıya gönderilir. Proje sunucusu veya analitik yoktur.
 Anahtarlar varsayılan olarak oturumda tutulur; cihazda saklama isteğe bağlıdır.
 Ayarlardan anahtarları/önbelleği temizleyebilir, site/sağlayıcı erişimini kaldırabilirsin.
 Cihaz depolaması şifreli bir kasa değildir. Kullanmadan önce gizlilik bildirimini oku.

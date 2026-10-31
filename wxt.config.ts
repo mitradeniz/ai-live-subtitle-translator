@@ -28,7 +28,7 @@ export default defineConfig({
     description:
       mode === 'mock'
         ? 'Local caption timing test. Mock output is not translation.'
-        : 'Limited preview. Optional Google, Google Cloud and user-key AI caption translation.',
+        : 'Limited preview. Page and video translation with optional Google, Google Cloud and user-key AI.',
     minimum_chrome_version: '151',
     icons: {
       16: 'icons/icon-16.png',

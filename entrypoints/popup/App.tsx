@@ -10,7 +10,7 @@ export function App() {
       <header className="popup-brand">
         <img src="/icons/icon-32.png" width="32" height="32" alt="" />
         <div>
-          <h1>{t('Subtitles, in your language.')}</h1>
+          <h1>{t('Your language, everywhere.')}</h1>
           <span className="preview-label">{t('Limited preview')}</span>
         </div>
       </header>

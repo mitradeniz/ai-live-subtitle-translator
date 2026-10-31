@@ -1,3 +1,4 @@
+import type { WritingStyle } from '../page/contracts.ts';
 import { RetryGate } from './retry-gate.ts';
 import {
   CLOUD_PROFILE,
@@ -110,6 +111,9 @@ export class PaidCoordinator {
     this.#epoch++;
     this.#job?.abort.abort();
   }
+  cancelSession(sessionId: string) {
+    if (this.#job?.sessionId === sessionId) this.#job.abort.abort();
+  }
   cancelTab(tabId: number) {
     if (this.#job?.tabId === tabId) this.#job.abort.abort();
   }
@@ -176,6 +180,7 @@ export class PaidCoordinator {
     job: TranslationJob,
     settings: Settings,
     valid: () => void,
+    task: WritingStyle | 'translate' = 'translate',
   ) {
     if (this.#cancelled.delete(`${sessionId}:${job.jobId}`))
       throw new TranslationFailure('CANCELLED');
@@ -226,7 +231,7 @@ export class PaidCoordinator {
           const translated =
             profile.endpoint === CLOUD_ENDPOINT
               ? await translateCloud(...args)
-              : await translateAI(profile, ...args);
+              : await translateAI(profile, ...args, 15_000, task);
           check();
           if (!(await this.permitted()))
             throw new TranslationFailure('PERMISSION');

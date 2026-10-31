@@ -1,4 +1,4 @@
-# Support matrix — 0.1.5-preview.1
+# Support matrix — 0.2.0-preview.1
 
 This is a production-optimized **limited preview**, not a fully verified beta.
 The implementation has local automated checks; provider/account and owner-browser
@@ -15,6 +15,21 @@ results must be reported separately. No universal video or model compatibility i
 | Fullscreen                          | Ancestor container containing the video and overlay                         | Synthetic container fullscreen tested; video-element fullscreen and Picture-in-Picture cannot display the custom overlay                                                                                                                       |
 | No captions / unavailable source    | No invented transcript or speech recognition; source state or empty overlay | Native/YouTube fixtures; owner must also check a real no-caption video                                                                                                                                                                         |
 | English/Turkish UI                  | Keyboard controls, focus states, RTL caption direction                      | Automated UI checks; translation language coverage depends on the provider                                                                                                                                                                     |
+
+## Page tools (experimental)
+
+Main-document HTTP(S) ordinary text is translated on visibility, including bounded
+new content after scrolling. Selection, Alt-hover, plain textarea/text/search-input
+translation and AI Writing previews are implemented. They share configured provider
+profiles with captions; writing requires an AI profile. All previews are plain text;
+field application requires an explicit click and an unchanged target value. No form
+submission is automated. Rich editors/contenteditable, iframe/shadow-root text,
+PDFs and browser-internal pages are unsupported. Provider changes happen in the
+trusted popup opened by the page menu. No new generic site access is requested.
+
+Synthetic packaged tests cover data exclusions, visible-only dispatch, scrolling,
+restoration, stale results/field edits and mocked writing. This is not live-site or
+live-provider qualification. See README for exact limits and activation instructions.
 
 ## Translation profiles
 

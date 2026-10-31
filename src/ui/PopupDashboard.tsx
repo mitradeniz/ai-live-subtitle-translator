@@ -1,3 +1,4 @@
+import { PageControls } from './PageControls';
 import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
@@ -19,6 +20,7 @@ export default function PopupDashboard() {
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [confirmed, setConfirmed] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
   const dirty = useRef(false);
   const [edited, setEdited] = useState(false);
   const mounted = useRef(false);
@@ -270,83 +272,14 @@ export default function PopupDashboard() {
   }
   return (
     <>
-      <div
-        className={`playback-summary ${attention || restart ? 'needs-attention' : isOn ? 'is-on' : 'is-off'}`}
-        role="status"
-      >
-        <strong>
-          <span className="live-dot" aria-hidden="true" />
-          {t(title)}
-        </strong>
-        <p>{t(summary)}</p>
-        {data.recent?.durationMs !== null &&
-          data.recent?.durationMs !== undefined &&
-          !warning && (
-            <p className="response-time">
-              {t('Last request (queue + provider)')}:{' '}
-              {data.recent.durationMs < 1000
-                ? `${data.recent.durationMs} ms`
-                : `${(data.recent.durationMs / 1000).toFixed(1)} s`}
-            </p>
-          )}
-        {missingKey && (
-          <p>
-            {t(
-              'Session keys disappear after Reload. Add the key again; choose Remember on this device to keep it.',
-            )}
-          </p>
-        )}
-      </div>
-      {(data.youtube || state === 'source-required') &&
-        (!isOn || restart || attention) && (
-          <label className="source-confirm">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
-            <span>
-              {t(
-                'For YouTube: I selected an original caption track, not Auto-translate.',
-              )}
-            </span>
-          </label>
-        )}
-      <div className="popup-controls">
-        <button
-          disabled={busy || (isOn && !restart && !attention)}
-          className={isOn && !restart && !attention ? 'enabled-button' : ''}
-          aria-pressed={isOn && !restart && !attention}
-          type="button"
-          onClick={() =>
-            missingKey
-              ? void browser.runtime.openOptionsPage()
-              : control('playback.enable')
-          }
-        >
-          {import.meta.env.MODE === 'mock'
-            ? locale === 'tr'
-              ? 'Test altyazısını etkinleştir'
-              : 'Enable mock captions'
-            : t(
-                missingKey
-                  ? 'Add API key'
-                  : restart
-                    ? 'Restart captions'
-                    : isOn && !attention
-                      ? '✓ Enabled'
-                      : 'Enable captions',
-              )}
-        </button>
-        <button
-          disabled={busy || (state !== 'enabled' && state !== 'needs-restart')}
-          className="secondary"
-          type="button"
-          onClick={() => control('playback.disable')}
-        >
-          {t('Disable captions')}
-        </button>
-      </div>
+      {import.meta.env.MODE !== 'mock' && (
+        <PageControls
+          prepare={async () => {
+            if (dirty.current) await save();
+          }}
+          captions={setShowCaptions}
+        />
+      )}
       {import.meta.env.MODE === 'mock' ? (
         <DevelopmentNotice />
       ) : (
@@ -389,7 +322,7 @@ export default function PopupDashboard() {
             </strong>
             {data.selected !== 'none' && (
               <span>
-                {t(paid ? 'Paid API · Captions sent to' : 'Captions sent to')}{' '}
+                {t(paid ? 'Paid API · Text sent to' : 'Text sent to')}{' '}
                 {recipient}
               </span>
             )}
@@ -483,6 +416,91 @@ export default function PopupDashboard() {
           {t('Save preferences')}
         </button>
       </fieldset>
+      <div
+        className={
+          showCaptions ? 'caption-section' : 'caption-section is-hidden'
+        }
+      >
+        <div
+          className={`playback-summary ${attention || restart ? 'needs-attention' : isOn ? 'is-on' : 'is-off'}`}
+          role="status"
+        >
+          <strong>
+            <span className="live-dot" aria-hidden="true" />
+            {t(title)}
+          </strong>
+          <p>{t(summary)}</p>
+          {data.recent?.durationMs !== null &&
+            data.recent?.durationMs !== undefined &&
+            !warning && (
+              <p className="response-time">
+                {t('Last request (queue + provider)')}:{' '}
+                {data.recent.durationMs < 1000
+                  ? `${data.recent.durationMs} ms`
+                  : `${(data.recent.durationMs / 1000).toFixed(1)} s`}
+              </p>
+            )}
+          {missingKey && (
+            <p>
+              {t(
+                'Session keys disappear after Reload. Add the key again; choose Remember on this device to keep it.',
+              )}
+            </p>
+          )}
+        </div>
+        {(data.youtube || state === 'source-required') &&
+          (!isOn || restart || attention) && (
+            <label className="source-confirm">
+              <input
+                type="checkbox"
+                checked={confirmed}
+                onChange={(e) => setConfirmed(e.target.checked)}
+              />
+              <span>
+                {t(
+                  'For YouTube: I selected an original caption track, not Auto-translate.',
+                )}
+              </span>
+            </label>
+          )}
+        <div className="popup-controls">
+          <button
+            disabled={busy || (isOn && !restart && !attention)}
+            className={isOn && !restart && !attention ? 'enabled-button' : ''}
+            aria-pressed={isOn && !restart && !attention}
+            type="button"
+            onClick={() =>
+              missingKey
+                ? void browser.runtime.openOptionsPage()
+                : control('playback.enable')
+            }
+          >
+            {import.meta.env.MODE === 'mock'
+              ? locale === 'tr'
+                ? 'Test altyazısını etkinleştir'
+                : 'Enable mock captions'
+              : t(
+                  missingKey
+                    ? 'Add API key'
+                    : restart
+                      ? 'Restart captions'
+                      : isOn && !attention
+                        ? '✓ Enabled'
+                        : 'Enable captions',
+                )}
+          </button>
+          <button
+            disabled={
+              busy || (state !== 'enabled' && state !== 'needs-restart')
+            }
+            className="secondary"
+            type="button"
+            onClick={() => control('playback.disable')}
+          >
+            {t('Disable captions')}
+          </button>
+        </div>
+      </div>
     </>
   );
 }

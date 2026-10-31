@@ -3,7 +3,6 @@ import type { TrustedStorage } from './storage.ts';
 import { BoundaryError } from './errors.ts';
 import { identifySender, type ContentIdentity } from './senders.ts';
 
-const KEY = 'playback-sessions.v1';
 const Saved = z
   .array(
     z.tuple([
@@ -37,26 +36,31 @@ export class SessionRegistry {
   #writes: Promise<void> = Promise.resolve();
   readonly #sessions = new Map<string, Session>();
   readonly #extensionId: string;
+  readonly #key: string;
   readonly #now: () => number;
-  readonly #onRevoke: (tabId: number) => void;
+  readonly #onRevoke: (tabId: number, sessionId: string) => void;
   constructor(
     extensionId: string,
     now: () => number = Date.now,
-    onRevoke: (tabId: number) => void = () => {},
+    onRevoke: (tabId: number, sessionId: string) => void = () => {},
     storage?: TrustedStorage,
+    key = 'playback-sessions.v1',
   ) {
     this.#extensionId = extensionId;
+    this.#key = key;
     this.#now = now;
     this.#onRevoke = onRevoke;
     this.#storage = storage;
     this.ready = storage
       ? storage.run(async ({ session }) => {
-          const parsed = Saved.safeParse((await session.get(KEY))[KEY]);
+          const parsed = Saved.safeParse(
+            (await session.get(this.#key))[this.#key],
+          );
           if (parsed.success && !this.#dirty)
             for (const [id, item] of parsed.data)
               if (item.expiresAt > now() && item.expiresAt <= now() + 1_800_000)
                 this.#sessions.set(id, item);
-          await session.set({ [KEY]: Array.from(this.#sessions) });
+          await session.set({ [this.#key]: Array.from(this.#sessions) });
         })
       : Promise.resolve();
     void this.ready.catch(() => {});
@@ -73,7 +77,7 @@ export class SessionRegistry {
         session.tabId === sender.identity.tabId &&
         session.frameId === sender.identity.frameId
       ) {
-        this.#onRevoke(session.tabId);
+        this.#onRevoke(session.tabId, id);
         this.#sessions.delete(id);
       }
     }
@@ -104,22 +108,28 @@ export class SessionRegistry {
   revokeOrigin(origin: string): void {
     for (const [id, session] of this.#sessions)
       if (session.origin === origin) {
-        this.#onRevoke(session.tabId);
+        this.#onRevoke(session.tabId, id);
         this.#sessions.delete(id);
       }
     this.#persist();
   }
+  interruptAll(): void {
+    for (const [id, session] of this.#sessions)
+      this.#onRevoke(session.tabId, id);
+  }
   revokeAll(): void {
-    for (const session of this.#sessions.values())
-      this.#onRevoke(session.tabId);
+    for (const [id, session] of this.#sessions)
+      this.#onRevoke(session.tabId, id);
     this.#sessions.clear();
     this.#persist();
   }
 
   revokeTab(tabId: number): void {
-    this.#onRevoke(tabId);
     for (const [id, session] of this.#sessions)
-      if (session.tabId === tabId) this.#sessions.delete(id);
+      if (session.tabId === tabId) {
+        this.#onRevoke(tabId, id);
+        this.#sessions.delete(id);
+      }
     this.#persist();
   }
 
@@ -130,7 +140,7 @@ export class SessionRegistry {
       .then(() => this.ready)
       .then(() =>
         this.#storage!.run(({ session }) =>
-          session.set({ [KEY]: Array.from(this.#sessions) }),
+          session.set({ [this.#key]: Array.from(this.#sessions) }),
         ),
       );
     // Dispatch/activation awaits flush, which propagates failures closed.
@@ -143,7 +153,7 @@ export class SessionRegistry {
   #prune(): void {
     for (const [id, session] of this.#sessions)
       if (session.expiresAt <= this.#now()) {
-        this.#onRevoke(session.tabId);
+        this.#onRevoke(session.tabId, id);
         this.#sessions.delete(id);
       }
   }

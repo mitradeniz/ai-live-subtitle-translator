@@ -1,3 +1,21 @@
+# 0.2.0-preview.1 — 2026-10-31
+
+- Add opt-in visible-page translation, loading new text as it scrolls into view.
+  Restore original text without replacing existing link elements or submitting forms.
+- Add a large popup action, feature customization, separate page display mode and
+  page-edge tools with click actions, hover menu, keyboard movement and hide/show.
+- Add selected-text and deliberate Alt-hover previews; text-field translation and
+  AI Writing (improve, shorten, formal, draft) preview before optional application.
+- Reuse existing provider profiles, origin-bound credentials, bounded queues and
+  fixed network destinations. Page jobs have separate document-bound sessions and
+  bypass translation caches. No new required or broad host permissions.
+- Keep provider/language changes in the trusted popup; changes stop page work and
+  restore originals. Navigation/expiry ends page activation.
+
+Limited preview. Main-document ordinary text and plain fields only; rich editors,
+iframes, PDFs and private/incognito windows are unsupported. Live site/provider
+quality and new owner checks remain pending. No server, domain or proxy added.
+
 # 0.1.5-preview.1 — 2026-10-31
 
 - Use the YouTube player's own selected-track caption response instead of replaying

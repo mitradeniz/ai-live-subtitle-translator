@@ -2,7 +2,7 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.1.5-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+**Current status: 0.2.0-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus experimental YouTube timed-caption access and a visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.1.5-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.1.5-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.1.5-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.2.0-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.2.0-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.2.0-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.1.5-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.2.0-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -419,6 +419,58 @@ It stops the worker through Chromium's browser-level service-worker control and 
 immediately; an attached worker inspector can change lifecycle behavior. This forced
 termination check is not a claim that natural idle suspension was measured. Fixture
 response timings are not live-provider latency or billing guarantees.
+
+## Page translation and writing tools
+
+Open the extension popup on a regular HTTP(S) page and choose a provider using the
+existing provider cards. **Customize translation** enables page translation, selected
+text, Alt-hover previews, text-field translation and AI Writing separately. Video
+caption controls have their own visibility switch. Optional text tools start off.
+Provider/model and source/target languages are shared with captions; page display
+mode and enabled tools are separate.
+
+- **Translate visible page** translates visible ordinary text. Scrolling exposes the
+  next text to translate; it does not send the whole document in advance. Choose
+  bilingual or translated-only page display. Links retain their original elements.
+- **Enable edge tools** installs the page control without transmitting text. Clicking
+  the square runs the chosen action; hovering opens its glass menu. Focus/F2 opens
+  the menu by keyboard, Escape closes it, and arrow keys move the dock. Hide/Show
+  preserves its page edge and height. **Change provider / languages** opens the
+  trusted toolbar popup; keys and new provider permissions stay in extension UI.
+- **Selected text**: enable tools first, select up to 1,000 characters, then choose
+  Translate selection or use that edge-button action. Output appears in a preview.
+- **Hover**: opt in, then hold Alt while hovering over ordinary text for 650 ms.
+  Hovering over the edge control alone never sends text.
+- **Text fields**: focus a normal textarea or text/search input, then explicitly
+  choose Translate focused field. Review the result and choose Apply. Password,
+  known payment/account fields and rich contenteditable editors are excluded.
+- **AI Writing**: select a configured AI profile, enter a short text/brief or focus
+  a supported field, then choose improve, shorten, formal tone or draft from brief.
+  Generate preview is a provider request and can cost money. The extension never
+  clicks a send/submit button; Apply writes only to the unchanged original field.
+  For other editors, copy the plain preview yourself.
+
+Restore original page stops pending page work and restores owned text changes.
+The popup's Restore action also removes page tools. Provider/language/feature/key
+changes restore the page and require explicit reactivation. Navigation or expiry
+ends the page session. Page translation and caption sessions are authorized separately.
+If both tools are enabled, the page menu's Video controls opens the caption controls.
+
+This is an experimental main-document feature, not support for every site/editor.
+Iframes, shadow-root text, PDFs, browser-internal pages, code, forms, hidden text,
+`translate="no"` and editable areas are excluded from automatic translation.
+It scans at most 12,000 text nodes / 1,500 parent elements, processes at most 300 text
+nodes / 60,000 source characters per activation, and skips individual nodes over
+6,000 characters. Inline markup can split translation context. Highly dynamic
+sites may replace translated nodes; changed originals are never blindly overwritten
+on restore. Provider failures pause work with originals retained for unfinished text.
+Existing provider rate/quota limits still apply; no automatic paid fallback or
+unbounded retry is added. Page results/drafts stay in page memory, not the optional
+persistent caption cache. Feature preferences survive reload; page activation does not.
+
+Run `pnpm test:page` for the packaged synthetic page/selection/field/writing tests.
+The test uses mocked providers and a temporary test-only host grant. Live provider
+quality, actual activeTab prompts and site/editor compatibility remain owner checks.
 
 ## Floating subtitle controls
 

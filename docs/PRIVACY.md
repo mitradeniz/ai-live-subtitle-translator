@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.5-preview.1.
+Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.2.0-preview.1.
 This describes the implemented extension. This file has not been published as a
 hosted privacy-policy page and does not imply store approval.
 
@@ -41,21 +41,49 @@ disabling stops provider work. The draggable control's position/hidden state is
 held only by the current overlay. Its settings button opens the fixed extension
 options page and receives no credentials or configurable destination.
 
+## Page and writing tools
+
+Page tools require a deliberate popup action on the current HTTP(S) main document.
+There is no new all-sites host permission or automatic page translation. Visible
+ordinary text is processed as you scroll; mutation and intersection observers track
+new visible content within fixed scan/node/character bounds. Automatic translation
+skips form controls, editable areas, hidden text, code, and translate-disabled regions.
+It does not access iframe or shadow-root content. This does not identify every kind
+of sensitive information displayed as ordinary page text; choose pages deliberately.
+
+Selected text (up to 1,000 characters) is transmitted only after an action. Optional
+Alt-hover translation sends the hovered ordinary text after 650 ms. Text-field
+translation and AI Writing send the requested field value or entered brief, up to
+1,000 characters, only when explicitly triggered. Password fields and recognizable
+payment/account fields are excluded. Writing adds a fixed improvement/shortening/
+formal/drafting instruction. It uses your selected AI account and may incur charges.
+Results are shown as plain previews; applying a preview does not submit a form.
+
+Page/selection/field/writing results bypass both persistent and session translation
+caches. Current text, originals for restoration, drafts and results live only in the
+content context until it is disposed, the page navigates/reloads, or its 30-minute
+session expires. A bounded in-memory page result can be reused on that page. Page
+feature preferences persist locally until changed/cleared; settings export currently
+covers caption/language preferences, not the page-tool feature selections. Minimal
+trusted session IDs, document identity and hashed job journals use extension session
+storage for cancellation and uncertain paid-request recovery. They contain no raw
+page text or writing drafts. Provider-side retention is independent of these controls.
+
 ## Where text goes
 
 No translation engine is selected by default. Enabling one requires an explicit
 choice and its host permission. Requests go directly from your browser to that
 provider over HTTPS. There is no project proxy, account server or analytics service.
 
-| Choice                            | Recipient                                   | Information sent                                                                                                                     |
-| --------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Experimental keyless Google       | Google, `translate.googleapis.com`          | Caption text in a URL query, source/target language and fixed client parameters; no API key                                          |
-| Google Cloud Translation Basic v2 | Google Cloud, `translation.googleapis.com`  | Caption batches and source/target language in the request body; your key in a request header                                         |
-| OpenAI                            | OpenAI, `api.openai.com`                    | Model, language pair, bounded caption batches with IDs/revisions and a translation instruction; your key in the Authorization header |
-| DeepSeek                          | DeepSeek, `api.deepseek.com`                | The same bounded AI request fields and your origin-bound key                                                                         |
-| Gemini OpenAI-compatible profile  | Google, `generativelanguage.googleapis.com` | The same bounded AI request fields and your origin-bound key                                                                         |
+| Choice                            | Recipient                                   | Information sent                                                                                                                          |
+| --------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Experimental keyless Google       | Google, `translate.googleapis.com`          | Requested text in a URL query, source/target language and fixed client parameters; no API key                                             |
+| Google Cloud Translation Basic v2 | Google Cloud, `translation.googleapis.com`  | Text batches and source/target language in the request body; your key in a request header                                                 |
+| OpenAI                            | OpenAI, `api.openai.com`                    | Model, language pair, bounded text batches with IDs/revisions and a translation/writing instruction; your key in the Authorization header |
+| DeepSeek                          | DeepSeek, `api.deepseek.com`                | The same bounded AI request fields and your origin-bound key                                                                              |
+| Gemini OpenAI-compatible profile  | Google, `generativelanguage.googleapis.com` | The same bounded AI request fields and your origin-bound key                                                                              |
 
-Other captions within the same AI batch provide context; no separate conversation,
+Other text items within the same AI batch provide context; no separate conversation,
 full transcript or unlimited history is sent. Providers receive ordinary network
 metadata such as your IP address. The extension omits website cookies and referrers
 and does not include the video URL in translation requests. Keyless query text may
@@ -73,7 +101,7 @@ tests send the synthetic phrase “Hello, world.”; saving a key does not test 
 | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Language/display preferences, provider/model selection, opt-in flags | Local extension storage until changed, cleared or extension removal                                                                                              |
 | API keys                                                             | Session storage by default; cleared on browser restart or extension reload/update. Explicit “remember” stores a key on device until deletion/replacement/removal |
-| Translation results                                                  | Session cache: up to 128 batches / 256 KiB, usable for 30 minutes. Optional device cache: same bounds, usable for 24 hours                                       |
+| Caption translation results                                          | Session cache: up to 128 batches / 256 KiB, usable for 30 minutes. Optional device cache: same bounds, usable for 24 hours                                       |
 | Cache identity                                                       | SHA-256 of provider/endpoint/model/languages/config and ordered caption text/context; raw source text is not separately stored in the cache                      |
 | Active playback/job state                                            | Bounded session state containing tab/frame/document/origin bindings, IDs, hashes and expiry; playback/uncertain-job guards expire after 30 minutes               |
 | Provider request counters/cooldown guards                            | Bounded session records; retained when clearing user data to prevent repeated paid dispatch, cleared with the browser/extension session                          |

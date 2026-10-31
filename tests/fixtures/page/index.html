@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Page tools fixture</title>
+    <style>
+      body {
+        background: #0d1220;
+        color: #edf2ff;
+        font: 18px/1.6 system-ui;
+        margin: 0;
+        padding: 40px 90px;
+      }
+      main {
+        max-width: 760px;
+      }
+      p {
+        margin: 22px 0;
+      }
+      textarea {
+        width: 400px;
+        height: 70px;
+      }
+      section.spacer {
+        height: 1100px;
+      }
+      a {
+        color: #b8d0ff;
+      }
+      [hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Visible heading.</h1>
+      <p id="first">
+        First sentence with <a id="link" href="#lower">a working link</a> and
+        literal &lt;img src=x onerror=bad&gt; text.
+      </p>
+      <p id="selectable">Selection preview sentence.</p>
+      <form
+        onsubmit="
+          event.preventDefault();
+          window.submitted = true;
+        "
+      >
+        <textarea id="editor" aria-label="Example editor">
+A rough draft sentence.</textarea
+        ><input type="password" value="PASSWORD_SENTINEL" /><input
+          type="text"
+          autocomplete="cc-number"
+          value="CARD_SENTINEL"
+        />
+        <p>FORM_PRIVATE_SENTINEL</p>
+        <button type="submit">Submit</button>
+      </form>
+      <pre>CODE_PRIVATE_SENTINEL</pre>
+      <p hidden>HIDDEN_PRIVATE_SENTINEL</p>
+      <p translate="no">NO_TRANSLATE_SENTINEL</p>
+      <p contenteditable="true">EDITABLE_PRIVATE_SENTINEL</p>
+      <section class="spacer"></section>
+      <p id="lower">Lower paragraph appears after scrolling.</p>
+      <div id="dynamic"></div>
+    </main>
+  </body>
+</html>
