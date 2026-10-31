@@ -208,7 +208,11 @@ export function createController(
             preferences: await pageSettings.read(),
           },
         };
-      } else if (request.type === 'page.captions') {
+      } else if (
+        request.type === 'page.captions' ||
+        request.type === 'page.caption-status' ||
+        request.type === 'page.caption-toggle'
+      ) {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         const ticket = epoch;
         const authorized = async () => {
@@ -219,11 +223,44 @@ export function createController(
           return (
             epoch === ticket &&
             prefs.captions &&
-            prefs.clickAction === 'captions'
+            (request.type !== 'page.captions' ||
+              prefs.clickAction === 'captions')
           );
         };
         if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
         if (!pageCaptions) throw new BoundaryError('UNAVAILABLE');
+        const operation =
+          request.type === 'page.caption-status'
+            ? 'status'
+            : request.type === 'page.caption-toggle' && !request.enabled
+              ? 'disable'
+              : 'enable';
+        if (operation !== 'enable') {
+          const state = await pageCaptions(
+            sender.identity.tabId,
+            sender.identity.documentId,
+            false,
+            authorized,
+            operation,
+          );
+          if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
+          const originalOnly =
+            operation === 'status' &&
+            state === 'enabled' &&
+            ((await settings.read()).displayMode === 'original' ||
+              (await selection.read()) === 'none');
+          if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
+          await sessions.flush();
+          await pageSessions.flush();
+          response = {
+            ok: true,
+            data: {
+              kind: 'playback',
+              state: originalOnly ? 'needs-restart' : state,
+            },
+          };
+          return ResponseSchema.parse(response);
+        }
         const preferences = await settings.read();
         const selected = await selection.read();
         // The page action cannot change engines, languages or resume original-only.

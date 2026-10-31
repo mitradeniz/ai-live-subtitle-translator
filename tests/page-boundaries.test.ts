@@ -321,3 +321,84 @@ test('video edge action requires a selected capability and browser-bound identit
   assert.equal((await call()).ok, false);
   assert.equal(calls, 1);
 });
+
+test('compact caption switch and status bind to the sender document without changing the edge action', async () => {
+  const calls: string[] = [];
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    undefined,
+    { permitted: async () => true },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async (tabId, documentId, confirmed, authorized, operation = 'enable') => {
+      assert.equal(tabId, 7);
+      assert.equal(documentId, contentSender().documentId);
+      assert.equal(await authorized(), true);
+      assert.equal(confirmed, false);
+      calls.push(operation);
+      return operation === 'enable' ? 'enabled' : 'disabled';
+    },
+  );
+  await controller.dispatch(request('google.enable'), uiSender());
+  const sender = contentSender();
+  const sessionId = controller.pageSessions.grant(sender);
+  const send = (type: string, extra = {}, from: unknown = sender) =>
+    controller.dispatch(request(type, { sessionId, ...extra }), from);
+  for (const type of ['page.caption-status', 'page.caption-toggle']) {
+    const extra = type === 'page.caption-toggle' ? { enabled: true } : {};
+    assert.equal((await send(type, extra, uiSender('popup'))).ok, false);
+    assert.equal(
+      (await send(type, extra, { ...sender, documentId: 'forged' })).ok,
+      false,
+    );
+    assert.equal((await send(type, { ...extra, tabId: 88 })).ok, false);
+    assert.equal(
+      (await send(type, { ...extra, endpoint: 'https://attacker.test' })).ok,
+      false,
+    );
+  }
+  assert.deepEqual(calls, []);
+  assert.equal((await send('page.caption-status')).ok, true);
+  assert.equal((await send('page.caption-toggle', { enabled: true })).ok, true);
+  assert.equal(
+    (await send('page.caption-toggle', { enabled: true })).ok,
+    false,
+    'Repeated activation stays rate limited',
+  );
+  assert.equal(
+    (await send('page.caption-toggle', { enabled: false })).ok,
+    true,
+    'Stopping must remain possible immediately after starting',
+  );
+  assert.deepEqual(calls, ['status', 'enable', 'disable']);
+  await controller.selection.set('ai');
+  const missing = await send('page.caption-toggle', { enabled: true });
+  assert.ok(
+    missing.ok &&
+      missing.data.kind === 'playback' &&
+      missing.data.state === 'key-required',
+  );
+  assert.deepEqual(
+    calls,
+    ['status', 'enable', 'disable'],
+    'The switch cannot bypass paid credential checks',
+  );
+  const prefs = await controller.dispatch(
+    request('page.preferences'),
+    uiSender(),
+  );
+  assert.ok(prefs.ok && prefs.data.kind === 'page-preferences');
+  assert.equal(prefs.data.preferences.clickAction, 'page');
+  controller.pageSessions.revokeAll();
+  assert.equal((await send('page.caption-status')).ok, false);
+  assert.equal(
+    (await send('page.caption-toggle', { enabled: false })).ok,
+    false,
+  );
+});

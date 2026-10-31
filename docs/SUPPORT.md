@@ -80,7 +80,11 @@ player that reasserts native captions, and unresponsive status reads. This does 
 verify DeepLearning.AI's signed-in player or any other course site's account state.
 
 With page tools enabled, a glass button inside the largest visible main-document
-video opens translation tools without starting a request. It occupies a slot beside
+video opens a compact caption switch/download/settings menu without starting a
+translation request. The switch uses the document-bound playback state. Download
+support is limited to already-loaded, unambiguous native source tracks, saved as
+VTT; observed captions without timing and translated-track export are unsupported.
+It occupies a slot beside
 CC/settings in recognized HTML control rows (Video.js, JW, Shaka, Vidstack-style
 rows and semantic toolbars). Selectors are compatibility hints, not a promise of
 universal player support. Unknown layouts and browser-native controls use the

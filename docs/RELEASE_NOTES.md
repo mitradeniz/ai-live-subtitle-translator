@@ -6,7 +6,9 @@
   Discover page text in small batches on large, changing documents.
 - Add a glass shortcut beside CC/settings in recognized player control bars while
   page tools are enabled; hide it with the bar and reconnect after replacement.
-  Opening it does not translate; starting captions remains an explicit action.
+  Its compact menu offers a playback-state switch, local native-source VTT download
+  and settings. Opening it does not translate; starting captions remains an explicit
+  action and does not change the edge-button preference.
 
 - Add opt-in visible-page translation, loading new text as it scrolls into view.
   Restore original text without replacing existing link elements or submitting forms.

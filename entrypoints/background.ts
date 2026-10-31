@@ -63,8 +63,8 @@ export default defineBackground(() => {
     () => browser.runtime.openOptionsPage(),
     (operation, run) => page.handle(operation, run),
     () => browser.action.openPopup(),
-    (tabId, documentId, confirmed, authorized) =>
-      playback.fromPage(tabId, documentId, confirmed, authorized),
+    (tabId, documentId, confirmed, authorized, operation) =>
+      playback.fromPage(tabId, documentId, confirmed, authorized, operation),
     {
       allPermitted: () =>
         import.meta.env.MODE === 'mock'

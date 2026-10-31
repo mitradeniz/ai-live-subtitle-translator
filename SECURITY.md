@@ -36,6 +36,11 @@ to that document's page-tools session. The background derives tab/document ident
 from the browser sender, checks the selected capability and existing provider setup,
 and bounds repeated activation. This action cannot enable a provider or change
 original-only display; YouTube source confirmation comes from trusted preferences.
+The compact player switch uses the same enabled-caption capability and bound sender
+checks without changing the edge action. Status reads cannot start a provider;
+turning it off revokes playback work and pauses automatic captions for that tab.
+Local VTT export reads only already-loaded source cues, escapes text, rejects
+ambiguous/oversized input and never accepts a URL or fetches remote captions.
 The content-side action picker is limited to enabled page/video features, uses a
 bound document session, and cannot modify other settings or source confirmation.
 Automatic logo access requires a saved opt-in plus a current browser grant. The

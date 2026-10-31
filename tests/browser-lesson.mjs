@@ -210,16 +210,66 @@ try {
     false,
     'Page-script click cannot open controls',
   );
+  const mini = page.locator('translator-player-shortcut').getByRole('dialog');
+  const toggle = mini.getByRole('switch', { name: 'Subtitle translation' });
   await shortcut.click();
-  await tools
-    .getByRole('button', { name: 'Start video subtitles', exact: true })
-    .waitFor();
+  await mini.waitFor();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')?.disabled === false,
+  );
+  assert.equal(
+    await tools.locator('.panel').isVisible(),
+    false,
+    'The player shortcut opens its own compact menu',
+  );
   assert.equal(providerRequests, 0, 'Opening settings does not translate');
+  assert.equal(await toggle.getAttribute('aria-checked'), 'false');
+  await toggle.evaluate((button) => button.click());
+  assert.equal(
+    providerRequests,
+    0,
+    'Synthetic switch clicks cannot start translation',
+  );
+  const downloads = [];
+  page.on('download', (download) => downloads.push(download));
+  await mini
+    .getByRole('button', { name: /^Download subtitles/ })
+    .evaluate((button) => button.click());
+  assert.equal(
+    downloads.length,
+    0,
+    'Synthetic download clicks do not save a file',
+  );
+  const downloadEvent = page.waitForEvent('download');
+  await mini.getByRole('button', { name: /^Download subtitles/ }).click();
+  const download = await downloadEvent;
+  assert.equal(download.suggestedFilename(), 'subtitles-original.vtt');
+  const saved = await readFile(await download.path(), 'utf8');
+  assert.match(saved, /^WEBVTT\n\n1\n00:00:00.000 --> 00:00:30.000/);
+  assert.match(saved, /A complete synthetic lesson sentence/);
+  assert.equal(providerRequests, 0, 'Source export makes no provider request');
   await page.screenshot({ path: '.output/lesson-player.png' });
   await page.keyboard.press('Escape');
+  await mini.waitFor({ state: 'hidden' });
   await shortcut.focus();
   await page.keyboard.press('Enter');
-  assert.equal(await tools.locator('.panel').isVisible(), true);
+  await mini.waitFor();
+  const settingsTab = context.waitForEvent('page');
+  await mini.getByRole('button', { name: 'Settings', exact: true }).click();
+  const openedSettings = await settingsTab;
+  await openedSettings.waitForURL(`chrome-extension://${id}/options.html`);
+  await openedSettings.close();
+  await page.bringToFront();
+  await shortcut.click();
+  await mini.waitFor();
+  const menuRect = await mini.boundingBox();
+  assert.ok(
+    menuRect.y + menuRect.height <= buttonRect.y,
+    'Compact menu opens directly above the player button',
+  );
   await page.evaluate(async () => {
     const player = document.querySelector('.video-js');
     await player.requestFullscreen();
@@ -231,6 +281,9 @@ try {
     ),
     true,
   );
+  if (!(await mini.isVisible())) await shortcut.click();
+  await mini.waitFor();
+  await page.keyboard.press('Escape');
   await page.evaluate(() => document.exitFullscreen());
 
   const settings = (await send('popup.read')).data.settings;
@@ -261,6 +314,58 @@ try {
     true,
   );
   await page.bringToFront();
+  await send('controls.update', {
+    preferences: { ...preferences, displayMode: 'bilingual' },
+  });
+  await page.bringToFront();
+  assert.equal((await send('page.enable', { run: false })).ok, true);
+  await shortcut.click();
+  await mini.waitFor();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')?.disabled === false,
+  );
+  await toggle.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')
+        ?.getAttribute('aria-checked') === 'true',
+  );
+  await send('playback.disable');
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')
+        ?.getAttribute('aria-checked') === 'false',
+  );
+  await toggle.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')
+        ?.getAttribute('aria-checked') === 'true',
+  );
+  await toggle.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')
+        ?.getAttribute('aria-checked') === 'false',
+  );
+  assert.equal(
+    await page.locator('subtitle-translator-overlay').count(),
+    0,
+    'Turning the switch off removes captions',
+  );
+  assert.equal(await page.evaluate(() => window.track.mode), 'showing');
+  await page.keyboard.press('Escape');
   const before = await page.evaluate(() => window.ticks);
   assert.equal((await send('page.enable', { run: true })).ok, true);
   await page.waitForFunction(() =>

@@ -474,10 +474,21 @@ translation still requires a new click. Navigation or expiry ends the translatio
 session; automatic mode reconnects idle controls without resuming translation. Page translation and caption sessions are authorized separately.
 If both tools are enabled, the page menu's Video controls opens the caption controls.
 With page tools enabled, a smaller **A文** button also appears inside the largest
-visible main-document video’s recognized control bar, beside CC/settings. It opens translation tools;
-choose **Start video subtitles** to start captions, **Video controls** for an active
-caption overlay, or **Open settings** for provider setup. Opening this menu sends
-no text. The button has its own slot and follows the control bar’s visibility.
+visible main-document video’s recognized control bar, beside CC/settings. It opens a
+compact menu directly above the button with a **Subtitle translation** switch,
+**Download subtitles**, and **Settings**. The switch reads actual playback state;
+it can stop captions immediately, and starting still requires your configured
+provider/access/key and a translated display mode. It does not change the edge
+button's selected Page/Video action. Opening the menu sends no text.
+
+Download saves the already-loaded, unambiguous native source caption track as
+`subtitles-original.vtt`. It does not request translations or fetch a caption URL.
+The button is disabled if the source is inaccessible, ambiguous, malformed or over
+5,000 cues / 512,000 output characters. It does not export a translated track or
+invent timestamps for observed YouTube captions. Files explicitly downloaded by
+you remain on your device after clearing extension data. **Settings** opens the
+extension options page. The button has its own slot and follows the control bar’s
+visibility.
 It reconnects after toolbar replacement and works in supported container fullscreen.
 Unknown layouts and browser-native video controls keep the page-edge menu; no
 extra button is placed over the picture.

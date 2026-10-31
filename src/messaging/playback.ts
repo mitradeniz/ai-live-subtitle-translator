@@ -50,4 +50,5 @@ export type PageCaptionHandler = (
   documentId: string,
   confirmed: boolean,
   authorized: () => Promise<boolean>,
+  operation?: 'enable' | 'disable' | 'status',
 ) => Promise<PlaybackState>;

@@ -264,15 +264,28 @@ export class PageTools {
     this.#dock.append(this.#button, this.#panel);
     this.#shadow.append(css, this.#dock, this.#show);
     if (prefs.captions)
-      this.#playerShortcut = new PlayerShortcut(
-        this.t('Video translation settings'),
-        () => {
-          this.#dock.hidden = false;
-          this.#show.hidden = true;
-          this.open(true);
-          videoStart.focus();
+      this.#playerShortcut = new PlayerShortcut({
+        t: (text) => this.t(text),
+        recipient: `${label} · ${settings.sourceLanguage} → ${settings.targetLanguage}`,
+        status: async () => {
+          const result = await sendRequest({
+            type: 'page.caption-status',
+            sessionId,
+          });
+          return result.kind === 'playback' ? result.state : 'unavailable';
         },
-      );
+        toggle: async (enabled) => {
+          const result = await sendRequest({
+            type: 'page.caption-toggle',
+            sessionId,
+            enabled,
+          });
+          return result.kind === 'playback' ? result.state : 'unavailable';
+        },
+        settings: async () => {
+          await sendRequest({ type: 'page.open-settings', sessionId });
+        },
+      });
     this.#button.addEventListener('pointerdown', (event) => {
       if (!event.isTrusted || event.button !== 0) return;
       this.#drag = {

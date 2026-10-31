@@ -132,6 +132,12 @@ content scripts. The extension does not support incognito operation.
 
 ## Your controls
 
+The player menu's **Download subtitles** action saves already-loaded native source
+cues to a local VTT file, only when clicked. It makes no provider request, loads no
+remote caption URL, and includes no key or browsing-history metadata. It does not
+export translated text. A file you explicitly download remains in your downloads
+folder after clearing extension data; delete it there if no longer needed.
+
 - Disable captions to stop that playback session and restore native caption state.
   Disable automatic YouTube activation separately if you do not want it after refresh.
 - Use **Original only** to pause translation. Resume via popup/settings, not page

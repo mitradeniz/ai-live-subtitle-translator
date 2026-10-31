@@ -40,6 +40,7 @@ export function createPlaybackHandler(
       return 'unavailable';
     if (automaticTab === undefined && type !== 'playback.status')
       await pause(tabId, type === 'playback.disable');
+    if (!(await current())) return 'disabled';
     if (type !== 'playback.enable') {
       if (type === 'playback.disable') {
         sessions.revokeTab(tabId);
@@ -54,12 +55,13 @@ export function createPlaybackHandler(
                 ? 'playback.stop'
                 : 'playback.inspect',
           },
-          { frameId: 0 },
+          expectedDocument ? { documentId: expectedDocument } : { frameId: 0 },
         );
         const state: unknown =
           type === 'playback.status'
             ? await readWithDeadline(response, 1500)
             : await response;
+        if (!(await current())) return 'disabled';
         return PlaybackStateSchema.parse(state);
       } catch (error) {
         return error instanceof ReadTimeout ? 'unavailable' : 'disabled';
@@ -151,15 +153,28 @@ export function createPlaybackHandler(
       documentId: string,
       confirmed: boolean,
       authorized: () => Promise<boolean>,
+      operation: 'enable' | 'disable' | 'status' = 'enable',
     ) => {
       if (!(await authorized())) return 'disabled';
-      const state = await browser.tabs
-        .sendMessage(
+      if (operation !== 'status') await pause(tabId, operation === 'disable');
+      if (!(await authorized())) return 'disabled';
+      if (operation !== 'enable')
+        return perform(
+          operation === 'status' ? 'playback.status' : 'playback.disable',
+          false,
+          tabId,
+          documentId,
+          authorized,
+          true,
+        );
+      const state = await readWithDeadline(
+        browser.tabs.sendMessage(
           tabId,
           { version: 1, type: 'playback.inspect' },
           { documentId },
-        )
-        .catch(() => null);
+        ),
+        1500,
+      ).catch(() => null);
       if (!(await authorized())) return 'disabled';
       if (state === 'enabled') return 'enabled';
       return perform(

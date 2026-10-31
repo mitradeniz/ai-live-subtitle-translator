@@ -127,6 +127,7 @@ export const RequestSchema = z.discriminatedUnion('type', [
   ...(
     [
       'page.captions',
+      'page.caption-status',
       'page.settings',
       'page.cancel',
       'page.open-popup',
@@ -135,6 +136,12 @@ export const RequestSchema = z.discriminatedUnion('type', [
   ).map((type) =>
     z.strictObject({ ...envelope, type: z.literal(type), sessionId }),
   ),
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.caption-toggle'),
+    sessionId,
+    enabled: z.boolean(),
+  }),
   z.strictObject({
     ...envelope,
     type: z.literal('page.translate'),

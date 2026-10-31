@@ -1,5 +1,14 @@
 export type Locale = 'en' | 'tr';
 export const turkish: Record<string, string> = {
+  Settings: 'Ayarlar',
+  'Subtitle translation': 'Altyazı çevirisi',
+  'Download subtitles': 'Altyazıları indir',
+  'Original subtitles · VTT': 'Orijinal altyazı · VTT',
+  'Requires a loaded, unambiguous native caption track.':
+    'Yüklenmiş ve seçimi belirli bir yerel altyazı gerektirir.',
+  'No downloadable timed source subtitles.':
+    'İndirilebilen zamanlı kaynak altyazı yok.',
+
   'Video translation settings': 'Video çeviri ayarları',
   'Start video subtitles': 'Video altyazılarını başlat',
   'Page status unavailable': 'Sayfa durumu alınamıyor',
