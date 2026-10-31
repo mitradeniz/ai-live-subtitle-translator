@@ -1,3 +1,23 @@
+# Unreleased
+
+- Redesign the popup, settings and in-page controls in a liquid glass style:
+  translucent panels over a static aurora background, rim highlights and
+  spring-eased switches and segmented controls. The system font stack is used;
+  no remote fonts or images are loaded.
+- Split the popup into **Video subtitles** and **Page translation** tabs so the
+  default view fits without scrolling; the last tab is remembered locally. Add a
+  language swap button and mark unsaved popup preferences.
+- Add a live caption preview to settings that follows font size, background,
+  position, display mode and target language.
+- Render checkboxes as switches with native checkbox semantics; this also fixes
+  the oversized checkbox in the popup's page tools.
+- Show Glass captions in a frosted capsule; **Solid background** stays plain black.
+  Blur is removed when the system asks for reduced transparency.
+- Redraw the extension icon as a glass lens over an aurora tile, with a simplified
+  16/32 px variant.
+
+No permissions, network destinations, stored data or translation behavior changed.
+
 # 0.2.0-preview.1 — 2026-10-31
 
 - Keep popup provider controls usable when the page does not answer status reads;

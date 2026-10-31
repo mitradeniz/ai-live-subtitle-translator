@@ -5,7 +5,7 @@ An open-source browser extension being developed for video subtitle translation.
 **Current status: 0.2.0-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus experimental YouTube timed-caption access and a visible-caption
 fallback. Includes saved preferences, JSON export, and
-a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
+a liquid glass popup and settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
 Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; live playback verification remains incomplete. The owner reports a successful DeepSeek small test; that does not establish video translation.** A separate, clearly labeled local test build
 repeats captions with a mock prefix for testing. YouTube live caption delivery varies; see the limitations below.
 
@@ -111,9 +111,12 @@ Build output and local caches are ignored by Git.
 3. The overlay follows the video clock. **Disable captions** removes the overlay
    and restores native track modes. Caption text is rendered as plain text, including
    any markup-like strings present in the source.
-4. The popup offers provider cards, source/target language and
-   original/translated/bilingual display directly. **Open settings** also offers
-   font size, contrast, top/bottom position and English/Turkish interface language. **Save preferences**
+4. The popup has two tabs. **Video subtitles** shows the caption status with
+   **Enable captions**/**Disable captions**, source/target language (with a swap
+   button), original/translated/bilingual display and provider cards. **Page
+   translation** holds the page tools; the popup remembers the last tab.
+   **Open settings** also offers a live caption preview, font size, contrast,
+   top/bottom position and English/Turkish interface language. **Save preferences**
    applies appearance changes during playback. Language or provider changes stop
    translation: enable captions again from the video page. In **Translation only**, the extension waits for the current translation without
    first displaying the source. Original/bilingual mode still shows source text
@@ -768,8 +771,9 @@ RTL/plain text, and YouTube registration/refresh/navigation/manual-stop/opt-out.
 Its temporary copy has scoped fixture/YouTube/provider grants; actual Chrome
 permission denial/revocation prompts remain manual checks.
 
-The glass translation mark is original repository artwork in `assets/logo.svg`.
-Chrome uses the committed PNG sizes under `public/icons/`. After changing the SVG,
+The glass translation mark is original repository artwork in `assets/logo.svg`;
+`assets/logo-small.svg` is a simplified drawing for the 16 and 32 px toolbar sizes.
+Chrome uses the committed PNG sizes under `public/icons/`. After changing either SVG,
 run `pnpm icons` with the pinned Playwright Chromium installed, then rebuild.
 
 The packaged gate suite exercises Chromium redirect and CSP enforcement, response
