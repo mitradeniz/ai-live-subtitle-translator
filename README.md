@@ -2,7 +2,7 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.2.1-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+**Current status: 0.2.2-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus experimental YouTube timed-caption access and a visible-caption
 fallback. Includes saved preferences, JSON export, and
 a liquid glass popup and settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.2.1-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.2.1-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.2.1-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.2.2-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.2.2-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.2.2-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.2.1-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.2.2-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -58,27 +58,36 @@ from the actual settings UI are prepared locally, without inventing a live URL.
 
 ## Other browsers
 
-The package is a standard Manifest V3 Chromium extension. The same verified ZIP
-can be loaded unpacked or submitted to other Chromium stores; there is no separate
-build per Chromium browser. These browsers have not been tested by the project yet,
-so record the exact browser version when you check one (see the
-[support matrix](docs/SUPPORT.md)).
+Brave uses the Chrome Web Store listing. Chromium packages require an engine based
+on Chrome 151 or later. Clean popup/options installation has been checked on Brave
+Chromium 152.0.7977.76 and Opera Chromium 152.0.7977.130; this does not qualify every
+live site or provider. Edge publication depends on its separate publisher account.
 
-| Browser        | Distribution                                                                                                                                   | Notes                                                                                             |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Microsoft Edge | [Edge Add-ons](https://learn.microsoft.com/en-us/microsoft-edge/extensions/publish/create-dev-account) via Partner Center, no registration fee | Needs an Edge release on Chromium 151 or later                                                    |
-| Opera          | [Opera add-ons](https://help.opera.com/en/extensions/)                                                                                         | Needs a Chromium 151+ base; confirm at submission that the store accepts this Manifest V3 package |
-| Brave          | Installs extensions from the Chrome Web Store; no separate store                                                                               | Load unpacked for testing, as in Chrome                                                           |
-| Firefox        | Not supported yet                                                                                                                              | See below                                                                                         |
+Firefox desktop has a separate Manifest V3 build and requires Firefox 153 or later.
+It uses Firefox document IDs, a background script, trusted-only session storage and
+extension-origin IndexedDB for authoritative durable state. The installation prompt
+explains provider-bound text and authentication data transmission. There is no
+Firefox Android or Safari support claim.
 
-A Firefox build is not provided. Firefox does not implement
-`storage.StorageArea.setAccessLevel()`, which this extension requires so that
-content scripts cannot read saved settings or remembered API keys; storage
-initialization fails closed without it. Firefox also needs background scripts
-instead of a service worker, and document-bound sessions need Firefox 153 or later.
-A port must keep those guarantees and add an add-on ID and the
-[data collection declaration](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)
-that addons.mozilla.org requires for new extensions.
+```sh
+pnpm build:firefox
+pnpm check:build:firefox
+pnpm test:firefox
+pnpm release:firefox
+```
+
+The unpacked Firefox build is `.output/firefox-mv3`; the ZIP is
+`.output/ai-live-subtitle-translator-0.2.2-firefox.zip`. For a local temporary install,
+open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on**, and
+select the build's `manifest.json`. Temporary installation is a development test;
+normal distribution requires Mozilla signing and review.
+
+The Firefox integration test uses an installed Firefox (`FIREFOX_BINARY` can select
+its path) with disposable profiles and WebDriver BiDi. It checks the production
+build first, then uses an isolated copy with fixture-only grants and a synthetic
+provider for caption and boundary tests. No real API key or live provider is used.
+The harness enables privileged automation only in its child Firefox process; it
+never changes the owner's browser profile or certificate/signature settings.
 
 ## Requirements
 

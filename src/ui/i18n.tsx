@@ -1,3 +1,4 @@
+import { sendRequest } from '../messaging/client';
 import {
   useCallback,
   useEffect,
@@ -13,11 +14,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     const refresh = () => {
-      void browser.storage.local
-        .get('settings.v1')
+      void sendRequest({ type: 'settings.read' })
         .then((data) => {
           // Trusted UI reads only a presentation preference, never credentials.
-          const saved = data['settings.v1'];
+          const saved = data.kind === 'settings' ? data.settings : null;
           if (active)
             setLocale(
               saved &&
@@ -31,7 +31,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         .catch(() => {});
     };
     const changed = (items: Record<string, unknown>) => {
-      if ('settings.v1' in items) refresh();
+      if ('settings.v1' in items || 'trusted-state-change' in items) refresh();
     };
     refresh();
     browser.storage.onChanged.addListener(changed);

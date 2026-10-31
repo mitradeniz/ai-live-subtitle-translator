@@ -5,14 +5,16 @@ import { resolve, relative, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import './check-build.mjs';
 
-const output = resolve('.output/chrome-mv3');
+const firefox = process.argv.includes('--firefox');
+const output = resolve(firefox ? '.output/firefox-mv3' : '.output/chrome-mv3');
 const manifest = JSON.parse(await readFile(`${output}/manifest.json`, 'utf8'));
-assert.match(manifest.version_name, /^\d+\.\d+\.\d+-preview\.\d+$/);
+if (!firefox)
+  assert.match(manifest.version_name, /^\d+\.\d+\.\d+-preview\.\d+$/);
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 export const archive = resolve(
-  `.output/${pkg.name}-${manifest.version_name}-chrome.zip`,
+  `.output/${pkg.name}-${manifest.version_name ?? manifest.version}-${firefox ? 'firefox' : 'chrome'}.zip`,
 );
-export const version = manifest.version_name;
+export const version = manifest.version_name ?? manifest.version;
 const files = await readdir(output, { recursive: true, withFileTypes: true });
 assert.ok(
   !files.some((file) => file.isSymbolicLink()),

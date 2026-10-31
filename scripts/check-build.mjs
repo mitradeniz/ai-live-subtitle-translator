@@ -4,18 +4,46 @@ import { resolve, relative } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const mock = process.argv.includes('--mock');
-const output = resolve(mock ? '.output/chrome-mv3-mock' : '.output/chrome-mv3');
+const firefox = process.argv.includes('--firefox');
+const output = resolve(
+  firefox
+    ? '.output/firefox-mv3'
+    : mock
+      ? '.output/chrome-mv3-mock'
+      : '.output/chrome-mv3',
+);
 const manifest = JSON.parse(await readFile(`${output}/manifest.json`, 'utf8'));
 
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 assert.equal(manifest.version, pkg.version);
-assert.equal(
-  manifest.version_name,
-  `${pkg.version}-${mock ? 'mock' : 'preview.1'}`,
-);
+if (!firefox)
+  assert.equal(
+    manifest.version_name,
+    `${pkg.version}-${mock ? 'mock' : 'preview.1'}`,
+  );
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.minimum_chrome_version, '151');
-assert.equal(manifest.background?.service_worker, 'background.js');
+if (firefox) {
+  assert.equal(manifest.minimum_chrome_version, undefined);
+  assert.equal(manifest.version_name, undefined);
+  assert.equal(manifest.background?.service_worker, undefined);
+  assert.deepEqual(manifest.background?.scripts, ['background.js']);
+  assert.deepEqual(manifest.browser_specific_settings?.gecko, {
+    id: 'ai-video-subtitle-translator@mitradeniz',
+    strict_min_version: '153.0',
+    data_collection_permissions: {
+      required: [
+        'websiteContent',
+        'authenticationInfo',
+        'personallyIdentifyingInfo',
+        'personalCommunications',
+      ],
+    },
+  });
+} else {
+  assert.equal(manifest.minimum_chrome_version, '151');
+  assert.equal(manifest.background?.service_worker, 'background.js');
+  assert.equal(manifest.browser_specific_settings, undefined);
+}
 assert.equal(manifest.action?.default_popup, 'popup.html');
 assert.equal(manifest.options_ui?.page, 'options.html');
 assert.equal(manifest.options_ui?.open_in_tab, true);

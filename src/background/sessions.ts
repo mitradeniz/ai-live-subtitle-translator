@@ -1,7 +1,11 @@
 import { z } from '../messaging/schema.ts';
 import type { TrustedStorage } from './storage.ts';
 import { BoundaryError } from './errors.ts';
-import { identifySender, type ContentIdentity } from './senders.ts';
+import {
+  identifySender,
+  type ContentIdentity,
+  type SenderPolicy,
+} from './senders.ts';
 
 const Saved = z
   .array(
@@ -36,6 +40,7 @@ export class SessionRegistry {
   #writes: Promise<void> = Promise.resolve();
   readonly #sessions = new Map<string, Session>();
   readonly #extensionId: string;
+  readonly #senderPolicy: SenderPolicy | undefined;
   readonly #key: string;
   readonly #now: () => number;
   readonly #onRevoke: (tabId: number, sessionId: string) => void;
@@ -45,8 +50,10 @@ export class SessionRegistry {
     onRevoke: (tabId: number, sessionId: string) => void = () => {},
     storage?: TrustedStorage,
     key = 'playback-sessions.v1',
+    senderPolicy?: SenderPolicy,
   ) {
     this.#extensionId = extensionId;
+    this.#senderPolicy = senderPolicy;
     this.#key = key;
     this.#now = now;
     this.#onRevoke = onRevoke;
@@ -69,7 +76,11 @@ export class SessionRegistry {
   // Background-only activation hook. No runtime message grants a session.
   // Call only after a deliberate user-authorized activation.
   grant(browserSender: unknown): string {
-    const sender = identifySender(browserSender, this.#extensionId);
+    const sender = identifySender(
+      browserSender,
+      this.#extensionId,
+      this.#senderPolicy,
+    );
     if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
     this.#prune();
     for (const [id, session] of this.#sessions) {

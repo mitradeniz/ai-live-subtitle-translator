@@ -11,14 +11,14 @@ export default defineConfig({
     artifactTemplate: '{{name}}-{{versionName}}-{{browser}}.zip',
     zipSources: false,
   },
-  vite: () => ({
+  vite: ({ browser }) => ({
     plugins: [notices.plugin],
     build: {
-      target: 'chrome151',
+      target: browser === 'firefox' ? 'firefox153' : 'chrome151',
       modulePreload: { polyfill: false },
     },
   }),
-  manifest: ({ mode }) => ({
+  manifest: ({ mode, browser }) => ({
     version: packageJson.version,
     version_name: `${packageJson.version}-${mode === 'mock' ? 'mock' : 'preview.1'}`,
     name:
@@ -29,7 +29,24 @@ export default defineConfig({
       mode === 'mock'
         ? 'Local caption timing test. Mock output is not translation.'
         : 'Limited preview. Page and video translation with optional Google, Google Cloud and user-key AI.',
-    minimum_chrome_version: '151',
+    ...(browser === 'firefox'
+      ? {
+          browser_specific_settings: {
+            gecko: {
+              id: 'ai-video-subtitle-translator@mitradeniz',
+              strict_min_version: '153.0',
+              data_collection_permissions: {
+                required: [
+                  'websiteContent',
+                  'authenticationInfo',
+                  'personallyIdentifyingInfo',
+                  'personalCommunications',
+                ],
+              },
+            },
+          },
+        }
+      : { minimum_chrome_version: '151' }),
     icons: {
       16: 'icons/icon-16.png',
       32: 'icons/icon-32.png',

@@ -23,7 +23,7 @@ import {
 } from '../messaging/protocol.ts';
 import { CredentialStore } from './credentials.ts';
 import { BoundaryError } from './errors.ts';
-import { identifySender } from './senders.ts';
+import { identifySender, type SenderPolicy } from './senders.ts';
 import { SessionRegistry } from './sessions.ts';
 import { SettingsStore } from './settings.ts';
 import { TrustedStorage, type StorageAreas } from './storage.ts';
@@ -67,6 +67,7 @@ export function createController(
     changed: async () => {},
     activate: async () => {},
   },
+  senderPolicy?: SenderPolicy,
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
@@ -113,6 +114,8 @@ export function createController(
       work.cancel(id);
     },
     storage,
+    'playback-sessions.v1',
+    senderPolicy,
   );
   const pageSessions = new SessionRegistry(
     extensionId,
@@ -125,6 +128,7 @@ export function createController(
     },
     storage,
     'page-sessions.v1',
+    senderPolicy,
   );
   const pageEpochs = new Map<string, number>();
   let pending = 0;
@@ -197,7 +201,7 @@ export function createController(
       const parsed = RequestSchema.safeParse(raw);
       if (!parsed.success) throw new BoundaryError('INVALID_MESSAGE');
       const request = parsed.data;
-      const sender = identifySender(browserSender, extensionId);
+      const sender = identifySender(browserSender, extensionId, senderPolicy);
       await sessions.flush();
       await pageSessions.flush();
       let response: Response;

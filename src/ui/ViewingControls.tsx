@@ -38,9 +38,12 @@ export function ViewingControls({ compact = false }: { compact?: boolean }) {
     };
     const changed = (items: Record<string, unknown>) => {
       if (
-        ['settings.v1', 'translation-provider.v1', 'ai-profile.v1'].some(
-          (k) => k in items,
-        )
+        [
+          'settings.v1',
+          'translation-provider.v1',
+          'ai-profile.v1',
+          'trusted-state-change',
+        ].some((k) => k in items)
       )
         load();
     };

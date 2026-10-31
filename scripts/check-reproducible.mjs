@@ -42,7 +42,15 @@ try {
     ],
     { cwd: temp, stdio: 'inherit' },
   );
-  execFileSync('pnpm', ['release:package'], { cwd: temp, stdio: 'inherit' });
+  execFileSync(
+    'pnpm',
+    [
+      process.argv.includes('--firefox')
+        ? 'release:firefox'
+        : 'release:package',
+    ],
+    { cwd: temp, stdio: 'inherit' },
+  );
   const rebuilt = await readFile(join(temp, '.output', basename(archive)));
   assert.equal(
     createHash('sha256').update(rebuilt).digest('hex'),

@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-10-31. Applies to AI Video Subtitle Translator 0.2.1-preview.1.
+Last updated: 2026-10-31. Applies to AI Video Subtitle Translator 0.2.2-preview.1.
 This notice describes the implemented extension and its optional translation
 services. Publication of this notice does not imply store approval.
 
@@ -131,8 +131,14 @@ or extension removal. Cache output can itself reveal sensitive source content;
 hashes do not make it anonymous. Pending caption text also exists in memory while
 being processed; active work is cancelled on disable/invalidation.
 
-Local/session storage access is restricted to trusted extension contexts before
-sensitive operations. Device storage is not an encrypted vault. Keys are bound to
+Chromium local/session storage is restricted to trusted extension contexts before
+sensitive operations. Firefox keeps authoritative durable settings, remembered
+keys and optional cached results in IndexedDB at the extension's own origin,
+which content scripts cannot access. Temporary keys and jobs use Firefox's
+trusted-only session storage. Firefox's ordinary local extension storage contains
+only a random change-notification token; it is not a source of trusted preferences
+or keys. Firefox asks for data-transmission consent during installation; requested
+page/caption/writing text can contain personal information or communications. Device storage is not an encrypted vault. Keys are bound to
 the selected endpoint origin, never synced by the extension, and not exposed to
 content scripts. The extension does not support incognito operation.
 

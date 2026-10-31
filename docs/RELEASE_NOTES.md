@@ -1,3 +1,7 @@
+# 0.2.2-preview.1
+
+Adds a separate Firefox MV3 build with document-bound messaging, private durable storage and Firefox installation-time data disclosures. Chromium artifacts use the existing trusted storage boundary. Browser and live-provider verification limits are documented in SUPPORT.md.
+
 # 0.2.1-preview.1 — 2026-10-31
 
 - Use **AI Video Subtitle Translator** as the extension display name.

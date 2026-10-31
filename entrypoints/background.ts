@@ -1,3 +1,4 @@
+import { firefoxStorage } from '../src/background/firefox-storage.ts';
 import { edgeOrigin, EDGE_ALL_HOSTS } from '../src/background/edge-sites.ts';
 import { createPageHandler } from '../src/background/page-activation.ts';
 import { isYouTubeWatch } from '../src/youtube/source.ts';
@@ -13,10 +14,13 @@ import { GOOGLE_HOST } from '../src/translation/contracts.ts';
 export default defineBackground(() => {
   const controller = createController(
     browser.runtime.id,
-    {
-      local: browser.storage.local,
-      session: browser.storage.session,
-    },
+    import.meta.env.FIREFOX
+      ? firefoxStorage(browser.storage.session, () =>
+          browser.storage.local.set({
+            'trusted-state-change': crypto.randomUUID(),
+          }),
+        )
+      : { local: browser.storage.local, session: browser.storage.session },
     (operation, confirmed) => playback.handle(operation, confirmed),
     {
       permitted: () =>
@@ -89,6 +93,12 @@ export default defineBackground(() => {
         await page.auto(tabId, documentId, authorized);
       },
     },
+    import.meta.env.FIREFOX
+      ? {
+          extensionOrigin: browser.runtime.getURL('').replace(/\/$/, ''),
+          firefox: true,
+        }
+      : undefined,
   );
   const playback: ReturnType<typeof createPlaybackHandler> =
     createPlaybackHandler(controller.sessions, (id, paused) =>

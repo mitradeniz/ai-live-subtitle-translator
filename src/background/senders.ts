@@ -2,6 +2,8 @@ import { z } from '../messaging/schema.ts';
 import { BoundaryError } from './errors.ts';
 
 // Only browser-supplied onMessage metadata is passed here, never message fields.
+export type SenderPolicy = { extensionOrigin: string; firefox: boolean };
+
 const SenderSchema = z.object({
   id: z.string(),
   url: z.string().max(8192),
@@ -11,7 +13,7 @@ const SenderSchema = z.object({
     .string()
     .min(1)
     .max(128)
-    .regex(/^[A-Za-z0-9_-]+$/)
+    .regex(/^(?:[A-Za-z0-9_-]+|\{[a-fA-F0-9-]{36}\})$/)
     .optional(),
   documentLifecycle: z.literal('active').optional(),
   frameId: z.number().int().nonnegative().optional(),
@@ -35,6 +37,7 @@ export type SenderIdentity =
 export function identifySender(
   raw: unknown,
   extensionId: string,
+  policy?: SenderPolicy,
 ): SenderIdentity {
   const parsed = SenderSchema.safeParse(raw);
   if (
@@ -45,7 +48,13 @@ export function identifySender(
     throw new BoundaryError('FORBIDDEN');
   }
   const sender = parsed.data;
-  const extensionOrigin = `chrome-extension://${extensionId}`;
+  const extensionOrigin =
+    policy?.extensionOrigin ?? `chrome-extension://${extensionId}`;
+  const firefox = policy?.firefox === true;
+  if (!firefox && extensionOrigin !== `chrome-extension://${extensionId}`)
+    throw new BoundaryError('FORBIDDEN');
+  if (firefox && !/^moz-extension:\/\/[a-f0-9-]{36}$/i.test(extensionOrigin))
+    throw new BoundaryError('FORBIDDEN');
   if (sender.origin === extensionOrigin) {
     const page =
       sender.url === `${extensionOrigin}/popup.html`
@@ -63,7 +72,10 @@ export function identifySender(
       sender.frameId === undefined &&
       sender.documentId === undefined &&
       sender.documentLifecycle === undefined;
-    if (!toolbarPopup && (!sender.documentId || !sender.documentLifecycle))
+    if (
+      !toolbarPopup &&
+      (!sender.documentId || (!firefox && !sender.documentLifecycle))
+    )
       throw new BoundaryError('FORBIDDEN');
     return { kind: 'ui', page };
   }
@@ -79,7 +91,7 @@ export function identifySender(
     !sender.tab ||
     sender.frameId === undefined ||
     !sender.documentId ||
-    !sender.documentLifecycle
+    (!firefox && !sender.documentLifecycle)
   )
     throw new BoundaryError('FORBIDDEN');
   return {
