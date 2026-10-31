@@ -1,6 +1,6 @@
 import { PageControls } from './PageControls';
 import { readWithDeadline } from '../messaging/deadline';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
 import type { PopupStatus, Settings } from '../messaging/protocol';
@@ -11,8 +11,34 @@ import { useI18n } from './useI18n';
 import { DevelopmentNotice } from './DevelopmentNotice';
 
 type Engine = PopupStatus['selected'];
+type Section = 'captions' | 'page';
+const SECTIONS: readonly Section[] = ['captions', 'page'];
+const SECTION_KEY = 'popup.section';
+// A presentation-only convenience; storage can be unavailable in some contexts.
+function savedSection(): Section {
+  try {
+    return localStorage.getItem(SECTION_KEY) === 'page' ? 'page' : 'captions';
+  } catch {
+    return 'captions';
+  }
+}
 export default function PopupDashboard() {
   const { t, locale } = useI18n();
+  const [section, setSection] = useState<Section>(savedSection);
+  const [swapped, setSwapped] = useState(false);
+  const tabs = useRef<Record<Section, HTMLButtonElement | null>>({
+    captions: null,
+    page: null,
+  });
+  function choose(next: Section, focus = false) {
+    setSection(next);
+    if (focus) tabs.current[next]?.focus();
+    try {
+      localStorage.setItem(SECTION_KEY, next);
+    } catch {
+      // Keep the in-memory choice only.
+    }
+  }
   const [data, setData] = useState<PopupStatus | null>(null);
   const [draft, setDraft] = useState<Settings | null>(null);
   const [state, setState] = useState<PlaybackState>('disabled');
@@ -296,237 +322,320 @@ export default function PopupDashboard() {
       </button>
     );
   }
+  const languageField = (name: 'sourceLanguage' | 'targetLanguage') => (
+    <label
+      key={name}
+      className={name === 'sourceLanguage' ? 'source-field' : 'target-field'}
+    >
+      {t(name === 'sourceLanguage' ? 'Source language' : 'Target language')}
+      <input
+        aria-label={t(
+          name === 'sourceLanguage' ? 'Source language' : 'Target language',
+        )}
+        value={draft[name]}
+        maxLength={35}
+        list={`${name}-quick`}
+        onChange={(e) => {
+          dirty.current = true;
+          setEdited(true);
+          setDraft({ ...draft, [name]: e.target.value });
+        }}
+      />
+      <datalist id={`${name}-quick`}>
+        {(name === 'sourceLanguage'
+          ? [
+              'auto',
+              'en',
+              'tr',
+              'de',
+              'fr',
+              'es',
+              'ar',
+              'he',
+              'ja',
+              'ko',
+              'zh-CN',
+            ]
+          : ['tr', 'en', 'de', 'fr', 'es', 'ar', 'he', 'ja', 'ko', 'zh-CN']
+        ).map((code) => (
+          <option key={code} value={code} />
+        ))}
+      </datalist>
+    </label>
+  );
+  // Swapping only edits the draft; it is saved with the other preferences.
+  const canSwap =
+    draft.sourceLanguage.trim() !== '' &&
+    draft.sourceLanguage.trim().toLowerCase() !== 'auto' &&
+    draft.targetLanguage.trim() !== '';
+  const quickPreferences = (
+    <fieldset className="quick-preferences" disabled={busy}>
+      <legend className="visually-hidden">{t('Viewing controls')}</legend>
+      <div className="quick-fields">
+        {languageField('sourceLanguage')}
+        {languageField('targetLanguage')}
+        <button
+          type="button"
+          className={`swap-button ${swapped ? 'turned' : ''}`}
+          aria-label={t('Swap source and target languages')}
+          title={t('Swap source and target languages')}
+          disabled={!canSwap}
+          onClick={() => {
+            dirty.current = true;
+            setEdited(true);
+            setSwapped(!swapped);
+            setDraft({
+              ...draft,
+              sourceLanguage: draft.targetLanguage,
+              targetLanguage: draft.sourceLanguage,
+            });
+          }}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 8h13l-3.5-3.5M19 16H6l3.5 3.5" />
+          </svg>
+        </button>
+        <label className="mode-field">
+          {t('Display mode')}
+          <select
+            aria-label={t('Display mode')}
+            value={draft.displayMode}
+            onChange={(e) => {
+              dirty.current = true;
+              setEdited(true);
+              setDraft({
+                ...draft,
+                displayMode: e.target.value as Settings['displayMode'],
+              });
+            }}
+          >
+            <option value="translated">{t('Translation only')}</option>
+            <option value="bilingual">{t('Original and translation')}</option>
+            <option value="original">{t('Original only')}</option>
+          </select>
+        </label>
+        <button
+          className={`text-button ${edited ? 'has-changes' : ''}`}
+          type="button"
+          title={edited ? t('Unsaved changes') : undefined}
+          onClick={() => void run(save)}
+        >
+          {t('Save preferences')}
+        </button>
+      </div>
+    </fieldset>
+  );
+  const captionSection = (
+    <div
+      className={showCaptions ? 'caption-section' : 'caption-section is-hidden'}
+    >
+      <div
+        className={`playback-summary ${attention || restart ? 'needs-attention' : isOn ? 'is-on' : 'is-off'}`}
+        role="status"
+      >
+        <strong>
+          <span className="live-dot" aria-hidden="true" />
+          {t(title)}
+        </strong>
+        <p>{t(summary)}</p>
+        {data.recent?.durationMs !== null &&
+          data.recent?.durationMs !== undefined &&
+          !warning && (
+            <p className="response-time">
+              {t('Last request (queue + provider)')}:{' '}
+              {data.recent.durationMs < 1000
+                ? `${data.recent.durationMs} ms`
+                : `${(data.recent.durationMs / 1000).toFixed(1)} s`}
+            </p>
+          )}
+        {missingKey && (
+          <p>
+            {t(
+              'Session keys disappear after Reload. Add the key again; choose Remember on this device to keep it.',
+            )}
+          </p>
+        )}
+      </div>
+      {(data.youtube || state === 'source-required') &&
+        (!isOn || restart || attention) && (
+          <label className="source-confirm">
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(e) => setConfirmed(e.target.checked)}
+            />
+            <span>
+              {t(
+                'For YouTube: I selected an original caption track, not Auto-translate.',
+              )}
+            </span>
+          </label>
+        )}
+      <div className="popup-controls">
+        <button
+          disabled={busy || (isOn && !restart && !attention)}
+          className={isOn && !restart && !attention ? 'enabled-button' : ''}
+          aria-pressed={isOn && !restart && !attention}
+          type="button"
+          onClick={() =>
+            missingKey
+              ? void browser.runtime.openOptionsPage()
+              : control('playback.enable')
+          }
+        >
+          {import.meta.env.MODE === 'mock'
+            ? locale === 'tr'
+              ? 'Test altyazısını etkinleştir'
+              : 'Enable mock captions'
+            : t(
+                missingKey
+                  ? 'Add API key'
+                  : restart
+                    ? 'Restart captions'
+                    : isOn && !attention
+                      ? '✓ Enabled'
+                      : 'Enable captions',
+              )}
+        </button>
+        <button
+          disabled={busy || (state !== 'enabled' && state !== 'needs-restart')}
+          className="secondary"
+          type="button"
+          onClick={() => control('playback.disable')}
+        >
+          {t('Disable captions')}
+        </button>
+      </div>
+    </div>
+  );
+  if (import.meta.env.MODE === 'mock')
+    return (
+      <>
+        {captionSection}
+        {quickPreferences}
+        <DevelopmentNotice />
+      </>
+    );
+  const labels: Record<Section, string> = {
+    captions: 'Video subtitles',
+    page: 'Page translation',
+  };
   return (
     <>
-      {import.meta.env.MODE !== 'mock' && (
+      <div
+        className="popup-tabs"
+        role="tablist"
+        aria-label={t('Popup sections')}
+        onKeyDown={(event) => {
+          const index = SECTIONS.indexOf(section);
+          const next =
+            event.key === 'ArrowRight'
+              ? SECTIONS[(index + 1) % SECTIONS.length]
+              : event.key === 'ArrowLeft'
+                ? SECTIONS[(index + SECTIONS.length - 1) % SECTIONS.length]
+                : event.key === 'Home'
+                  ? SECTIONS[0]
+                  : event.key === 'End'
+                    ? SECTIONS[SECTIONS.length - 1]
+                    : undefined;
+          if (!next) return;
+          event.preventDefault();
+          choose(next, true);
+        }}
+      >
+        <span
+          className="tab-pill"
+          aria-hidden="true"
+          style={{ '--index': SECTIONS.indexOf(section) } as CSSProperties}
+        />
+        {SECTIONS.map((name) => (
+          <button
+            key={name}
+            ref={(element) => {
+              tabs.current[name] = element;
+            }}
+            id={`popup-tab-${name}`}
+            className="popup-tab"
+            type="button"
+            role="tab"
+            aria-selected={section === name}
+            aria-controls={`popup-panel-${name}`}
+            tabIndex={section === name ? 0 : -1}
+            onClick={() => choose(name)}
+          >
+            {t(labels[name])}
+          </button>
+        ))}
+      </div>
+      <section
+        id="popup-panel-captions"
+        className="popup-panel"
+        role="tabpanel"
+        aria-labelledby="popup-tab-captions"
+        hidden={section !== 'captions'}
+      >
+        {captionSection}
+        {quickPreferences}
+        <fieldset className="provider-picker" disabled={busy}>
+          <legend className="visually-hidden">
+            {t('Translation provider')}
+          </legend>
+          <div className="provider-grid">
+            {card('Google', 'google.ico', 'google')}
+            {card(
+              'Google Cloud',
+              'cloud.svg',
+              'google-cloud',
+              data.cloud.configured,
+              !data.cloud.configured,
+              data.cloud.retention,
+            )}
+            {card(t('Original only'), null, 'none')}
+            {AI_PROFILES.map((p) =>
+              card(
+                p.name,
+                p.name === 'DeepSeek'
+                  ? 'deepseek.svg'
+                  : `${p.name.toLowerCase()}.png`,
+                'ai',
+                p.name === currentAI && data.ai.configured,
+                p.name !== currentAI || !data.ai.configured,
+                data.ai.retention,
+              ),
+            )}
+          </div>
+        </fieldset>
+        <div className="provider-destination">
+          <strong>
+            {t('Selected')}: {selectedName}
+          </strong>
+          {data.selected !== 'none' && (
+            <span>
+              {t(paid ? 'Paid API · Text sent to' : 'Text sent to')} {recipient}
+            </span>
+          )}
+          {data.selected === 'ai' && <span>{data.profile.model}</span>}
+          <p className="key-legend">
+            {t(
+              'Saved keys are not automatically tested. One AI key + one Cloud key.',
+            )}
+          </p>
+        </div>
+      </section>
+      <section
+        id="popup-panel-page"
+        className="popup-panel"
+        role="tabpanel"
+        aria-labelledby="popup-tab-page"
+        hidden={section !== 'page'}
+      >
         <PageControls
           prepare={async () => {
             if (dirty.current) await save();
           }}
           captions={setShowCaptions}
         />
-      )}
-      {import.meta.env.MODE === 'mock' ? (
-        <DevelopmentNotice />
-      ) : (
-        <>
-          <fieldset className="provider-picker" disabled={busy}>
-            <legend>{t('Translation provider')}</legend>
-            <div className="provider-grid">
-              {card('Google', 'google.ico', 'google')}
-              {card(
-                'Google Cloud',
-                'cloud.svg',
-                'google-cloud',
-                data.cloud.configured,
-                !data.cloud.configured,
-                data.cloud.retention,
-              )}
-              {card(t('Original only'), null, 'none')}
-              {AI_PROFILES.map((p) =>
-                card(
-                  p.name,
-                  p.name === 'DeepSeek'
-                    ? 'deepseek.svg'
-                    : `${p.name.toLowerCase()}.png`,
-                  'ai',
-                  p.name === currentAI && data.ai.configured,
-                  p.name !== currentAI || !data.ai.configured,
-                  data.ai.retention,
-                ),
-              )}
-            </div>
-          </fieldset>
-          <p className="key-legend">
-            {t(
-              'Saved keys are not automatically tested. One AI key + one Cloud key.',
-            )}
-          </p>
-          <div className="provider-destination">
-            <strong>
-              {t('Selected')}: {selectedName}
-            </strong>
-            {data.selected !== 'none' && (
-              <span>
-                {t(paid ? 'Paid API · Text sent to' : 'Text sent to')}{' '}
-                {recipient}
-              </span>
-            )}
-            {data.selected === 'ai' && <span>{data.profile.model}</span>}
-          </div>
-        </>
-      )}
-      <fieldset className="quick-preferences" disabled={busy}>
-        <legend className="visually-hidden">{t('Viewing controls')}</legend>
-        <div className="quick-fields">
-          {(['sourceLanguage', 'targetLanguage'] as const).map((name) => (
-            <label key={name}>
-              {t(
-                name === 'sourceLanguage'
-                  ? 'Source language'
-                  : 'Target language',
-              )}
-              <input
-                aria-label={t(
-                  name === 'sourceLanguage'
-                    ? 'Source language'
-                    : 'Target language',
-                )}
-                value={draft[name]}
-                maxLength={35}
-                list={`${name}-quick`}
-                onChange={(e) => {
-                  dirty.current = true;
-                  setEdited(true);
-                  setDraft({ ...draft, [name]: e.target.value });
-                }}
-              />
-              <datalist id={`${name}-quick`}>
-                {(name === 'sourceLanguage'
-                  ? [
-                      'auto',
-                      'en',
-                      'tr',
-                      'de',
-                      'fr',
-                      'es',
-                      'ar',
-                      'he',
-                      'ja',
-                      'ko',
-                      'zh-CN',
-                    ]
-                  : [
-                      'tr',
-                      'en',
-                      'de',
-                      'fr',
-                      'es',
-                      'ar',
-                      'he',
-                      'ja',
-                      'ko',
-                      'zh-CN',
-                    ]
-                ).map((code) => (
-                  <option key={code} value={code} />
-                ))}
-              </datalist>
-            </label>
-          ))}
-          <label>
-            {t('Display mode')}
-            <select
-              aria-label={t('Display mode')}
-              value={draft.displayMode}
-              onChange={(e) => {
-                dirty.current = true;
-                setEdited(true);
-                setDraft({
-                  ...draft,
-                  displayMode: e.target.value as Settings['displayMode'],
-                });
-              }}
-            >
-              <option value="translated">{t('Translation only')}</option>
-              <option value="bilingual">{t('Original and translation')}</option>
-              <option value="original">{t('Original only')}</option>
-            </select>
-          </label>
-        </div>
-        <button
-          className="text-button"
-          type="button"
-          onClick={() => void run(save)}
-        >
-          {t('Save preferences')}
-        </button>
-      </fieldset>
-      <div
-        className={
-          showCaptions ? 'caption-section' : 'caption-section is-hidden'
-        }
-      >
-        <div
-          className={`playback-summary ${attention || restart ? 'needs-attention' : isOn ? 'is-on' : 'is-off'}`}
-          role="status"
-        >
-          <strong>
-            <span className="live-dot" aria-hidden="true" />
-            {t(title)}
-          </strong>
-          <p>{t(summary)}</p>
-          {data.recent?.durationMs !== null &&
-            data.recent?.durationMs !== undefined &&
-            !warning && (
-              <p className="response-time">
-                {t('Last request (queue + provider)')}:{' '}
-                {data.recent.durationMs < 1000
-                  ? `${data.recent.durationMs} ms`
-                  : `${(data.recent.durationMs / 1000).toFixed(1)} s`}
-              </p>
-            )}
-          {missingKey && (
-            <p>
-              {t(
-                'Session keys disappear after Reload. Add the key again; choose Remember on this device to keep it.',
-              )}
-            </p>
-          )}
-        </div>
-        {(data.youtube || state === 'source-required') &&
-          (!isOn || restart || attention) && (
-            <label className="source-confirm">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-              />
-              <span>
-                {t(
-                  'For YouTube: I selected an original caption track, not Auto-translate.',
-                )}
-              </span>
-            </label>
-          )}
-        <div className="popup-controls">
-          <button
-            disabled={busy || (isOn && !restart && !attention)}
-            className={isOn && !restart && !attention ? 'enabled-button' : ''}
-            aria-pressed={isOn && !restart && !attention}
-            type="button"
-            onClick={() =>
-              missingKey
-                ? void browser.runtime.openOptionsPage()
-                : control('playback.enable')
-            }
-          >
-            {import.meta.env.MODE === 'mock'
-              ? locale === 'tr'
-                ? 'Test altyazısını etkinleştir'
-                : 'Enable mock captions'
-              : t(
-                  missingKey
-                    ? 'Add API key'
-                    : restart
-                      ? 'Restart captions'
-                      : isOn && !attention
-                        ? '✓ Enabled'
-                        : 'Enable captions',
-                )}
-          </button>
-          <button
-            disabled={
-              busy || (state !== 'enabled' && state !== 'needs-restart')
-            }
-            className="secondary"
-            type="button"
-            onClick={() => control('playback.disable')}
-          >
-            {t('Disable captions')}
-          </button>
-        </div>
-      </div>
+      </section>
     </>
   );
 }

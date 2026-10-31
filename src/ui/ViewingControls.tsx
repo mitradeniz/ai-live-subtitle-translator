@@ -125,6 +125,7 @@ export function ViewingControls({ compact = false }: { compact?: boolean }) {
       aria-label={t('Viewing controls')}
     >
       <h2>{t('Subtitle preferences')}</h2>
+      {!compact && <CaptionPreview settings={settings} />}
       <fieldset disabled={busy}>
         <legend className="visually-hidden">{t('Viewing controls')}</legend>
         <div className="paired-fields">
@@ -271,5 +272,41 @@ export function ViewingControls({ compact = false }: { compact?: boolean }) {
         </p>
       )}
     </section>
+  );
+}
+
+// Sample lines for the live preview only; nothing here is sent anywhere.
+const PREVIEW_ORIGINAL = 'We kept walking until the city lights disappeared.';
+const PREVIEW_TRANSLATIONS: Record<string, string> = {
+  tr: 'Şehrin ışıkları kaybolana dek yürümeye devam ettik.',
+  de: 'Wir gingen weiter, bis die Lichter der Stadt verschwanden.',
+  fr: 'Nous avons marché jusqu’à ce que les lumières de la ville disparaissent.',
+  es: 'Seguimos caminando hasta que las luces de la ciudad desaparecieron.',
+};
+function CaptionPreview({ settings }: { settings: Settings }) {
+  const size = Number.isFinite(settings.fontSize)
+    ? Math.min(48, Math.max(16, settings.fontSize))
+    : 24;
+  const [target = ''] = settings.targetLanguage.trim().toLowerCase().split('-');
+  const translated = PREVIEW_TRANSLATIONS[target] ?? PREVIEW_ORIGINAL;
+  const original = settings.displayMode !== 'translated';
+  const translation = settings.displayMode !== 'original';
+  return (
+    <div className="caption-preview" aria-hidden="true">
+      <span className="preview-size">{size} px</span>
+      <div
+        className={`preview-stage ${settings.position === 'top' ? 'top' : ''}`}
+      >
+        <div
+          className={`preview-caption ${settings.contrast === 'solid' ? 'solid' : ''}`}
+          style={{ fontSize: `${Math.round(size * 0.62)}px` }}
+        >
+          {original && (
+            <span className="preview-original">{PREVIEW_ORIGINAL}</span>
+          )}
+          {translation && <span>{translated}</span>}
+        </div>
+      </div>
+    </div>
   );
 }

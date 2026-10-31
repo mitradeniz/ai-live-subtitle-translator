@@ -545,3 +545,9 @@ Object.assign(turkish, {
 });
 
 Object.assign(turkish, { 'User API': 'Kendi API hesabın' });
+
+Object.assign(turkish, {
+  'Popup sections': 'Menü bölümleri',
+  'Swap source and target languages': 'Kaynak ve hedef dili değiştir',
+  'Unsaved changes': 'Kaydedilmemiş değişiklikler',
+});

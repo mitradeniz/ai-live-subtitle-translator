@@ -8,7 +8,7 @@ export function App() {
   return (
     <main className="popup dashboard-popup">
       <header className="popup-brand">
-        <img src="/icons/icon-32.png" width="32" height="32" alt="" />
+        <img src="/icons/icon-48.png" width="36" height="36" alt="" />
         <div>
           <h1>{t('Your language, everywhere.')}</h1>
           <span className="preview-label">{t('Limited preview')}</span>

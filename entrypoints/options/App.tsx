@@ -36,7 +36,7 @@ export function App() {
     <main className="options">
       <nav className="topbar" aria-label="Subtitle studio">
         <div className="brand">
-          <img src="/icons/icon-48.png" width="40" height="40" alt="" />
+          <img src="/icons/icon-48.png" width="44" height="44" alt="" />
           <span>
             Subtitle<span className="brand-light"> / studio</span>
           </span>
