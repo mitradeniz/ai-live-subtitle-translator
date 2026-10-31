@@ -16,9 +16,11 @@ import {
   SOURCE_RESPONSE,
   SOURCE_STOP,
   YouTubeSourceSchema,
+  TimedResponseSchema,
   sourceKey,
   type YouTubeSource,
 } from './source.ts';
+import { TIMED_REQUEST, TIMED_RESPONSE, TIMED_MAX_BYTES } from './timed.ts';
 
 // Player/container/CC were observed live; segment is a synthetic-tested candidate.
 // None of these selectors is a stable public API.
@@ -57,6 +59,10 @@ export class YouTubePlayer {
   #expires = Date.now() + 30 * 60_000;
   #started = Date.now();
   #timed: readonly Cue[] = [];
+  #remoteTimed: readonly Cue[] = [];
+  #timedNonce = '';
+  #timedAt = 0;
+  #timedState: 'idle' | 'loading' | 'ready' | 'unavailable' = 'idle';
   #nativeInUse = false;
   #timedWindow: TimedWindow | undefined;
 
@@ -98,6 +104,7 @@ export class YouTubePlayer {
       this.#scan();
     });
     document.addEventListener(SOURCE_RESPONSE, this.#receive);
+    document.addEventListener(TIMED_RESPONSE, this.#receiveTimed);
     document.addEventListener('yt-navigate-start', this.dispose);
     window.addEventListener('pagehide', this.dispose);
     window.addEventListener('popstate', this.dispose);
@@ -163,11 +170,40 @@ export class YouTubePlayer {
         if (this.#key) this.#waitMutation = true;
         this.#clear();
         this.#key = key;
+        this.#remoteTimed = [];
+        this.#timedNonce = '';
+        this.#timedState = 'idle';
       }
       this.#source = parsed.data;
       this.#sourceAt = Date.now();
     } catch {
       /* Page-controlled metadata cannot grant privileges. */
+    }
+  };
+  #receiveTimed = (event: Event) => {
+    const raw: unknown = (event as CustomEvent).detail;
+    if (
+      this.#closed ||
+      this.#timedState !== 'loading' ||
+      typeof raw !== 'string' ||
+      raw.length > TIMED_MAX_BYTES
+    )
+      return;
+    try {
+      const parsed = TimedResponseSchema.safeParse(JSON.parse(raw));
+      if (
+        !parsed.success ||
+        parsed.data.nonce !== this.#timedNonce ||
+        parsed.data.key !== this.#key ||
+        location.href !== this.#url
+      )
+        return;
+      this.#remoteTimed = parsed.data.cues ?? [];
+      this.#timedState = parsed.data.cues ? 'ready' : 'unavailable';
+      this.#clear();
+      // Resume in the next scan, outside synchronous page event dispatch.
+    } catch {
+      /* Untrusted page data cannot select a provider or destination. */
     }
   };
   #scan = () => {
@@ -207,7 +243,20 @@ export class YouTubePlayer {
         'true';
     if (usable) {
       this.#nativeInUse = true;
-      const timed = this.#native.snapshot();
+      const native = this.#native.snapshot();
+      if (!native.length && this.#timedState === 'idle') {
+        this.#timedNonce = crypto.randomUUID();
+        this.#timedState = 'loading';
+        this.#timedAt = Date.now();
+        document.dispatchEvent(
+          new CustomEvent(TIMED_REQUEST, {
+            detail: JSON.stringify({ nonce: this.#timedNonce, key: this.#key }),
+          }),
+        );
+      }
+      if (this.#timedState === 'loading' && Date.now() - this.#timedAt > 5500)
+        this.#timedState = 'unavailable';
+      const timed = native.length ? native : this.#remoteTimed;
       if (timed !== this.#timed) this.#timedWindow?.reset();
       this.#timed = timed;
     } else {
@@ -244,9 +293,16 @@ export class YouTubePlayer {
       return;
     }
     const timed = this.#timed;
+    if (!timed.length && this.#timedState === 'loading') {
+      this.#overlay.setLabel('Preparing timed captions…');
+      this.#overlay.render('');
+      return;
+    }
     const mode = timed.length
-      ? 'Native timed track'
-      : 'Visible captions · no cue timestamps';
+      ? timed === this.#remoteTimed
+        ? 'YouTube timed track · advance translation'
+        : 'Native timed track'
+      : 'Advance translation unavailable · Visible captions · no cue timestamps';
     let units: readonly CaptionUnit[] = [];
     if (!this.#video.seeking) {
       if (timed.length) units = activeCues(timed, this.#video.currentTime);
@@ -312,11 +368,7 @@ export class YouTubePlayer {
       !this.#video.seeking &&
       this.#settings.displayMode !== 'original'
     ) {
-      this.#timedWindow?.update(
-        timed,
-        this.#video.currentTime,
-        this.#video.paused,
-      );
+      this.#timedWindow?.update(timed, this.#video.currentTime);
       this.#result =
         this.#timedWindow
           ?.texts(activeCues(timed, this.#video.currentTime))
@@ -365,6 +417,7 @@ export class YouTubePlayer {
     this.#native.dispose();
     this.#overlay.dispose();
     document.removeEventListener(SOURCE_RESPONSE, this.#receive);
+    document.removeEventListener(TIMED_RESPONSE, this.#receiveTimed);
     document.removeEventListener('yt-navigate-start', this.dispose);
     window.removeEventListener('pagehide', this.dispose);
     window.removeEventListener('popstate', this.dispose);

@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.3-preview.1.
+Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.4-preview.1.
 This describes the implemented extension. This file has not been published as a
 hosted privacy-policy page and does not imply store approval.
 
@@ -10,7 +10,7 @@ Contact for privacy questions and private security reports:
 ## What the extension reads
 
 After you enable captions, the extension reads available text tracks on the selected
-main-document HTML5 video, or visible caption text on supported desktop YouTube
+main-document HTML5 video, or available timed/visible caption text on supported desktop YouTube
 watch pages. It uses playback time, caption revisions, source language/track metadata,
 and browser-provided tab/frame/document identity to keep results associated with the
 correct video. It does not record video/audio, transcribe speech, read microphone
@@ -19,8 +19,15 @@ input, collect website cookies, or extract account credentials.
 Manual activation uses temporary access to the selected page. Optional automatic
 activation grants access only to `https://www.youtube.com/*`; it checks watch-page
 navigation and player changes. A page-world reader on YouTube reads bounded video
-and track metadata, not cookies, signed caption URLs or credentials. This metadata
-is treated as untrusted. No browsing-history database is collected.
+and track metadata. When native cues are absent, it reads the selected original
+track's signed URL transiently and requests its timed text from the exact YouTube
+origin/path. Requests omit credentials/referrer, reject redirects and are bounded
+by size, timeout and attempt count. Signed URLs stay in the page world and are not
+logged, persisted or sent to translation providers. Metadata/captions are untrusted.
+No website cookies or account credentials are extracted; no browsing-history
+database is collected. After activation, timed-caption translation may prepare up
+to 20 seconds / 12 cues ahead, including while paused. This can use provider quota
+for captions not yet watched; disabling captions stops preparation.
 
 ## Where text goes
 

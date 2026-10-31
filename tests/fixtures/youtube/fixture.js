@@ -3,7 +3,12 @@ const player = document.querySelector('#movie_player');
 let track = { languageCode: 'en', kind: '', vss_id: '.en' };
 player.getOption = (module, option) =>
   module === 'captions' && option === 'track' ? track : undefined;
+let response;
+player.getPlayerResponse = () => response;
 window.fixture = {
+  timed(value) {
+    response = value;
+  },
   source(value) {
     track = value;
   },

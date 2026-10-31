@@ -8,13 +8,12 @@ import { TranslationFailure } from '../translation/contracts.ts';
 export const LOOKAHEAD_SECONDS = 20;
 export const WINDOW_CUES = 12;
 export const BATCH_CHARACTERS = 2000;
-export function cueWindow(cues: readonly Cue[], time: number, paused: boolean) {
+export function cueWindow(cues: readonly Cue[], time: number) {
   const active = activeCues(cues, time);
-  const future = paused
-    ? []
-    : cues
-        .filter((c) => c.start > time && c.start <= time + LOOKAHEAD_SECONDS)
-        .sort((a, b) => a.start - b.start);
+  // Explicit activation prepares this bounded window even while paused.
+  const future = cues
+    .filter((c) => c.start > time && c.start <= time + LOOKAHEAD_SECONDS)
+    .sort((a, b) => a.start - b.start);
   return [...active, ...future].slice(0, WINDOW_CUES);
 }
 export class TimedWindow {
@@ -48,8 +47,8 @@ export class TimedWindow {
     this.#window = [];
     this.#active = [];
   }
-  update(cues: readonly Cue[], time: number, paused: boolean) {
-    this.#window = cueWindow(cues, time, paused);
+  update(cues: readonly Cue[], time: number) {
+    this.#window = cueWindow(cues, time);
     this.#active = activeCues(cues, time);
     for (const cue of this.#results.keys())
       if (!this.#window.includes(cue)) this.#results.delete(cue);
@@ -62,7 +61,9 @@ export class TimedWindow {
     );
     if (
       this.#pending &&
-      ((missingCurrent && !this.#pending.current) ||
+      ((missingCurrent &&
+        !this.#pending.current &&
+        !this.#pending.cues.some((c) => this.#active.includes(c))) ||
         this.#pending.cues.every((c) => !this.#window.includes(c)))
     ) {
       this.#pending.abort.abort();

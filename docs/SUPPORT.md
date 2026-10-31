@@ -1,20 +1,20 @@
-# Support matrix — 0.1.3-preview.1
+# Support matrix — 0.1.4-preview.1
 
 This is a production-optimized **limited preview**, not a fully verified beta.
 The implementation has local automated checks; provider/account and owner-browser
 results must be reported separately. No universal video or model compatibility is claimed.
 
-| Surface                             | Implemented behavior                                                        | Verification / limits                                                                                                                                       |
-| ----------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Chromium 151.0.7922.34, macOS arm64 | MV3 popup/options, messaging, storage and caption pipeline                  | Automated isolated profiles, production and mock artifacts; preview archive installation checked separately                                                 |
-| Desktop Chrome 151+                 | Declared minimum; main release target                                       | Owner passed earlier controls/security retest. Clean install of this preview awaits owner; exact owner version must be recorded                             |
-| Microsoft Edge                      | Chromium-based target                                                       | Not tested; no supported Edge version claimed                                                                                                               |
-| Firefox, Safari, mobile, incognito  | No supported build                                                          | Not supported                                                                                                                                               |
-| Native HTML5 video text tracks      | Clock-based cues, overlaps, pause/seek/rate, revisions and track changes    | Synthetic redistributable fixtures; main document's largest visible video only; inaccessible tracks/iframes excluded                                        |
-| Desktop YouTube watch pages         | Visible-caption fallback with track/source metadata                         | Owner passed prior YouTube checks; synthetic SPA/player/revision tests. CC must be on. No reliable future timestamps/lookahead; caption delivery can change |
-| Fullscreen                          | Ancestor container containing the video and overlay                         | Synthetic container fullscreen tested; video-element fullscreen and Picture-in-Picture cannot display the custom overlay                                    |
-| No captions / unavailable source    | No invented transcript or speech recognition; source state or empty overlay | Native/YouTube fixtures; owner must also check a real no-caption video                                                                                      |
-| English/Turkish UI                  | Keyboard controls, focus states, RTL caption direction                      | Automated UI checks; translation language coverage depends on the provider                                                                                  |
+| Surface                             | Implemented behavior                                                        | Verification / limits                                                                                                                                                                              |
+| ----------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Chromium 151.0.7922.34, macOS arm64 | MV3 popup/options, messaging, storage and caption pipeline                  | Automated isolated profiles, production and mock artifacts; preview archive installation checked separately                                                                                        |
+| Desktop Chrome 151+                 | Declared minimum; main release target                                       | Owner passed earlier controls/security retest. Clean install of this preview awaits owner; exact owner version must be recorded                                                                    |
+| Microsoft Edge                      | Chromium-based target                                                       | Not tested; no supported Edge version claimed                                                                                                                                                      |
+| Firefox, Safari, mobile, incognito  | No supported build                                                          | Not supported                                                                                                                                                                                      |
+| Native HTML5 video text tracks      | Clock-based cues, overlaps, pause/seek/rate, revisions and track changes    | Synthetic redistributable fixtures; main document's largest visible video only; inaccessible tracks/iframes excluded                                                                               |
+| Desktop YouTube watch pages         | Experimental timed-caption access plus visible fallback                     | Owner passed prior YouTube checks; synthetic SPA/player/revision tests. CC must be on. Live timed access remains unverified (empty probe responses); only accessible timed data supports lookahead |
+| Fullscreen                          | Ancestor container containing the video and overlay                         | Synthetic container fullscreen tested; video-element fullscreen and Picture-in-Picture cannot display the custom overlay                                                                           |
+| No captions / unavailable source    | No invented transcript or speech recognition; source state or empty overlay | Native/YouTube fixtures; owner must also check a real no-caption video                                                                                                                             |
+| English/Turkish UI                  | Keyboard controls, focus states, RTL caption direction                      | Automated UI checks; translation language coverage depends on the provider                                                                                                                         |
 
 ## Translation profiles
 
@@ -39,7 +39,7 @@ mode the extension waits for the current result; it does not first flash the sou
 Failure restores original text. YouTube's own CC layer remains visible because it is
 the source of observed text. There is no zero-latency or translation-quality guarantee.
 
-Native-track prefetch is bounded; observed text has no future-caption access. Sessions
+Native/YouTube timed-track prefetch is bounded to 20 seconds / 12 cues, including while paused; observed text has no future-caption access. Sessions
 expire after 30 minutes. Navigation/source replacement stops manual playback; explicitly
 opted-in YouTube activation can start a new document-bound session. Browser throttling
 and provider limits affect fast playback. Uncertain paid requests are not automatically

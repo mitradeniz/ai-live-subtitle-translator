@@ -396,13 +396,11 @@ test('Retry-After supports seconds/date, persistent cooldown and bounded paid vs
 });
 test('timed window has 20-second/12-cue bounds, current priority, batch cap and stale seek rejection', async () => {
   const cues = Array.from({ length: 200 }, (_, i) => cue(i));
-  assert.equal(cueWindow(cues, 0.5, false).length, 12);
-  assert.equal(cueWindow(cues, 0.5, true).length, 1);
+  assert.equal(cueWindow(cues, 0.5).length, 12);
   assert.ok(
     cueWindow(
       cues.filter((_, i) => i % 5 === 0),
       0.5,
-      false,
     ).every((c) => c.start <= 20.5),
   );
   const calls: {
@@ -419,7 +417,7 @@ test('timed window has 20-second/12-cue bounds, current priority, batch cap and 
     () => {},
     () => {},
   );
-  window.update(cues, 0.5, false);
+  window.update(cues, 0.5);
   assert.equal(calls[0]!.cues[0]!.id, '0');
   calls[0]!.resolve({
     generation: calls[0]!.generation,
@@ -429,7 +427,7 @@ test('timed window has 20-second/12-cue bounds, current priority, batch cap and 
   assert.ok(calls[1]!.cues.length <= 4);
   assert.deepEqual(window.texts([cues[0]!]), ['TR']);
   window.reset();
-  window.update(cues, 100.5, true);
+  window.update(cues, 100.5);
   assert.equal(calls[1]!.signal.aborted, true);
   calls[1]!.resolve({
     generation: calls[1]!.generation,
@@ -698,7 +696,7 @@ test('timed captions distinguish waiting from failed output and discard old fail
     (error) => errors.push(error),
   );
   const cues = [cue(0)];
-  window.update(cues, 0.5, true);
+  window.update(cues, 0.5);
   assert.equal(window.texts(cues), null);
   assert.equal(
     window.failed(cues),
@@ -716,7 +714,7 @@ test('timed captions distinguish waiting from failed output and discard old fail
   window.reset();
   assert.equal(window.failed(cues), false);
   const tooLong = [{ ...cue(1), text: 'x'.repeat(1001) }];
-  window.update(tooLong, 1.5, true);
+  window.update(tooLong, 1.5);
   assert.equal(window.failed(tooLong), true);
   assert.ok(errors.some(failure('LIMIT')));
 });

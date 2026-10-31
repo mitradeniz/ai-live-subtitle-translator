@@ -164,11 +164,7 @@ export class CaptionPlayer {
       this.#result = null;
     }
     if (!this.#video.seeking && this.#settings.displayMode !== 'original')
-      this.#window?.update(
-        this.#cues,
-        this.#video.currentTime,
-        this.#video.paused,
-      );
+      this.#window?.update(this.#cues, this.#video.currentTime);
     this.#result = this.#window?.texts(cues) || null;
 
     const state = !this.#cues.length

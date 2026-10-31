@@ -1,3 +1,24 @@
+# 0.1.4-preview.1 — 2026-10-31
+
+Limited preview: live YouTube timed-caption delivery is still unverified. The current
+isolated public-video probe returned empty responses; this is not a claim that
+YouTube latency has been solved.
+
+- Try the selected original YouTube timed track before the visible fallback. Join
+  complete text segments and preserve supplied intervals; do not translate each
+  word as it appears. Reject unsupported incremental/append-only timing formats.
+- Prepare the bounded 20-second / 12-cue window while paused after activation.
+  Disable captions to stop preparation; skipped prefetched text can consume quota.
+- Keep an in-flight future batch when one of its cues becomes current, avoiding
+  cancellation of the very result needed on screen.
+- Explicitly label unavailable advance translation. The visible-caption fallback
+  still cannot read future captions and can lag behind speech.
+- Fetch timed text only from the validated current-video YouTube path, without
+  cookies, redirects or privileged URL-fetch messages. No new permissions/backend.
+
+Parser, request boundaries and timed rendering have synthetic regression coverage.
+Owner playback and provider latency must be checked separately.
+
 # 0.1.3-preview.1 — 2026-10-31
 
 - Show active, off, restart-required and blocked translation states separately.

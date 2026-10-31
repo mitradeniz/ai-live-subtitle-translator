@@ -1,4 +1,37 @@
 import { z } from '../messaging/schema.ts';
+import { MAX_CUES } from '../playback/cues.ts';
+import { TIMED_MAX_TEXT } from './timed.ts';
+
+export const TimedResponseSchema = z.strictObject({
+  nonce: z.string().uuid(),
+  key: z.string().max(512),
+  cues: z
+    .array(
+      z
+        .strictObject({
+          id: z.string().regex(/^youtube-timed:\d{1,5}$/),
+          trackId: z.literal('youtube-timed'),
+          revision: z.literal(1),
+          start: z.number().min(0).max(604800),
+          end: z.number().positive().max(604800),
+          text: z.string().min(1).max(4096),
+        })
+        .refine(
+          (cue) =>
+            cue.end > cue.start &&
+            cue.end - cue.start <= 120 &&
+            !!cue.text.trim(),
+        ),
+    )
+    .min(1)
+    .max(MAX_CUES)
+    .refine(
+      (cues) =>
+        cues.reduce((sum, cue) => sum + cue.text.length, 0) <= TIMED_MAX_TEXT &&
+        new Set(cues.map((c) => c.id)).size === cues.length,
+    )
+    .nullable(),
+});
 
 export const SOURCE_REQUEST = 'subtitle-translator:youtube-source-request';
 export const SOURCE_RESPONSE = 'subtitle-translator:youtube-source-response';

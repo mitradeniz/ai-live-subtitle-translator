@@ -2,8 +2,8 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.1.3-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
-tracks after you enable it on a page, plus an experimental YouTube visible-caption
+**Current status: 0.1.4-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+tracks after you enable it on a page, plus experimental YouTube timed-caption access and a visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
 Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; live playback verification remains incomplete. The owner reports a successful DeepSeek small test; that does not establish video translation.** A separate, clearly labeled local test build
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.1.3-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.1.3-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.1.3-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.1.4-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.1.4-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.1.4-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.1.3-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.1.4-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -359,11 +359,12 @@ DeepSeek and Gemini. No project server, proxy, shared key or purchased domain is
 
 ## Scheduling, cache and interrupted requests
 
-Native timed tracks prioritize the current cues and may prepare up to **20 seconds**
-ahead while playing. The window holds at most **12 cues**, dispatching at most **four
+Accessible native and YouTube timed tracks prioritize the current cues and prepare up to **20 seconds**
+ahead after activation, including while paused. The window holds at most **12 cues**, dispatching at most **four
 cues / 2,000 characters** per batch, with current cues separate from future batches.
-Paused playback sends only current cues. Prefetch can consume quota for captions you
-later skip. The visible YouTube fallback has no future-caption lookahead; its 300 ms
+Pause before enabling captions to let this bounded window prepare before playback.
+Prefetch can consume quota for captions you later skip; pause does not disable translation.
+Use Disable captions to stop preparation. The visible YouTube fallback has no future-caption lookahead; its 300 ms
 stabilization remains separate. Request spacing applies to actual dispatch starts;
 cache hits and cancelled waiters do not restart the spacing delay. Rapidly revised text can still miss translation.
 
@@ -427,8 +428,18 @@ an original caption track, not Auto-translate**, then enable captions. Reopening
 popup resets this confirmation. Known Auto-translate selections and unknown player
 metadata are blocked rather than silently used as a source.
 
-The adapter first checks native timed tracks. If none are exposed, it reads only
-YouTube's visible caption text and labels it **Visible captions · no cue timestamps**.
+The adapter first checks native timed tracks. If none are exposed, it makes one
+bounded, credential-free request for the selected original track using YouTube's
+page-provided timed-caption URL. Only the exact same-origin `/api/timedtext` path
+and current video/language/track are accepted. This undocumented path may return
+empty data or change without notice; it is not the official YouTube Data API.
+Complete timed segments are joined into caption units, prepared ahead, then shown
+against the video clock. Word offsets do not cause incremental translation requests.
+The label **YouTube timed track · advance translation** identifies this path.
+
+If timed captions are unavailable, the label says **Advance translation unavailable**
+and **Visible captions · no cue timestamps**. This fallback still reads only text
+already displayed by YouTube and may lag; it cannot satisfy advance translation.
 Observed text has revisions, not fabricated cue start/end times or future lookahead.
 Incremental automatic captions can change while displayed. Source changes and seeks
 clear stale work; the visible fallback waits for a fresh caption mutation afterward,
@@ -436,16 +447,16 @@ so the first changed line can be missed. YouTube's own captions remain untouched
 
 For mock evaluation, load the existing `.output/chrome-mv3-mock` build. It repeats
 available text with `[MOCK]`; it does not translate. No fixture server or terminal
-command is needed for this YouTube test. The ordinary production build can translate available captions when a translation engine is selected in settings. No caption endpoint fetching is implemented.
+command is needed for this YouTube test. The ordinary production build can translate available captions when a translation engine is selected in settings. No extra host permission, project server, signed-URL export, cookie extraction, or authentication workaround is used.
 
-During investigation, two public videos played and exposed source metadata but no
-native text tracks. Two bounded credential-free timed-caption probes returned empty
-200 responses; YouTube's own caption delivery was also empty in the isolated browser.
-The packaged adapter was verified to identify the source and show **No accessible
-caption text**, but **real visible-caption output has not been verified in that
-environment**. Synthetic tests cover manual/automatic sources, language/track changes,
-revisions, seek, empty text, malformed metadata, Auto-translate rejection and cleanup.
-Selectors and the internal source-metadata API can change without notice.
+The 2026-10-31 isolated live recheck exposed no native tracks and returned HTTP 200
+with empty bodies for both credential-free and ordinary same-origin caption requests.
+The shipped request always omits credentials. **Live timed-caption delivery remains
+unverified**; synthetic tests establish parser, prefetch, timing and boundary behavior
+only. Owner-visible captions worked previously, but this does not establish timed access.
+Missing/append-only/oversized timing data is rejected rather than assigned invented
+intervals. Live streams and other incremental formats are unsupported. Seek/source
+changes reject old work; the normal bounded provider budgets still apply.
 
 If text is inaccessible, the extension reports that state and makes no translation
 requests. Try another captioned video in your browser and report the result. Videos
@@ -509,9 +520,13 @@ is a separate optional grant for automatic captions.
 The mock build has no optional provider host and blocks remote connections. The
 page's native track loader may load its own caption resources when a track is enabled.
 No project backend, domain, shared key, or analytics is used. Cloud and AI modes require your own provider account/key and API quota. On YouTube only, a
-packaged MAIN-world reader supplies bounded source metadata (video ID, language,
-track ID/type and translation flag) through a validated, request-correlated DOM
-event. It reads no caption text, caption URLs, credentials or cookies and makes no requests.
+packaged MAIN-world reader supplies bounded source metadata and normalized timed
+captions through validated, request-correlated DOM events. It reads the selected
+track URL from the current player's response and fetches only validated same-origin
+timed text with credentials omitted, redirects rejected, a five-second timeout and
+one-MiB response limit. It makes at most one attempt per source and eight per activation.
+Signed URLs remain transient in the page world; they are not sent to the background,
+translation providers, logs or exports. The reader never receives provider keys.
 This page-controlled channel is untrusted data, never an authorization mechanism.
 
 Messages are schema-validated and authorized from browser-supplied sender metadata.

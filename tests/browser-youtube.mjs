@@ -6,6 +6,9 @@ import { chromium } from 'playwright';
 import { openToolbarPopup } from './browser-toolbar.mjs';
 const temp = await mkdtemp(join(tmpdir(), 'subtitle-youtube-'));
 let context;
+let timedBody = { events: [] };
+let timedRedirect = false;
+const timedRequests = [];
 try {
   const extension = join(temp, 'extension');
   await cp(resolve('.output/chrome-mv3-mock'), extension, { recursive: true });
@@ -43,6 +46,15 @@ try {
     const url = new URL(route.request().url());
     if (url.protocol === 'chrome-extension:') return route.continue();
     if (url.origin !== 'https://www.youtube.com') return route.abort();
+    if (url.pathname === '/api/timedtext') {
+      timedRequests.push({ url, headers: route.request().headers() });
+      if (timedRedirect)
+        return route.fulfill({
+          status: 302,
+          headers: { location: 'https://blocked.example.test/captions' },
+        });
+      return route.fulfill({ json: timedBody });
+    }
     const files = {
       '/watch': ['tests/fixtures/youtube/index.html', 'text/html'],
       '/fixture.js': ['tests/fixtures/youtube/fixture.js', 'text/javascript'],
@@ -300,6 +312,102 @@ try {
       () => document.querySelector('video').textTracks[0].mode,
     ),
     'showing',
+  );
+  // Whole timed captions arrive before playback, even when the DOM only has a word.
+  await page.reload();
+  await page.waitForFunction(
+    () => document.querySelector('video').readyState >= 2,
+  );
+  const timedMetadata = {
+    videoDetails: { videoId: 'synthetic-next' },
+    captions: {
+      playerCaptionsTracklistRenderer: {
+        captionTracks: [
+          {
+            languageCode: 'en',
+            vssId: '.en',
+            baseUrl:
+              'https://www.youtube.com/api/timedtext?v=synthetic-next&lang=en',
+          },
+        ],
+      },
+    },
+  };
+  timedBody = {
+    events: [
+      {
+        tStartMs: 2000,
+        dDurationMs: 3000,
+        segs: [{ utf8: 'Whole ' }, { utf8: 'sentence.', tOffsetMs: 1200 }],
+      },
+      {
+        tStartMs: 6000,
+        dDurationMs: 2000,
+        segs: [{ utf8: 'Next complete cue.' }],
+      },
+    ],
+  };
+  await page.evaluate((metadata) => {
+    window.fixture.timed(metadata);
+    window.fixture.text('Whole');
+    document.querySelector('video').pause();
+  }, timedMetadata);
+  await context.addCookies([
+    {
+      name: 'synthetic-cookie',
+      value: 'not-a-secret',
+      domain: 'www.youtube.com',
+      path: '/',
+      secure: true,
+    },
+  ]);
+  await send('playback.enable', { youtubeSourceConfirmed: true });
+  await label('YouTube timed track · advance translation');
+  await caption('');
+  await page.waitForTimeout(300); // Deterministic mock completes while media is paused.
+  assert.equal(timedRequests.length, 1);
+  assert.equal(timedRequests[0].url.searchParams.get('fmt'), 'json3');
+  assert.equal(timedRequests[0].headers.cookie, undefined);
+  assert.equal(timedRequests[0].headers.referer, undefined);
+  await page.evaluate(() => {
+    const video = document.querySelector('video');
+    video.muted = true;
+    video.playbackRate = 2;
+    void video.play();
+  });
+  await caption('Whole sentence.\n[MOCK] Whole sentence.');
+  await page.evaluate(() => document.querySelector('video').pause());
+  const shownAt = await page.evaluate(
+    () => document.querySelector('video').currentTime,
+  );
+  assert.ok(
+    shownAt >= 2 && shownAt < 2.5,
+    `Prepared caption arrived at ${shownAt}`,
+  );
+  await page.evaluate(() => window.fixture.text('Whole sentence.'));
+  await caption('Whole sentence.\n[MOCK] Whole sentence.');
+  assert.equal(
+    timedRequests.length,
+    1,
+    'DOM revisions do not refetch a timed track',
+  );
+  await page.evaluate(() => {
+    window.fixture.source({ languageCode: 'tr', kind: '', vss_id: '.tr' });
+    window.fixture.text('Changed source.');
+  });
+  await label('Advance translation unavailable');
+  await send('playback.disable');
+  // Redirected timed text must stop; no credential-bearing or cross-origin followup.
+  timedRedirect = true;
+  await page.evaluate(() =>
+    window.fixture.source({ languageCode: 'en', kind: '', vss_id: '.en' }),
+  );
+  await send('playback.enable', { youtubeSourceConfirmed: true });
+  await label('Advance translation unavailable');
+  assert.equal(timedRequests.length, 2);
+  await send('playback.disable');
+  console.log(
+    `Prepared synthetic timed caption first observed at ${shownAt.toFixed(3)}s for its 2.000s start (mock, not live latency).`,
   );
   assert.deepEqual(errors, []);
   console.log(
