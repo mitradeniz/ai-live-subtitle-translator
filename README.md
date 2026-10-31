@@ -121,7 +121,7 @@ Build output and local caches are ignored by Git.
    YouTube’s CC styling is restored when captions are disabled.
 5. Click or focus the square glass control on the video to open quick settings.
    Change display mode, text size, contrast or position, or disable captions.
-   Drag the control (or use arrow keys), and use Hide/Show to collapse it. Focus remains visible;
+   Drag the control along either video edge (or use arrow keys), and use Hide/Show to collapse it. Focus remains visible;
    captions use automatic text direction for Arabic/Hebrew and other RTL text.
    The controls also work inside supported fullscreen containers. After choosing
    **Original only**, resume translation from the popup or settings; a page control
@@ -423,7 +423,9 @@ response timings are not live-provider latency or billing guarantees.
 ## Floating subtitle controls
 
 After enabling captions, the video shows a small square glass **A/文** control.
-Drag it within the video, or focus it and use arrow keys. Click it to change display
+Drag it vertically along either video edge; it stays on the nearest left or right
+side. Left/Right arrow keys choose the edge; Up/Down adjust its height. The Show
+controls tab returns at the same edge and height. Click the square to change display
 mode, text size, contrast or top/bottom placement. Escape closes the panel. **Hide
 controls** collapses it into a **Show controls** tab without stopping translation.
 **Open settings** opens the extension's fixed options page; keys and provider setup

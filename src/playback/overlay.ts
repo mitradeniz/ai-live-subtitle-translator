@@ -14,7 +14,7 @@ export class CaptionOverlay {
   #dock = document.createElement('div');
   #logo = document.createElement('button');
   #peek = document.createElement('button');
-  #position = { x: 0.94, y: 0.16 };
+  #position = { x: 1, y: 0.16 };
   #native: HTMLElement | null = null;
   #nativeOpacity = '';
   #nativePriority = '';
@@ -54,7 +54,7 @@ export class CaptionOverlay {
       *{box-sizing:border-box}[hidden]{display:none!important}.wrap{display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;padding:16px 5% 58px;gap:6px}
       .wrap.top{justify-content:start;padding-top:24px}.caption{white-space:pre-line;overflow-wrap:anywhere;unicode-bidi:plaintext;text-align:center;color:#fff;background:var(--caption-bg);border:1px solid #ffffff40;border-radius:12px;padding:8px 16px;font:600 var(--size)/1.4 system-ui,sans-serif;max-width:100%;max-height:65%;overflow:hidden;text-shadow:0 2px 4px #000}
       .caption.bilingual{display:flex;flex-direction:column-reverse}.original-line{font-size:.85em;color:#dfe6ee}.caption:empty,.label:empty{display:none}.label{font:500 11px/1.5 system-ui,sans-serif;color:#dfe8ff;overflow-wrap:anywhere;max-width:100%}.provider-status{background:#10172feb;border-radius:6px;padding:3px 8px}
-      .dock{position:absolute;pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px;width:48px;font:500 12px system-ui,sans-serif}.logo{width:46px;height:46px;padding:0!important;position:relative;touch-action:none;cursor:grab!important;border-radius:14px!important;background:linear-gradient(140deg,#b9dbff50,#12203bbf 52%,#718acb50)!important;box-shadow:inset 0 1px 1px #ffffff80,0 5px 22px #0005;backdrop-filter:blur(12px)}.logo:active{cursor:grabbing!important}.latin{position:absolute;left:8px;top:4px;font-size:22px;font-weight:650}.han{position:absolute;right:6px;bottom:3px;font-size:19px}.arrows{position:absolute;left:8px;bottom:6px;font-size:13px;color:#b7d6ff}
+      .dock{position:absolute;pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px;width:46px;font:500 12px system-ui,sans-serif}.logo{width:46px;height:46px;padding:0!important;position:relative;touch-action:none;cursor:grab!important;border-radius:14px!important;background:linear-gradient(140deg,#b9dbff50,#12203bbf 52%,#718acb50)!important;box-shadow:inset 0 1px 1px #ffffff80,0 5px 22px #0005;backdrop-filter:blur(12px)}.logo:active{cursor:grabbing!important}.latin{position:absolute;left:8px;top:4px;font-size:22px;font-weight:650}.han{position:absolute;right:6px;bottom:3px;font-size:19px}.arrows{position:absolute;left:8px;bottom:6px;font-size:13px;color:#b7d6ff}
       .controls{position:absolute;right:0;top:54px;width:290px;max-width:calc(100vw - 24px);max-height:70vh;overflow:auto;display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:14px;border:1px solid #ffffff38;border-radius:18px;background:linear-gradient(145deg,#17233af5,#090e19f5);box-shadow:inset 0 1px #ffffff18,0 14px 44px #0006;backdrop-filter:blur(14px)}.controls.above{top:auto;bottom:54px}.controls .label{flex-basis:100%;max-height:90px;overflow:auto}.controls select{width:100%;max-width:none}.peek{position:absolute;right:8px;top:22%;pointer-events:auto;opacity:.7}
       button,select{font:500 12px system-ui,sans-serif;color:#fff;background:#25334b;border:1px solid #95abd080;border-radius:8px;min-height:32px;padding:6px 9px;cursor:pointer}button:hover{background:#36476a}button:focus-visible,select:focus-visible{outline:3px solid #b0d6ff;outline-offset:2px}button:disabled{opacity:.4;cursor:default}.settings-link{width:100%;text-align:left;background:#ffffff0b}.peek:hover{opacity:1}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}`;
     this.#wrap.className = 'wrap';
@@ -115,8 +115,9 @@ export class CaptionOverlay {
       drag.moved = true;
       const rect = this.#video.getBoundingClientRect();
       this.#position = {
-        x: (event.clientX - rect.left - 23) / Math.max(1, rect.width - 48),
-        y: (event.clientY - rect.top - 23) / Math.max(1, rect.height - 48),
+        // Stay attached to the nearest side while dragging.
+        x: event.clientX < rect.left + rect.width / 2 ? 0 : 1,
+        y: (event.clientY - rect.top - 29) / Math.max(1, rect.height - 58),
       };
       toggle(false);
     });
@@ -129,8 +130,8 @@ export class CaptionOverlay {
     });
     this.#logo.addEventListener('keydown', (event) => {
       const delta: Record<string, [number, number]> = {
-        ArrowLeft: [-0.04, 0],
-        ArrowRight: [0.04, 0],
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
         ArrowUp: [0, -0.04],
         ArrowDown: [0, 0.04],
       };
@@ -303,15 +304,21 @@ export class CaptionOverlay {
     });
     this.#position.x = Math.max(0, Math.min(1, this.#position.x));
     this.#position.y = Math.max(0, Math.min(1, this.#position.y));
-    const x = this.#position.x * Math.max(0, rect.width - 48),
-      y = this.#position.y * Math.max(0, rect.height - 48);
+    const inset = Math.min(6, Math.max(0, (rect.width - 46) / 2));
+    const x =
+        inset + this.#position.x * Math.max(0, rect.width - 46 - inset * 2),
+      y = 6 + this.#position.y * Math.max(0, rect.height - 58);
     this.#dock.style.left = `${x}px`;
     this.#dock.style.top = `${y}px`;
+    // The restore tab follows the same edge and height as the hidden control.
+    this.#peek.style.left = this.#position.x === 0 ? `${inset}px` : 'auto';
+    this.#peek.style.right = this.#position.x === 1 ? `${inset}px` : 'auto';
+    this.#peek.style.top = `${y}px`;
     this.#toolbar.style.width = `${Math.min(290, Math.max(150, rect.width - 24))}px`;
     this.#toolbar.style.maxHeight = `${Math.max(100, rect.height - 80)}px`;
     const panelWidth = Math.min(290, Math.max(150, rect.width - 24));
     this.#toolbar.style.right = 'auto';
-    this.#toolbar.style.left = `${Math.max(12, Math.min(x + 48 - panelWidth, rect.width - panelWidth - 12)) - x}px`;
+    this.#toolbar.style.left = `${Math.max(12, Math.min(x + 46 - panelWidth, rect.width - panelWidth - 12)) - x}px`;
     const above = y > rect.height / 2;
     this.#toolbar.classList.toggle('above', above);
     this.#toolbar.style.maxHeight = `${Math.max(80, above ? y - 8 : rect.height - y - 62)}px`;

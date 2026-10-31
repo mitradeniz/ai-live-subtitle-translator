@@ -211,21 +211,41 @@ try {
       'Hello from the timing lab.\nÇeviri: Hello from the timing lab.',
   );
   const logo = overlay.getByRole('button', { name: 'Quick subtitle settings' });
-  const beforeMove = await logo.boundingBox();
+  const videoBox = await page.locator('video').boundingBox();
+  const rightBox = await logo.boundingBox();
+  assert.ok(
+    Math.abs(rightBox.x + rightBox.width - (videoBox.x + videoBox.width - 6)) <
+      2,
+  );
   await logo.focus();
   await page.keyboard.press('ArrowLeft');
+  const leftBox = await logo.boundingBox();
   assert.ok(
-    (await logo.boundingBox()).x < beforeMove.x,
-    'Keyboard can move the square control',
+    Math.abs(leftBox.x - (videoBox.x + 6)) < 2,
+    'Left key docks to the left edge',
   );
+  await page.keyboard.press('ArrowDown');
+  assert.ok((await logo.boundingBox()).y > leftBox.y);
   const from = await logo.boundingBox();
   await page.mouse.move(from.x + 20, from.y + 20);
   await page.mouse.down();
-  await page.mouse.move(from.x - 100, from.y + 50, { steps: 6 });
-  await page.mouse.up();
+  await page.mouse.move(videoBox.x + videoBox.width * 0.75, from.y + 70, {
+    steps: 6,
+  });
+  const duringDrag = await logo.boundingBox();
   assert.ok(
-    (await logo.boundingBox()).x < from.x - 50,
-    'Pointer drag moves the control',
+    Math.abs(
+      duringDrag.x + duringDrag.width - (videoBox.x + videoBox.width - 6),
+    ) < 2,
+    'Dragging stays on the nearest edge',
+  );
+  await page.mouse.up();
+  const docked = await logo.boundingBox();
+  assert.ok(docked.y > from.y + 30, 'Vertical drag changes dock height');
+  assert.equal(
+    await logo.getAttribute('aria-expanded'),
+    'false',
+    'Dragging does not open settings',
   );
   await logo.click();
   const sourceLine = caption.locator('.original-line');
@@ -235,7 +255,16 @@ try {
     'Translation is above the original',
   );
   await overlay.getByRole('button', { name: 'Hide controls' }).click();
-  await overlay.getByRole('button', { name: 'Show controls' }).click();
+  const show = overlay.getByRole('button', { name: 'Show controls' });
+  const showBox = await show.boundingBox();
+  assert.ok(
+    Math.abs(showBox.y - docked.y) < 2,
+    'Restore tab keeps dock height',
+  );
+  assert.ok(
+    Math.abs(showBox.x + showBox.width - (videoBox.x + videoBox.width - 6)) < 2,
+  );
+  await show.click();
   await logo.click();
   await page.screenshot({ path: '.output/floating-controls.png' });
   await overlay
