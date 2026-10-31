@@ -1,5 +1,6 @@
 import type { Settings } from '../messaging/protocol.ts';
 import { translate, type Locale } from '../ui/strings.ts';
+import { createMark } from '../ui/mark.ts';
 export type Appearance = Pick<
   Settings,
   'displayMode' | 'fontSize' | 'contrast' | 'position'
@@ -62,13 +63,13 @@ export class CaptionOverlay {
     this.#locale = options?.settings.uiLanguage ?? 'en';
     const shadow = this.host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host { all:initial; position:fixed; display:block; pointer-events:none; z-index:2147483647; --size:24px; --caption-bg:#080d16eb; }
+    style.textContent = `:host { all:initial; position:fixed; display:block; pointer-events:none; z-index:2147483647; --size:24px; --caption-bg:rgb(10 14 26 / 48%); --caption-filter:blur(18px) saturate(160%); --font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; }
       *{box-sizing:border-box}[hidden]{display:none!important}.wrap{display:flex;flex-direction:column;align-items:center;justify-content:end;height:100%;padding:16px 5% 58px;gap:6px}
-      .wrap.top{justify-content:start;padding-top:24px}.caption{white-space:pre-line;overflow-wrap:anywhere;unicode-bidi:plaintext;text-align:center;color:#fff;background:var(--caption-bg);border:1px solid #ffffff40;border-radius:12px;padding:8px 16px;font:600 var(--size)/1.4 system-ui,sans-serif;max-width:100%;max-height:65%;overflow:hidden;text-shadow:0 2px 4px #000}
-      .caption.bilingual{display:flex;flex-direction:column-reverse}.original-line{font-size:.85em;color:#dfe6ee}.caption:empty,.label:empty{display:none}.label{font:500 11px/1.5 system-ui,sans-serif;color:#dfe8ff;overflow-wrap:anywhere;max-width:100%}.provider-status{background:#10172feb;border-radius:6px;padding:3px 8px}
-      .dock{position:fixed;pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px;width:46px;font:500 12px system-ui,sans-serif}.logo{width:46px;height:46px;padding:0!important;position:relative;touch-action:none;cursor:grab!important;border-radius:14px!important;background:linear-gradient(140deg,#b9dbff50,#12203bbf 52%,#718acb50)!important;box-shadow:inset 0 1px 1px #ffffff80,0 5px 22px #0005;backdrop-filter:blur(12px)}.logo:active{cursor:grabbing!important}.latin{position:absolute;left:8px;top:4px;font-size:22px;font-weight:650}.han{position:absolute;right:6px;bottom:3px;font-size:19px}.arrows{position:absolute;left:8px;bottom:6px;font-size:13px;color:#b7d6ff}
-      .controls{position:absolute;right:0;top:54px;width:290px;max-width:calc(100vw - 24px);max-height:70vh;overflow:auto;display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:14px;border:1px solid #ffffff38;border-radius:18px;background:linear-gradient(145deg,#17233af5,#090e19f5);box-shadow:inset 0 1px #ffffff18,0 14px 44px #0006;backdrop-filter:blur(14px)}.controls.above{top:auto;bottom:54px}.controls .label{flex-basis:100%;max-height:90px;overflow:auto}.controls select{width:100%;max-width:none}.peek{position:fixed;right:8px;top:22%;pointer-events:auto;opacity:.7}
-      button,select{font:500 12px system-ui,sans-serif;color:#fff;background:#25334b;border:1px solid #95abd080;border-radius:8px;min-height:32px;padding:6px 9px;cursor:pointer}button:hover{background:#36476a}button:focus-visible,select:focus-visible{outline:3px solid #b0d6ff;outline-offset:2px}button:disabled{opacity:.4;cursor:default}.settings-link{width:100%;text-align:left;background:#ffffff0b}.peek:hover{opacity:1}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}`;
+      .wrap.top{justify-content:start;padding-top:24px}.caption{white-space:pre-line;overflow-wrap:anywhere;unicode-bidi:plaintext;text-align:center;color:#fff;background:var(--caption-bg);-webkit-backdrop-filter:var(--caption-filter);backdrop-filter:var(--caption-filter);border:1px solid rgb(255 255 255 / 22%);border-radius:14px;box-shadow:inset 0 1px 0 rgb(255 255 255 / 22%),0 10px 30px -12px rgb(0 0 0 / 60%);padding:8px 18px;font:600 var(--size)/1.4 var(--font);max-width:100%;max-height:65%;overflow:hidden;text-shadow:0 1px 3px rgb(0 0 0 / 70%),0 0 12px rgb(0 0 0 / 35%)}
+      .caption.bilingual{display:flex;flex-direction:column-reverse}.original-line{font-size:.82em;font-weight:500;color:rgb(240 244 252 / 88%)}.caption:empty,.label:empty{display:none}.label{font:500 11px/1.5 var(--font);color:#e4ecff;overflow-wrap:anywhere;max-width:100%}.provider-status{background:rgb(14 20 40 / 62%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:999px;padding:3px 10px;box-shadow:inset 0 1px 0 rgb(255 255 255 / 20%),inset 0 0 0 1px rgb(255 255 255 / 10%)}
+      .dock{position:fixed;pointer-events:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px;width:46px;font:500 12px var(--font)}.logo{width:46px;height:46px;padding:0!important;position:relative;display:grid!important;place-items:center;touch-action:none;cursor:grab!important;border:0!important;border-radius:16px!important;background:linear-gradient(180deg,rgb(255 255 255 / 22%),rgb(255 255 255 / 6%)),rgb(14 20 40 / 40%)!important;-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 55%),inset 0 0 0 1px rgb(255 255 255 / 16%),0 10px 26px -10px rgb(0 0 0 / 70%)}.logo svg{width:30px;height:30px;pointer-events:none}.logo:active{cursor:grabbing!important;transform:none}
+      .controls{position:absolute;right:0;top:54px;width:290px;max-width:calc(100vw - 24px);max-height:70vh;overflow:auto;display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:14px;border:1px solid rgb(255 255 255 / 18%);border-radius:22px;background:linear-gradient(180deg,rgb(34 42 66 / 82%),rgb(14 18 32 / 88%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 18px 44px -12px rgb(0 0 0 / 70%);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%)}.controls.above{top:auto;bottom:54px}.controls .label{flex-basis:100%;max-height:90px;overflow:auto}.controls select{width:100%;max-width:none}.peek{position:fixed;right:8px;top:22%;pointer-events:auto;opacity:.85;background:rgb(14 20 40 / 60%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+      button,select{font:550 12px var(--font);color:#fff;background:rgb(255 255 255 / 10%);border:1px solid rgb(255 255 255 / 14%);border-radius:999px;min-height:32px;padding:6px 11px;cursor:pointer;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}select{border-radius:12px;background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:hover{background:rgb(255 255 255 / 18%)}button:active{transform:scale(.94)}button:focus-visible,select:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button:disabled{opacity:.4;cursor:default;transform:none}.settings-link{width:100%;text-align:left;border-radius:14px;background:rgb(255 255 255 / 6%)}.peek:hover{opacity:1}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto;transition:none!important}}@media(prefers-reduced-transparency:reduce){.caption,.controls,.logo,.provider-status,.peek{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}`;
     this.#wrap.className = 'wrap';
     this.#caption.className = 'caption';
     this.#caption.dir = 'auto';
@@ -86,17 +87,7 @@ export class CaptionOverlay {
     this.#logo.type = 'button';
     this.#logo.setAttribute('aria-controls', this.#toolbar.id);
     this.#logo.setAttribute('aria-expanded', 'false');
-    for (const [name, text] of [
-      ['latin', 'A'],
-      ['han', '文'],
-      ['arrows', '↔'],
-    ]) {
-      const span = document.createElement('span');
-      span.className = name!;
-      span.textContent = text!;
-      span.setAttribute('aria-hidden', 'true');
-      this.#logo.append(span);
-    }
+    this.#logo.append(createMark(30));
     const toggle = (open: boolean) => {
       this.#toolbar.hidden = !open;
       if (!open) this.#quickRequested = false;
@@ -290,7 +281,11 @@ export class CaptionOverlay {
     this.host.style.setProperty('--size', `${settings.fontSize}px`);
     this.host.style.setProperty(
       '--caption-bg',
-      settings.contrast === 'solid' ? '#000' : '#080d16eb',
+      settings.contrast === 'solid' ? '#000' : 'rgb(10 14 26 / 48%)',
+    );
+    this.host.style.setProperty(
+      '--caption-filter',
+      settings.contrast === 'solid' ? 'none' : 'blur(18px) saturate(160%)',
     );
     this.#wrap.classList.toggle('top', settings.position === 'top');
     this.#mode.value = settings.displayMode;
