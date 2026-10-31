@@ -284,11 +284,13 @@ export class PageTools {
                   sessionId,
                   provider: change.provider,
                 }
-              : {
-                  type: 'page.menu-language',
-                  sessionId,
-                  targetLanguage: change.targetLanguage,
-                },
+              : 'swap' in change
+                ? { type: 'page.menu-swap', sessionId }
+                : {
+                    type: 'page.menu-language',
+                    sessionId,
+                    targetLanguage: change.targetLanguage,
+                  },
           );
           if (result.kind !== 'player-menu-saved')
             throw new Error('Unavailable');

@@ -79,6 +79,26 @@ export class SettingsStore {
     });
   }
 
+  swapLanguages(valid: () => void): Promise<Settings> {
+    return this.#storage.run(async ({ local }) => {
+      const current = SettingsSchema.safeParse(
+        (await local.get(SETTINGS_KEY))[SETTINGS_KEY],
+      );
+      if (!current.success) throw new BoundaryError('UNAVAILABLE');
+      valid();
+      // Auto-detect has no language to become the target.
+      if (current.data.sourceLanguage === 'auto')
+        throw new BoundaryError('FORBIDDEN');
+      const next = SettingsSchema.parse({
+        ...current.data,
+        sourceLanguage: current.data.targetLanguage,
+        targetLanguage: current.data.sourceLanguage,
+      });
+      await local.set({ [SETTINGS_KEY]: next });
+      return next;
+    });
+  }
+
   updateTarget(targetLanguage: string, valid: () => void): Promise<Settings> {
     const target = PreferencesSchema.shape.targetLanguage.parse(targetLanguage);
     return this.#storage.run(async ({ local }) => {

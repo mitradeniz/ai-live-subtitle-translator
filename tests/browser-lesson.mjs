@@ -405,7 +405,66 @@ try {
       .evaluate((option) => option.disabled),
     true,
   );
+  // Swapping needs a fixed source language and only exchanges saved values.
+  const swap = mini.getByRole('button', {
+    name: 'Swap source and target languages',
+  });
+  assert.equal(await swap.isDisabled(), true, 'No swap from auto-detect');
+  const reopen = async () => {
+    await page.bringToFront();
+    if (!(await mini.isVisible())) await shortcut.click();
+    await mini.waitFor();
+  };
+  const menuTarget = (code) =>
+    page.waitForFunction((value) => {
+      const root = document.querySelector(
+        'translator-player-shortcut',
+      )?.shadowRoot;
+      const select = root?.querySelector(
+        'select[aria-label="Target language"]',
+      );
+      return (
+        select?.value === value &&
+        !select.disabled &&
+        root.querySelector('.swap')?.disabled === false
+      );
+    }, code);
+  await send('controls.update', {
+    preferences: {
+      ...preferences,
+      displayMode: 'bilingual',
+      sourceLanguage: 'en',
+      targetLanguage: 'tr',
+    },
+  });
+  // Trusted preference changes stop page tools; turn them on again.
+  await page.bringToFront();
+  assert.equal((await send('page.enable', { run: false })).ok, true);
+  await reopen();
+  await menuTarget('tr');
+  await swap.click();
+  await menuTarget('en');
+  let languagePair = (await send('settings.read')).data.settings;
+  assert.deepEqual(
+    [languagePair.sourceLanguage, languagePair.targetLanguage],
+    ['tr', 'en'],
+  );
+  await reopen();
+  await swap.click();
+  await menuTarget('tr');
+  languagePair = (await send('settings.read')).data.settings;
+  assert.deepEqual(
+    [languagePair.sourceLanguage, languagePair.targetLanguage],
+    ['en', 'tr'],
+  );
+  assert.equal(providerRequests, afterChange, 'Swapping sends no text');
   await page.screenshot({ path: '.output/lesson-player.png' });
+  await send('controls.update', {
+    preferences: { ...preferences, displayMode: 'bilingual' },
+  });
+  await page.bringToFront();
+  assert.equal((await send('page.enable', { run: false })).ok, true);
+  await reopen();
   // Keep the existing one-second caption-activation rate gate intact.
   await page.waitForTimeout(1100);
   await send('playback.disable');
@@ -511,7 +570,7 @@ try {
       scanningTicks: after - before,
       providerRequests,
       checks:
-        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, no automatic request, track event feedback bounded, large live DOM responsiveness, restore and cleanup',
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, restore and cleanup',
     }),
   );
 } finally {

@@ -47,6 +47,7 @@ test('player choices and changes require the active document and accept no privi
     ['page.menu', {}],
     ['page.menu-provider', { provider: 'none' }],
     ['page.menu-language', { targetLanguage: 'en' }],
+    ['page.menu-swap', {}],
   ] as const) {
     for (const sender of [
       uiSender(),
@@ -213,4 +214,53 @@ test('changing target language cancels an in-flight response and rejects the old
     (await controller.dispatch(request('page.menu', { sessionId }), sender)).ok,
     false,
   );
+});
+
+test('swapping languages uses saved settings, refuses auto-detect and rotates the page session', async () => {
+  const f = fixture();
+  const read = async () => {
+    const result = await f.controller.dispatch(
+      request('settings.read'),
+      uiSender(),
+    );
+    assert.ok(result.ok && result.data.kind === 'settings');
+    return result.data.settings;
+  };
+  // The default source is auto-detect: nothing to swap and nothing rotated.
+  assert.equal((await read()).sourceLanguage, 'auto');
+  assert.equal((await f.send('page.menu-swap')).ok, false);
+  assert.equal((await f.send('page.menu')).ok, true, 'Session kept');
+  // A page can only ask for a swap; it cannot name a language.
+  for (const extra of [
+    { sourceLanguage: 'de' },
+    { targetLanguage: 'de' },
+    { languages: ['de', 'en'] },
+  ])
+    assert.equal((await f.send('page.menu-swap', extra)).ok, false);
+  f.areas.local.data['settings.v1'] = {
+    ...DEFAULT_SETTINGS,
+    sourceLanguage: 'en',
+    targetLanguage: 'tr',
+  };
+  const menu = await f.send('page.menu');
+  assert.ok(menu.ok && menu.data.kind === 'player-menu');
+  assert.equal(menu.data.sourceLanguage, 'en');
+  assert.equal(menu.data.targetLanguage, 'tr');
+  const swapped = await f.send('page.menu-swap');
+  assert.ok(swapped.ok && swapped.data.kind === 'player-menu-saved');
+  assert.equal((await f.send('page.menu')).ok, false, 'Old session revoked');
+  f.rotate(swapped.data.sessionId);
+  assert.deepEqual(await read(), {
+    ...DEFAULT_SETTINGS,
+    sourceLanguage: 'tr',
+    targetLanguage: 'en',
+  });
+  const back = await f.send('page.menu-swap');
+  assert.ok(back.ok && back.data.kind === 'player-menu-saved');
+  f.rotate(back.data.sessionId);
+  assert.deepEqual(await read(), {
+    ...DEFAULT_SETTINGS,
+    sourceLanguage: 'en',
+    targetLanguage: 'tr',
+  });
 });

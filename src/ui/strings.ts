@@ -551,3 +551,9 @@ Object.assign(turkish, {
   'Swap source and target languages': 'Kaynak ve hedef dili değiştir',
   'Unsaved changes': 'Kaydedilmemiş değişiklikler',
 });
+
+Object.assign(turkish, {
+  'Swap languages': 'Dilleri değiştir',
+  'Set a source language in settings to swap.':
+    'Değiştirmek için ayarlardan bir kaynak dil seç.',
+});

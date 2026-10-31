@@ -41,13 +41,31 @@ function controlRow(video: HTMLVideoElement): HTMLElement | null {
   return null;
 }
 
+type MenuChange =
+  { provider: MenuProvider } | { targetLanguage: string } | { swap: true };
+// Names shown in the menu; unknown codes are shown as typed.
+const LANGUAGES: readonly (readonly [string, string])[] = [
+  ['tr', 'Türkçe'],
+  ['en', 'English'],
+  ['de', 'Deutsch'],
+  ['fr', 'Français'],
+  ['es', 'Español'],
+  ['it', 'Italiano'],
+  ['pt', 'Português'],
+  ['ar', 'العربية'],
+  ['he', 'עברית'],
+  ['ja', '日本語'],
+  ['ko', '한국어'],
+  ['zh-CN', '简体中文'],
+  ['ru', 'Русский'],
+  ['hi', 'हिन्दी'],
+];
+
 export interface PlayerMenuOptions {
   t(text: string): string;
   recipient: string;
   read(): Promise<PlayerMenu>;
-  change(
-    change: { provider: MenuProvider } | { targetLanguage: string },
-  ): Promise<void>;
+  change(change: MenuChange): Promise<void>;
   status(): Promise<PlaybackState>;
   toggle(enabled: boolean): Promise<PlaybackState>;
   settings(): Promise<void>;
@@ -62,6 +80,8 @@ export class PlayerShortcut {
   #status = document.createElement('p');
   #provider = document.createElement('select');
   #language = document.createElement('select');
+  #swap = document.createElement('button');
+  #pair = document.createElement('small');
   #config: PlayerMenu | undefined;
   #timer: ReturnType<typeof setInterval>;
   #closed = false;
@@ -75,7 +95,7 @@ export class PlayerShortcut {
   constructor(private options: PlayerMenuOptions) {
     const shadow = this.#host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host{all:initial;display:inline-flex;flex:0 0 34px;align-self:stretch;align-items:center;justify-content:center;width:34px;vertical-align:middle;color-scheme:dark}*{box-sizing:border-box}button{cursor:pointer;font:500 13px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#f3f6fc}select:focus-visible,button:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.trigger{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:9px;background:linear-gradient(180deg,rgb(255 255 255 / 24%),rgb(255 255 255 / 6%)),rgb(16 20 36 / 45%);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 16%)}.trigger svg{width:20px;height:20px;pointer-events:none}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 32%),rgb(255 255 255 / 10%)),rgb(16 20 36 / 55%)}.menu{position:fixed;inset:auto;margin:0;width:270px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:8px;border:1px solid rgb(255 255 255 / 16%);border-radius:20px;background:linear-gradient(180deg,rgb(34 42 66 / 88%),rgb(14 18 32 / 92%));color:#f3f6fc;box-shadow:inset 0 1px 0 rgb(255 255 255 / 22%),0 18px 44px -14px rgb(0 0 0 / 70%);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);font:12px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:12px;background:transparent;text-align:start}.item:hover:not(:disabled){background:rgb(255 255 255 / 9%)}.icon{flex:0 0 20px;white-space:nowrap;width:20px;text-align:center;color:#c8ecff}.caption{flex:1}.caption small{display:block;font-size:10px;color:rgb(226 233 247 / 66%);margin-top:2px}.track{width:30px;height:18px;padding:2px;border-radius:20px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);flex-shrink:0;transition:background .3s}.thumb{display:block;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}[aria-checked="true"] .thumb{transform:translateX(12px)}.recipient{font-size:10px;color:rgb(226 233 247 / 66%);border-top:1px solid rgb(255 255 255 / 10%);padding:8px 10px 2px;margin:3px 0 0;overflow-wrap:anywhere}.status{font-size:11px;color:#ffe1b3;margin:4px 10px;overflow-wrap:anywhere}.status:empty{display:none}.field{display:block;padding:6px 10px;font-size:11px;color:rgb(226 233 247 / 74%)}.field select{display:block;width:100%;min-width:0;margin-top:5px;padding:7px 10px;border:1px solid rgb(255 255 255 / 12%);border-radius:10px;background:rgb(0 0 0 / 28%);color:#f3f6fc;font:12px ui-sans-serif,system-ui,sans-serif}.field select option{background:#141a2a}.field select:disabled{opacity:.5}@media(prefers-reduced-motion:reduce){*{transition:none!important}}`;
+    style.textContent = `:host{all:initial;display:inline-flex;flex:0 0 34px;align-self:stretch;align-items:center;justify-content:center;width:34px;vertical-align:middle;color-scheme:dark}*{box-sizing:border-box}button{cursor:pointer;font:500 13px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#f3f6fc}select:focus-visible,button:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.trigger{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:9px;background:linear-gradient(180deg,rgb(255 255 255 / 24%),rgb(255 255 255 / 6%)),rgb(16 20 36 / 45%);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 16%)}.trigger svg{width:20px;height:20px;pointer-events:none}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 32%),rgb(255 255 255 / 10%)),rgb(16 20 36 / 55%)}.menu{position:fixed;inset:auto;margin:0;width:270px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:8px;border:1px solid rgb(255 255 255 / 16%);border-radius:20px;background:linear-gradient(180deg,rgb(34 42 66 / 88%),rgb(14 18 32 / 92%));color:#f3f6fc;box-shadow:inset 0 1px 0 rgb(255 255 255 / 22%),0 18px 44px -14px rgb(0 0 0 / 70%);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);font:12px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:12px;background:transparent;text-align:start}.item:hover:not(:disabled){background:rgb(255 255 255 / 9%)}.icon{flex:0 0 20px;white-space:nowrap;width:20px;text-align:center;color:#c8ecff}.caption{flex:1}.caption small{display:block;font-size:10px;color:rgb(226 233 247 / 66%);margin-top:2px}.track{width:30px;height:18px;padding:2px;border-radius:20px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);flex-shrink:0;transition:background .3s}.thumb{display:block;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}[aria-checked="true"] .thumb{transform:translateX(12px)}.recipient{font-size:10px;color:rgb(226 233 247 / 66%);border-top:1px solid rgb(255 255 255 / 10%);padding:8px 10px 2px;margin:3px 0 0;overflow-wrap:anywhere}.status{font-size:11px;color:#ffe1b3;margin:4px 10px;overflow-wrap:anywhere}.status:empty{display:none}.field{display:block;padding:6px 10px;font-size:11px;color:rgb(226 233 247 / 74%)}.field select{display:block;width:100%;min-width:0;margin-top:5px;padding:7px 10px;border:1px solid rgb(255 255 255 / 12%);border-radius:10px;background:rgb(0 0 0 / 28%);color:#f3f6fc;font:12px ui-sans-serif,system-ui,sans-serif}.field select option{background:#141a2a}.field select:disabled{opacity:.5}.swap .icon{font-size:15px;transition:transform .55s cubic-bezier(.3,1.45,.5,1)}.swap:hover:not(:disabled) .icon{transform:rotate(180deg)}.swap small{direction:ltr;unicode-bidi:isolate}@media(prefers-reduced-motion:reduce){*{transition:none!important}}`;
     this.button.type = 'button';
     this.button.className = 'trigger';
     this.button.append(createMark(20));
@@ -192,6 +212,24 @@ export class PlayerShortcut {
       ['Translation provider', this.#provider],
       ['Target language', this.#language],
     ] as const;
+    this.#swap.type = 'button';
+    this.#swap.className = 'item swap';
+    this.#swap.setAttribute(
+      'aria-label',
+      options.t('Swap source and target languages'),
+    );
+    this.#swap.disabled = true;
+    this.#row(this.#swap, '⇄', 'Swap languages');
+    this.#swap.querySelector('.caption')?.append(this.#pair);
+    this.#swap.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (!event.isTrusted || this.#busy || !this.#config) return;
+      if (this.#config.sourceLanguage === 'auto') {
+        this.#notice('Set a source language in settings to swap.');
+        return;
+      }
+      void this.#change({ swap: true });
+    });
     const labels = fields.map(([text, select]) => {
       const label = document.createElement('label');
       label.className = 'field';
@@ -213,6 +251,7 @@ export class PlayerShortcut {
     this.#menu.append(
       this.#switch,
       ...labels,
+      this.#swap,
       this.#download,
       settings,
       recipient,
@@ -269,22 +308,10 @@ export class PlayerShortcut {
     this.#provider.title =
       config.choices.find((choice) => choice.id === config.selected)?.label ??
       '';
-    const languages: [string, string][] = [
-      ['tr', 'Türkçe'],
-      ['en', 'English'],
-      ['de', 'Deutsch'],
-      ['fr', 'Français'],
-      ['es', 'Español'],
-      ['it', 'Italiano'],
-      ['pt', 'Português'],
-      ['ar', 'العربية'],
-      ['he', 'עברית'],
-      ['ja', '日本語'],
-      ['ko', '한국어'],
-      ['zh-CN', '简体中文'],
-      ['ru', 'Русский'],
-      ['hi', 'हिन्दी'],
-    ];
+    const languages: [string, string][] = LANGUAGES.map(([code, name]) => [
+      code,
+      name,
+    ]);
     if (!languages.some(([code]) => code === config.targetLanguage))
       languages.push([config.targetLanguage, config.targetLanguage]);
     this.#language.replaceChildren(
@@ -296,11 +323,18 @@ export class PlayerShortcut {
       }),
     );
     this.#language.value = config.targetLanguage;
+    const name = (code: string) =>
+      code === 'auto'
+        ? this.options.t('Auto-detect')
+        : (LANGUAGES.find(([known]) => known === code)?.[1] ?? code);
+    this.#pair.textContent = `${name(config.sourceLanguage)} → ${name(config.targetLanguage)}`;
+    this.#swap.title =
+      config.sourceLanguage === 'auto'
+        ? this.options.t('Set a source language in settings to swap.')
+        : this.options.t('Swap source and target languages');
     this.#position();
   }
-  async #change(
-    change: { provider: MenuProvider } | { targetLanguage: string },
-  ) {
+  async #change(change: MenuChange) {
     this.#busy = true;
     this.#epoch++;
     this.#paint();
@@ -354,6 +388,8 @@ export class PlayerShortcut {
     this.#switch.disabled = this.#busy || this.#state === 'unavailable';
     this.#provider.disabled = this.#language.disabled =
       this.#busy || !this.#config;
+    this.#swap.disabled =
+      this.#busy || !this.#config || this.#config.sourceLanguage === 'auto';
   }
   async #refresh() {
     if (this.#closed || this.#busy || this.#refreshing) return;

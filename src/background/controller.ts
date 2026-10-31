@@ -144,10 +144,12 @@ export function createController(
     );
     const aiAllowed = await ai.permitted(),
       cloudAllowed = await cloud.permitted();
+    const languages = await settings.read();
     return {
       kind: 'player-menu',
       selected: selected === 'ai' ? aiDefinition(profile).name : selected,
-      targetLanguage: (await settings.read()).targetLanguage,
+      sourceLanguage: languages.sourceLanguage,
+      targetLanguage: languages.targetLanguage,
       choices: [
         { id: 'none', label: 'Original only', state: 'ready', keySaved: false },
         {
@@ -378,7 +380,8 @@ export function createController(
       } else if (
         request.type === 'page.menu' ||
         request.type === 'page.menu-provider' ||
-        request.type === 'page.menu-language'
+        request.type === 'page.menu-language' ||
+        request.type === 'page.menu-swap'
       ) {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         const ticket = epoch;
@@ -403,6 +406,12 @@ export function createController(
               'ready'
           )
             throw new BoundaryError('FORBIDDEN');
+          // Nothing is cancelled or rotated for a swap that cannot apply.
+          if (
+            request.type === 'page.menu-swap' &&
+            menu.sourceLanguage === 'auto'
+          )
+            throw new BoundaryError('FORBIDDEN');
           menuUpdating = true;
           try {
             cancelAll();
@@ -417,6 +426,10 @@ export function createController(
             };
             if (request.type === 'page.menu-language') {
               await settings.updateTarget(request.targetLanguage, () => {
+                if (!current()) throw new BoundaryError('INVALID_SESSION');
+              });
+            } else if (request.type === 'page.menu-swap') {
+              await settings.swapLanguages(() => {
                 if (!current()) throw new BoundaryError('INVALID_SESSION');
               });
             } else {

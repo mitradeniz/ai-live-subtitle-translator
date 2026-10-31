@@ -297,6 +297,7 @@ export default defineBackground(() => {
             'controls.select',
             'page.menu-provider',
             'page.menu-language',
+            'page.menu-swap',
           ].includes(String(message.type))
         )
           await resetTranslations(
@@ -318,6 +319,7 @@ export default defineBackground(() => {
             'controls.select',
             'page.menu-provider',
             'page.menu-language',
+            'page.menu-swap',
             'controls.update',
             'settings.update',
             'ai.configure',

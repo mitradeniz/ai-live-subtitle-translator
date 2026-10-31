@@ -43,6 +43,7 @@ export const MenuProviderSchema = z.enum([
 export const PlayerMenuSchema = z.strictObject({
   kind: z.literal('player-menu'),
   selected: MenuProviderSchema,
+  sourceLanguage: PreferencesSchema.shape.sourceLanguage,
   targetLanguage: PreferencesSchema.shape.targetLanguage,
   choices: z
     .array(
@@ -183,6 +184,13 @@ export const RequestSchema = z.discriminatedUnion('type', [
     type: z.literal('page.menu-language'),
     sessionId,
     targetLanguage: PreferencesSchema.shape.targetLanguage,
+  }),
+  // Swaps the saved source and target languages. The page cannot name either
+  // language; the background derives both from trusted settings.
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.menu-swap'),
+    sessionId,
   }),
   z.strictObject({
     ...envelope,
