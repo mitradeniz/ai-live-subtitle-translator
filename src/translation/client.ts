@@ -16,7 +16,14 @@ export function providerTransform(sessionId: string): CaptionTransform {
     signal.addEventListener('abort', cancel, { once: true });
     try {
       // Observed text has no future cue window; stabilize only that path.
-      if (options?.observed !== false) await waitFor(300, signal);
+      if (options?.observed !== false) {
+        // Completed sentences can settle sooner; retain the longer debounce for
+        // rolling word fragments so faster rendering does not spam paid requests.
+        const complete = cues.every((cue) =>
+          /[.!?…][”"')\]]*$/.test(cue.text.trim()),
+        );
+        await waitFor(complete ? 120 : 300, signal);
+      }
       if (signal.aborted) throw new TranslationFailure('CANCELLED');
       if (cues.length > 4 || cues.some((cue) => cue.text.length > 1000))
         throw new TranslationFailure('LIMIT');

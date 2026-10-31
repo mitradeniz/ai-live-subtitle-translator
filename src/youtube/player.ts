@@ -108,6 +108,10 @@ export class YouTubePlayer {
     this.#scan();
     this.#animate();
   }
+  get translationStopped() {
+    return this.#translationStopped;
+  }
+  #translationStopped = false;
   get active() {
     return !this.#closed;
   }
@@ -120,6 +124,7 @@ export class YouTubePlayer {
   }
 
   stopTranslation() {
+    this.#translationStopped = true;
     this.#transform = undefined;
     this.#timedWindow?.reset();
     this.#timedWindow = undefined;

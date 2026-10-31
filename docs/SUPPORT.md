@@ -1,4 +1,4 @@
-# Support matrix — 0.1.2-preview.1
+# Support matrix — 0.1.3-preview.1
 
 This is a production-optimized **limited preview**, not a fully verified beta.
 The implementation has local automated checks; provider/account and owner-browser

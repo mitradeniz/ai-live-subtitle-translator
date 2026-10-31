@@ -64,7 +64,13 @@ export default defineContentScript({
         return;
       }
       if (control.type === 'playback.inspect') {
-        respond(player?.active ? 'enabled' : 'disabled');
+        respond(
+          player?.active
+            ? player.translationStopped
+              ? 'needs-restart'
+              : 'enabled'
+            : 'disabled',
+        );
         return;
       }
       const ticket = ++generation;

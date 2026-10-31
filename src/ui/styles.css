@@ -789,3 +789,90 @@ summary:focus-visible {
     outline: 2px solid Highlight;
   }
 }
+
+/* Keep scrollbars inside the toolbar width, including browser zoom. */
+.popup-document {
+  width: 420px;
+  max-width: none;
+  overflow-x: hidden;
+}
+.popup-document body,
+.popup-document #root,
+.dashboard-popup {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.popup-document body {
+  max-height: none;
+  overflow: visible;
+}
+.dashboard-popup .popup-controls {
+  margin-bottom: 14px;
+}
+.playback-summary strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.live-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #94a1b5;
+  flex: 0 0 auto;
+}
+.is-on .live-dot {
+  background: #88ebbc;
+  box-shadow: 0 0 12px #88ebbc50;
+}
+.needs-attention .live-dot {
+  background: #f2cb83;
+}
+.playback-summary.is-on {
+  border-color: #88ebbc65;
+  background: #88ebbc0d;
+}
+.dashboard-popup .enabled-button:disabled {
+  opacity: 1;
+  background: #b0f0d1;
+  color: #123a2b;
+  border-color: #b0f0d1;
+  cursor: default;
+}
+.dashboard-popup .provider-card {
+  min-height: 87px;
+  align-content: start;
+}
+.dashboard-popup .provider-card.has-key {
+  border-color: #88ebbc70;
+}
+.dashboard-popup .provider-card[aria-pressed='true'] {
+  border-width: 2px;
+  padding: 8px 7px;
+  background: linear-gradient(140deg, #8faeff50, #87a4d826);
+}
+.dashboard-popup .saved-tick {
+  position: static;
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: #a7f3ce;
+  background: #59c69317;
+  border-radius: 5px;
+  padding: 1px 4px;
+}
+.missing-key .provider-detail {
+  color: #e4c5a1;
+}
+.response-time {
+  color: #a7bad6;
+}
+.retention-warning {
+  border-inline-start: 3px solid #e4c58a;
+  padding: 10px 12px;
+  background: #e4c58a0d;
+  color: #e4d3b5;
+  font-size: 12px;
+  margin-top: 12px;
+}

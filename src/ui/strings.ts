@@ -1,5 +1,30 @@
 export type Locale = 'en' | 'tr';
 export const turkish: Record<string, string> = {
+  'Translation blocked · Key missing': 'Çeviri engellendi · Anahtar yok',
+  'Translation needs attention': 'Çeviri için işlem gerekiyor',
+  'Restart required': 'Yeniden başlatmak gerekiyor',
+  'ON · Original captions': 'AÇIK · Orijinal altyazılar',
+  'ON · Translating…': 'AÇIK · Çevriliyor…',
+  'ON · Captions enabled': 'AÇIK · Altyazı etkin',
+  'OFF · Captions disabled': 'KAPALI · Altyazı devre dışı',
+  'Preferences changed. Restart captions to resume translation.':
+    'Tercihler değişti. Çeviriye devam etmek için altyazıyı yeniden başlat.',
+  'Waiting for the selected provider. No fallback provider is used.':
+    'Seçili sağlayıcı bekleniyor. Başka bir sağlayıcıya geçilmiyor.',
+  'Waiting for the next accessible caption.': 'Yeni altyazı bekleniyor.',
+  'Last request (queue + provider)': 'Son istek (sıra + sağlayıcı)',
+  'Session keys disappear after Reload. Add the key again; choose Remember on this device to keep it.':
+    'Oturumluk anahtarlar Reload ile silinir. Anahtarı tekrar ekle; kalması için Bu cihazda hatırla seç.',
+  'On this device': 'Cihazda kayıtlı',
+  'Session · Cleared on reload': 'Oturumluk · Reload siler',
+  '+ Add API key': '+ API anahtarı ekle',
+  'Add API key': 'API anahtarı ekle',
+  'Restart captions': 'Altyazıyı yeniden başlat',
+  '✓ Enabled': '✓ Etkin',
+  'Saved keys are not automatically tested. One AI key + one Cloud key.':
+    'Kayıtlı anahtarlar otomatik test edilmez. Bir AI + bir Cloud anahtarı.',
+  'Reload will delete a session-only key.': 'Reload, oturumluk anahtarı siler.',
+
   'No translation': 'Çeviri kapalı',
   'Original only is selected. Choose Translation only or bilingual to translate.':
     'Yalnızca orijinal seçili. Çeviri için Yalnızca çeviri veya Orijinal ve çeviri seç.',

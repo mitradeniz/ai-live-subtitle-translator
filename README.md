@@ -2,7 +2,7 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.1.2-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+**Current status: 0.1.3-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus an experimental YouTube visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.1.2-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.1.2-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.1.2-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.1.3-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.1.3-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.1.3-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.1.2-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.1.3-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -223,8 +223,16 @@ key. Unconfigured cards open settings; switching AI origins there replaces the o
 AI key. Keys are entered/deleted only in settings. The YouTube source confirmation
 appears on watch pages and is not remembered across popup openings.
 
-The popup shows the most recent current-caption result/error for the active tab,
-when available. This local summary expires after five minutes and is lost when the
+The popup distinguishes an active overlay from translation that needs restarting.
+A green **✓ Enabled** button confirms activation; **Restart captions** applies
+changed preferences. A missing paid-provider key blocks activation and shows
+**Add API key**. **Key saved** badges show device or session retention explicitly.
+Session keys are cleared by extension reload; choose **Remember this new key on
+this device** when entering a replacement if you want it to survive reload.
+
+The popup shows pending work and the most recent current-caption result/error for the active tab,
+when available, with elapsed queue/provider time for the last completed request.
+This is not evidence that a translation is still visible for the current cue. This local summary expires after five minutes and is lost when the
 worker restarts or the session is invalidated; it is not a full playback history.
 Provider errors retain original captions and never silently choose a paid fallback.
 
@@ -610,3 +618,8 @@ collected from emitted modules; see [license provenance](third-party/README.md).
 ## License
 
 [MIT](LICENSE)
+
+Observed captions ending in sentence punctuation settle for 120 ms; rolling fragments
+keep a 300 ms debounce. Provider spacing, quotas and retry limits are unchanged.
+A cancelled queue wait no longer holds up cached results. These changes cannot
+remove provider latency or add future captions to the YouTube DOM fallback.

@@ -160,3 +160,118 @@ test('popup reports redacted current-tab playback failures and drops them on ses
   const restarted = createController(EXTENSION_ID, h.areas);
   assert.equal((await summary(restarted)).recent, null);
 });
+
+test('missing or revoked paid credentials block activation before injecting a player', async () => {
+  const areas = fakeAreas();
+  let activations = 0;
+  let permitted = true;
+  const controller = createController(
+    EXTENSION_ID,
+    areas,
+    async () => {
+      activations++;
+      return 'enabled';
+    },
+    undefined,
+    { permitted: async () => permitted },
+  );
+  await controller.ai.configure(profile);
+  await controller.selection.set('ai');
+  const enable = () =>
+    controller.dispatch(request('playback.enable'), uiSender('popup'));
+  assert.deepEqual(await enable(), {
+    ok: true,
+    data: { kind: 'playback', state: 'key-required' },
+  });
+  const keys = new CredentialStore(new TrustedStorage(areas));
+  await keys.set('ai', {
+    schemaVersion: 1,
+    origin: 'https://api.deepseek.com',
+    key: SENTINEL,
+  });
+  assert.deepEqual(await enable(), {
+    ok: true,
+    data: { kind: 'playback', state: 'enabled' },
+  });
+  permitted = false;
+  assert.deepEqual(await enable(), {
+    ok: true,
+    data: { kind: 'playback', state: 'permission-required' },
+  });
+  assert.equal(activations, 1);
+  // Chrome clears session storage on extension reload. An origin-bound device
+  // record survives it; never promote the session key without an explicit save.
+  areas.session.data = {};
+  assert.equal((await summary(controller)).ai.configured, false);
+  await keys.set(
+    'ai',
+    { schemaVersion: 1, origin: 'https://api.deepseek.com', key: SENTINEL },
+    true,
+  );
+  areas.session.data = {};
+  const restarted = createController(EXTENSION_ID, areas);
+  assert.equal((await summary(restarted)).ai.retention, 'device');
+});
+
+test('pending diagnostics have no success claim and disappear when their session is revoked', async () => {
+  const areas = fakeAreas();
+  let release!: () => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const controller = createController(
+    EXTENSION_ID,
+    areas,
+    undefined,
+    undefined,
+    {
+      permitted: async () => true,
+      fetch: async () => {
+        entered();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return new Response('{}', {
+          headers: { 'content-type': 'application/json' },
+        });
+      },
+    },
+    undefined,
+    undefined,
+    async () => ({ tabId: 7, youtube: true }),
+  );
+  await controller.ai.configure(profile);
+  await controller.selection.set('ai');
+  await new CredentialStore(new TrustedStorage(areas)).set('ai', {
+    schemaVersion: 1,
+    origin: 'https://api.deepseek.com',
+    key: SENTINEL,
+  });
+  await controller.sessions.ready;
+  const sessionId = controller.sessions.grant(contentSender());
+  const response = controller.dispatch(
+    request('content.translate', {
+      sessionId,
+      job: {
+        jobId: crypto.randomUUID(),
+        generation: 1,
+        items: [
+          { id: 'pending', revision: 1, text: 'Synthetic pending caption.' },
+        ],
+      },
+    }),
+    contentSender(),
+  );
+  await started;
+  assert.equal((await summary(controller)).recent?.phase, 'pending');
+  assert.equal((await summary(controller)).recent?.durationMs, null);
+  controller.sessions.revokeTab(7);
+  release();
+  await response;
+  assert.equal(
+    (await summary(controller)).recent,
+    null,
+    'A stale completion cannot restore the revoked status',
+  );
+});

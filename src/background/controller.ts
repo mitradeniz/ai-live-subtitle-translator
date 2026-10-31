@@ -11,6 +11,7 @@ import {
   ResponseSchema,
   withinMessageBudget,
   type Response,
+  type PopupStatus,
 } from '../messaging/protocol.ts';
 import { CredentialStore } from './credentials.ts';
 import { BoundaryError } from './errors.ts';
@@ -57,14 +58,11 @@ export function createController(
   const sites = new SitePreferences(storage, sitePorts);
   const selection = new ProviderSelection(storage);
   // No captions, URLs or provider error bodies. Ephemeral and bounded per tab.
-  const recent = new Map<
-    number,
-    { error: TranslationErrorCode | null; at: number }
-  >();
-  function record(tabId: number, error: TranslationErrorCode | null) {
+  const recent = new Map<number, NonNullable<PopupStatus['recent']>>();
+  function record(tabId: number, value: NonNullable<PopupStatus['recent']>) {
     recent.delete(tabId);
     if (recent.size >= 32) recent.delete(recent.keys().next().value!);
-    recent.set(tabId, { error, at: Date.now() });
+    recent.set(tabId, value);
   }
   let epoch = 0;
   const cancelAll = () => {
@@ -112,6 +110,33 @@ export function createController(
         if (sender.kind !== 'ui' || sender.page !== 'popup')
           throw new BoundaryError('FORBIDDEN');
         if (!playback) throw new BoundaryError('UNAVAILABLE');
+        if (
+          request.type === 'playback.enable' &&
+          (await settings.read()).displayMode !== 'original'
+        ) {
+          const selected = await selection.read();
+          if (selected === 'ai' || selected === 'google-cloud') {
+            const paid = selected === 'ai' ? ai : cloud;
+            const profile = await paid.profile();
+            if (
+              !(
+                await credentials.status(
+                  selected,
+                  new URL(profile.endpoint).origin,
+                )
+              ).configured
+            )
+              return {
+                ok: true,
+                data: { kind: 'playback', state: 'key-required' },
+              };
+            if (!(await paid.permitted()))
+              return {
+                ok: true,
+                data: { kind: 'playback', state: 'permission-required' },
+              };
+          }
+        }
         response = {
           ok: true,
           data: {
@@ -260,6 +285,27 @@ export function createController(
           cloud.cancel(request.sessionId, request.jobId);
           response = { ok: true, data: { kind: 'saved' } };
         } else {
+          const attempt: NonNullable<PopupStatus['recent']> = {
+            phase: 'pending',
+            error: null,
+            at: Date.now(),
+            durationMs: null,
+          };
+          if (request.job.priority !== 'prefetch')
+            record(sender.identity.tabId, attempt);
+          const finish = (error: TranslationErrorCode | null) => {
+            if (recent.get(sender.identity.tabId) !== attempt) return;
+            if (error === 'CANCELLED') {
+              recent.delete(sender.identity.tabId);
+              return;
+            }
+            record(sender.identity.tabId, {
+              phase: error ? 'error' : 'success',
+              error,
+              at: Date.now(),
+              durationMs: Math.max(0, Date.now() - attempt.at),
+            });
+          };
           const preferences = await settings.read();
           try {
             valid();
@@ -339,21 +385,14 @@ export function createController(
             )
               throw new TranslationFailure('PERMISSION');
             valid();
-            if (request.job.priority !== 'prefetch')
-              record(sender.identity.tabId, null);
+            finish(null);
             response = {
               ok: true,
               data: { kind: 'translation', result: { ok: true, ...result } },
             };
           } catch (error) {
             if (!(error instanceof TranslationFailure)) throw error;
-            if (
-              error.code !== 'CANCELLED' &&
-              request.job.priority !== 'prefetch'
-            ) {
-              valid();
-              record(sender.identity.tabId, error.code);
-            }
+            finish(error.code);
             response = {
               ok: true,
               data: {

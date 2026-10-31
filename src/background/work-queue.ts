@@ -41,6 +41,7 @@ type Entry = {
   resolve: (result: CaptionResult) => void;
   reject: (error: unknown) => void;
   created: number;
+  abort: AbortController;
   timer?: ReturnType<typeof setTimeout>;
 };
 export class WorkQueue {
@@ -88,9 +89,11 @@ export class WorkQueue {
       resolve,
       reject,
       created: this.#now(),
+      abort: new AbortController(),
     };
     entry.timer = setTimeout(() => {
       entry.cancelled = true;
+      entry.abort.abort();
       work.cancel?.();
       entry.reject(new TranslationFailure('CANCELLED'));
       if (!entry.started)
@@ -108,6 +111,7 @@ export class WorkQueue {
         (tabId === undefined || entry.work.tabId === tabId)
       ) {
         entry.cancelled = true;
+        entry.abort.abort();
         if (!entry.started) {
           clearTimeout(entry.timer);
           entry.reject(new TranslationFailure('CANCELLED'));
@@ -168,7 +172,7 @@ export class WorkQueue {
     valid();
     if (hit) return hit;
     const delay = (this.#next.get(work.provider) ?? 0) - this.#now();
-    if (delay > 0) await waitFor(delay, AbortSignal.timeout(25_000));
+    if (delay > 0) await waitFor(delay, entry.abort.signal);
     valid();
     const allowed = await this.#storage.run(async ({ session }) => {
       const raw = (await session.get(JOURNAL))[JOURNAL];

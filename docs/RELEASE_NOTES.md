@@ -1,3 +1,22 @@
+# 0.1.3-preview.1 — 2026-10-31
+
+- Show active, off, restart-required and blocked translation states separately.
+  Active controls read **✓ Enabled**; changes that stop translation offer restart.
+- Make saved/missing API keys and session/device retention visible on provider
+  cards. Activation with a missing paid key is rejected before player injection.
+  Session storage remains the default; device retention still requires opt-in.
+- Display bounded local pending state and completed request duration without
+  keys, transcripts or raw provider errors. No automatic paid tests were added.
+- Completed observed sentences settle for 120 ms instead of 300 ms; rolling fragments
+  retain 300 ms. Cancelled rate-spacing waits release cached work immediately.
+  Rate limits, paid budgets, stale-revision rejection and retry bounds are unchanged.
+- Fix horizontal popup overflow when a vertical scrollbar is present.
+
+Owner confirmed the missing DeepSeek key had been saved only for the browser
+session, so it was cleared by Reload. Enter it again in options and opt into
+remembering on device if desired. Live playback with this correction awaits retest;
+observed captions still depend on provider latency and YouTube's displayed text.
+
 # 0.1.2-preview.1 — 2026-10-31
 
 Limited preview; owner playback retest pending. Numeric manifest version: 0.1.2.

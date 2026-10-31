@@ -88,9 +88,12 @@ try {
     .waitFor();
   assert.ok(
     await popup.evaluate(
-      () => document.body.getBoundingClientRect().height < 600,
+      () =>
+        document.documentElement.getBoundingClientRect().height <= 600 &&
+        document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
     ),
-    'Popup must size to content instead of the browser viewport',
+    'Toolbar surface is capped at 600px with no horizontal overflow',
   );
   const toolbar = await openToolbarPopup(context, worker);
   for (const type of ['credentials.status', 'settings.export']) {

@@ -196,7 +196,10 @@ export function AISettings() {
           />{' '}
           {t('Remember this new key on this device')}
         </label>
-        <p className="field-help">
+        <p className={remember ? 'field-help' : 'retention-warning'}>
+          {!remember && (
+            <strong>{t('Reload will delete a session-only key.')} </strong>
+          )}
           {t(
             'Default: session storage, cleared on browser restart or extension reload/update. Remembered keys survive restart until deleted; device storage is not encrypted by this extension. This checkbox applies when saving a new key.',
           )}

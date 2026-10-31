@@ -202,6 +202,7 @@ try {
       }),
     );
     assert.equal(result.ok, true);
+    return result;
   };
   const seek = async (time) => {
     await page.evaluate((time) => {
@@ -334,11 +335,14 @@ try {
       const toolbar = await openToolbarPopup(context, worker);
       const toolbarState = await toolbar.evaluate(() => ({
         text: document.body.innerText,
-        height: document.body.getBoundingClientRect().height,
-        width: document.body.getBoundingClientRect().width,
+        height: document.documentElement.clientHeight,
+        width: document.documentElement.getBoundingClientRect().width,
       }));
       assert.match(toolbarState.text, /Selected: No translation/);
-      assert.ok(toolbarState.height <= 600 && toolbarState.width === 420);
+      assert.ok(
+        toolbarState.height <= 600 && toolbarState.width === 420,
+        JSON.stringify(toolbarState),
+      );
       assert.ok(!toolbarState.text.includes('SENTINEL'));
       assert.deepEqual(counts, before, 'Opening popup never sends a paid test');
       await toolbar.evaluate(
@@ -374,9 +378,7 @@ try {
     await popup
       .getByRole('button', { name: 'Save preferences', exact: true })
       .click();
-    await popup
-      .getByText('Preferences saved. Enable captions again', { exact: false })
-      .waitFor();
+    await popup.getByText('Restart required', { exact: true }).waitFor();
     await mkdir('test-results', { recursive: true });
     await popup.setViewportSize({ width: 420, height: 600 });
     await popup.screenshot({ path: `test-results/popup-${value}.png` });
@@ -385,6 +387,30 @@ try {
     await activate();
     await caption(`Hello from the timing lab.\n${value} çığ 😊`);
     assert.equal(counts[value], 2);
+    await popup
+      .getByRole('button', { name: '✓ Enabled', exact: true })
+      .waitFor();
+    assert.equal(
+      await popup
+        .getByRole('button', { name: '✓ Enabled', exact: true })
+        .isDisabled(),
+      true,
+    );
+    assert.equal(
+      await popup
+        .getByRole('button', { name: 'Disable captions', exact: true })
+        .isEnabled(),
+      true,
+    );
+    assert.ok(
+      await popup.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+      ),
+      'No horizontal toolbar scrollbar',
+    );
+    await popup.screenshot({ path: `test-results/popup-${value}-enabled.png` });
   }
   await mkdir('test-results', { recursive: true });
   await options.setViewportSize({ width: 1440, height: 1000 });
@@ -450,8 +476,11 @@ try {
   await cloud.getByRole('button', { name: 'Delete Cloud key' }).click();
   await feedback(cloud, 'Cloud key deleted');
   await select('google-cloud');
-  await activate();
-  await overlayStatus('key is missing');
+  assert.equal((await activate()).data.state, 'key-required');
+  await popup
+    .getByRole('button', { name: 'Add API key', exact: true })
+    .waitFor();
+  assert.equal(await popup.locator('.provider-card.has-key').count(), 1);
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({

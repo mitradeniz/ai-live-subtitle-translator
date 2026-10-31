@@ -720,3 +720,39 @@ test('timed captions distinguish waiting from failed output and discard old fail
   assert.equal(window.failed(tooLong), true);
   assert.ok(errors.some(failure('LIMIT')));
 });
+
+test('cancelled spacing wait releases the provider lane immediately for a cached current cue', async () => {
+  const queue = new WorkQueue(new TrustedStorage(fakeAreas()));
+  let calls = 0;
+  const make = (text: string) => {
+    const batch = job(text);
+    return {
+      provider: 'ai',
+      config,
+      paid: true,
+      tabId: 1,
+      sessionId: 'cancel-wait',
+      job: batch,
+      valid: () => {},
+      perform: async () => {
+        calls++;
+        return result(batch);
+      },
+    };
+  };
+  await queue.run(make('cached'));
+  await tick();
+  const waiting = make('obsolete');
+  const pending = queue.run(waiting);
+  const rejected = assert.rejects(pending, failure('CANCELLED'));
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const start = performance.now();
+  queue.cancel(waiting.sessionId, waiting.job.jobId);
+  await queue.run(make('cached'));
+  await rejected;
+  assert.equal(calls, 1, 'Cache reuse must not consume another paid request');
+  assert.ok(
+    performance.now() - start < 500,
+    'An abandoned spacing wait must not hold the cache hit for the remaining second',
+  );
+});

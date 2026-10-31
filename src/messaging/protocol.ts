@@ -210,6 +210,8 @@ export const PopupStatusSchema = z.strictObject({
   youtube: z.boolean(),
   recent: z
     .strictObject({
+      phase: z.enum(['pending', 'success', 'error']),
+      durationMs: z.number().int().nonnegative().nullable(),
       error: TranslationErrorSchema.nullable(),
       at: z.number().int().nonnegative(),
     })

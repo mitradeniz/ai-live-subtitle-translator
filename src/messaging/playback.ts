@@ -2,6 +2,9 @@ import { z } from './schema.ts';
 
 export const PlaybackStateSchema = z.enum([
   'enabled',
+  'needs-restart',
+  'key-required',
+  'permission-required',
   'disabled',
   'no-video',
   'unavailable',

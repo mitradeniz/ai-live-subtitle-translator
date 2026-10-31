@@ -474,6 +474,19 @@ try {
     .filter({ hasText: 'unsupported response' })
     .waitFor();
   assert.equal(await caption.textContent(), 'Failed observed caption.');
+  // Reproducible observed-caption latency, with all remote responses mocked.
+  replyMode = 'normal';
+  await page.waitForTimeout(1200);
+  const observedStarted = Date.now();
+  await page.evaluate(() => window.fixture.text('Measured observed caption.'));
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('subtitle-translator-overlay')
+        .shadowRoot.querySelector('.caption').textContent ===
+      'Çeviri: Measured observed caption.',
+  );
+  const observedCaptionMs = Date.now() - observedStarted;
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify(
@@ -482,6 +495,7 @@ try {
         checks:
           'keyboard, locale, live appearance/focus, RTL/plain text, no-request original mode, scoped auto registration, SPA/replacement, refresh, manual stop, opt-out',
         providerRequests: requests,
+        observedCaptionMs,
         errors,
       },
       null,

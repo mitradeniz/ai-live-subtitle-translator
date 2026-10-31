@@ -179,6 +179,7 @@ try {
       type,
     );
     assert.equal(reply.ok, true);
+    return reply;
   };
   const seek = async (time) => {
     await page.evaluate((time) => {
@@ -278,8 +279,10 @@ try {
   await caption('Hello from the timing lab.');
   const afterDelete = count;
   await page.waitForTimeout(1100);
-  await send('playback.enable');
-  await status('key is missing');
+  assert.equal((await send('playback.enable')).data.state, 'key-required');
+  await popup
+    .getByText('Translation blocked · Key missing', { exact: true })
+    .waitFor();
   assert.equal(count, afterDelete);
   mode = 'auth';
   await saveKey();

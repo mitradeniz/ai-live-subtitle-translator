@@ -86,6 +86,10 @@ export class CaptionPlayer {
     this.#animate();
   }
 
+  get translationStopped() {
+    return this.#translationStopped;
+  }
+  #translationStopped = false;
   get active() {
     return !this.#closed;
   }
@@ -99,6 +103,7 @@ export class CaptionPlayer {
   }
 
   stopTranslation() {
+    this.#translationStopped = true;
     this.#window?.reset();
     this.#window = undefined;
     this.#label = 'Original captions';
