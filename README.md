@@ -2,11 +2,11 @@
 
 An open-source browser extension being developed for video subtitle translation.
 
-**Current status: 0.1.1-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
+**Current status: 0.1.2-preview.1 — limited preview, not a fully verified beta.** This production build displays accessible native HTML5 text
 tracks after you enable it on a page, plus an experimental YouTube visible-caption
 fallback. Includes saved preferences, JSON export, and
 a dark glass settings interface, English/Turkish controls, and optional automatic activation on YouTube. **Experimental keyless Google translation is available after explicit opt-in.
-Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; real-key verification is pending.** A separate, clearly labeled local test build
+Google Cloud and AI BYOK (OpenAI, DeepSeek, Gemini) have mocked contract/browser coverage; live playback verification remains incomplete. The owner reports a successful DeepSeek small test; that does not establish video translation.** A separate, clearly labeled local test build
 repeats captions with a mock prefix for testing. YouTube live caption delivery varies; see the limitations below.
 
 ## Versioned owner preview
@@ -29,9 +29,9 @@ on Linux if absent). WXT creates the ZIP; verification checks its exact root
 inventory, CRCs and each file against the inspected normal build. SHA-256 and inventory
 files sit beside the archive, outside it:
 
-- `.output/ai-live-subtitle-translator-0.1.1-preview.1-chrome.zip`
-- `.output/ai-live-subtitle-translator-0.1.1-preview.1-chrome.zip.sha256`
-- `.output/ai-live-subtitle-translator-0.1.1-preview.1-chrome.inventory.json`
+- `.output/ai-live-subtitle-translator-0.1.2-preview.1-chrome.zip`
+- `.output/ai-live-subtitle-translator-0.1.2-preview.1-chrome.zip.sha256`
+- `.output/ai-live-subtitle-translator-0.1.2-preview.1-chrome.inventory.json`
 
 `check:reproducible` installs from the existing local pnpm store into a fresh temporary
 source copy and compares rebuilt ZIP bytes. It needs the exact pinned Node/pnpm and
@@ -41,7 +41,7 @@ not identical binaries across different operating systems or dependency versions
 For a clean owner install, create a separate Chrome profile, extract the ZIP into a
 stable folder, then open `chrome://extensions` → Developer mode → Load unpacked and
 select the extracted folder containing `manifest.json`. Check the displayed version
-is **0.1.1-preview.1**. Keep any older test extension disabled in that profile. Open
+is **0.1.2-preview.1**. Keep any older test extension disabled in that profile. Open
 its popup and **Open settings**; no engine or key should be configured. Unpacked
 extensions at different paths may have different IDs/storage. See normal usage below.
 To check the downloaded ZIP on macOS/Linux, run `shasum -a 256 -c` on its `.sha256`
@@ -111,9 +111,9 @@ Build output and local caches are ignored by Git.
 3. The overlay follows the video clock. **Disable captions** removes the overlay
    and restores native track modes. Caption text is rendered as plain text, including
    any markup-like strings present in the source.
-4. **Viewing controls** in the popup, or **Open settings**, offers source/target
-   language, engine, original/translated/bilingual display, font size, contrast,
-   top/bottom position and English/Turkish interface language. **Save preferences**
+4. The popup offers provider cards, source/target language and
+   original/translated/bilingual display directly. **Open settings** also offers
+   font size, contrast, top/bottom position and English/Turkish interface language. **Save preferences**
    applies appearance changes during playback. Language or provider changes stop
    translation: enable captions again from the video page. In **Translation only**, the extension waits for the current translation without
    first displaying the source. Original/bilingual mode still shows source text
@@ -211,7 +211,24 @@ cannot replace current captions. Completed translated batches are stored in a bo
 
 ## Select a translation engine
 
-In **Open settings**, the **Translation engine** section shows the current choice:
+The popup shows the selected provider, destination, saved-key checkmarks and current
+page status. Click Google or a provider with a saved key to select it, grant the
+selected host if needed, then **Enable captions**. Selecting a card does not change
+**Original only** mode: choose a translation mode and save, or use Enable captions
+to apply the edited preferences. No key is tested automatically.
+
+A checkmark means **key saved**, not verified connectivity or sufficient balance.
+There is one saved AI profile/key (OpenAI, DeepSeek or Gemini) plus a separate Cloud
+key. Unconfigured cards open settings; switching AI origins there replaces the old
+AI key. Keys are entered/deleted only in settings. The YouTube source confirmation
+appears on watch pages and is not remembered across popup openings.
+
+The popup shows the most recent current-caption result/error for the active tab,
+when available. This local summary expires after five minutes and is lost when the
+worker restarts or the session is invalidated; it is not a full playback history.
+Provider errors retain original captions and never silently choose a paid fallback.
+
+In **Open settings**, the **Translation engine** section also offers:
 
 - **Google · Experimental · No key** uses the undocumented keyless service.
 - **Google Cloud · Your key · Provider billing** uses official Translation Basic v2.

@@ -69,6 +69,12 @@ async function setup(mock) {
   await options.getByLabel('Target language').waitFor();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
+  await popup
+    .getByRole('button', {
+      name: mock ? 'Enable mock captions' : 'Enable captions',
+      exact: true,
+    })
+    .waitFor();
   const page = await context.newPage();
   await page.goto('http://127.0.0.1:4173');
   await page.waitForFunction(

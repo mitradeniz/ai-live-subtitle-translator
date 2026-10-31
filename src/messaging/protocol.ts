@@ -101,6 +101,7 @@ export const RequestSchema = z.discriminatedUnion('type', [
       'cloud.test',
       'provider.status',
       'controls.read',
+      'popup.read',
       'site.status',
       'site.activate',
       'cache.status',
@@ -198,6 +199,23 @@ export const CredentialStatusSchema = z.strictObject({
   configured: z.boolean(),
   retention: z.enum(['session', 'device']).nullable(),
 });
+export const PopupStatusSchema = z.strictObject({
+  kind: z.literal('popup-status'),
+  selected: z.enum(['none', 'google', 'google-cloud', 'ai']),
+  settings: SettingsSchema,
+  profile: AIProfileSchema,
+  ai: CredentialStatusSchema.extend({ permitted: z.boolean() }),
+  cloud: CredentialStatusSchema.extend({ permitted: z.boolean() }),
+  googlePermitted: z.boolean(),
+  youtube: z.boolean(),
+  recent: z
+    .strictObject({
+      error: TranslationErrorSchema.nullable(),
+      at: z.number().int().nonnegative(),
+    })
+    .nullable(),
+});
+export type PopupStatus = z.infer<typeof PopupStatusSchema>;
 export const ErrorCodeSchema = z.enum([
   'INVALID_MESSAGE',
   'FORBIDDEN',
@@ -211,6 +229,7 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
   z.strictObject({
     ok: z.literal(true),
     data: z.discriminatedUnion('kind', [
+      PopupStatusSchema,
       z.strictObject({ kind: z.literal('site-status'), enabled: z.boolean() }),
       z.strictObject({
         kind: z.literal('controls'),

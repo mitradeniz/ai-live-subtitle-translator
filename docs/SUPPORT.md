@@ -1,4 +1,4 @@
-# Support matrix — 0.1.1-preview.1
+# Support matrix — 0.1.2-preview.1
 
 This is a production-optimized **limited preview**, not a fully verified beta.
 The implementation has local automated checks; provider/account and owner-browser
@@ -23,7 +23,7 @@ results must be reported separately. No universal video or model compatibility i
 | Experimental keyless Google | Fixed undocumented Google endpoint; no key                                                     | Previous owner English→Turkish success; offline contract/browser regressions. No guarantee of availability or distribution rights |
 | Google Cloud                | Translation Basic v2 with your API key                                                         | Mocked contracts, alignment, errors, revocation and switching; live key/account verification required for this artifact           |
 | OpenAI                      | Chat Completions; `gpt-5.4-mini-2026-03-17` or `gpt-5.4-mini`                                  | Mocked contracts and lifecycle tests; prior live OpenAI check was deferred                                                        |
-| DeepSeek                    | `https://api.deepseek.com/chat/completions`, `deepseek-flash`                                  | Mocked compatibility profile; live key/account verification required for this artifact                                            |
+| DeepSeek                    | `https://api.deepseek.com/chat/completions`, `deepseek-flash`                                  | Owner reports a successful small paid test; mocked playback passes, live playback retest pending for this popup                   |
 | Gemini                      | `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`, `gemini-3.8-flash` | Mocked compatibility profile; live key/account verification required for this artifact                                            |
 
 Only the listed endpoint/model combinations are accepted. Models/account access can

@@ -154,6 +154,7 @@ test('paid errors distinguish key/access, quota/balance, language and configurat
     [429, {}, 'THROTTLED'],
     [400, { error: { message: 'Unsupported target language' } }, 'LANGUAGE'],
     [400, {}, 'PROVIDER_REQUEST'],
+    [422, {}, 'PROVIDER_REQUEST'],
     [500, {}, 'NETWORK'],
   ] as const) {
     let count = 0;

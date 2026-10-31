@@ -1,3 +1,4 @@
+import { isYouTubeWatch } from '../src/youtube/source.ts';
 import { YOUTUBE_HOST, YOUTUBE_ORIGIN } from '../src/background/sites.ts';
 import { CLOUD_HOST } from '../src/translation/google-cloud.ts';
 import { AI_PROFILES } from '../src/translation/ai-profile.ts';
@@ -47,6 +48,15 @@ export default defineBackground(() => {
           controller.sites.allowed(tabId),
         );
       },
+    },
+    async () => {
+      const [tab] = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      return tab?.id !== undefined && !tab.incognito
+        ? { tabId: tab.id, youtube: isYouTubeWatch(tab.url ?? '') }
+        : null;
     },
   );
   const playback: ReturnType<typeof createPlaybackHandler> =

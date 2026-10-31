@@ -1,5 +1,42 @@
 export type Locale = 'en' | 'tr';
 export const turkish: Record<string, string> = {
+  'No translation': 'Çeviri kapalı',
+  'Original only is selected. Choose Translation only or bilingual to translate.':
+    'Yalnızca orijinal seçili. Çeviri için Yalnızca çeviri veya Orijinal ve çeviri seç.',
+  'Choose a provider to translate captions.':
+    'Altyazıları çevirmek için bir sağlayıcı seç.',
+  'No key saved for the selected provider. Add it in settings.':
+    'Seçili sağlayıcının anahtarı kayıtlı değil. Ayarlardan ekle.',
+  'Provider access is missing. Click the provider to grant access.':
+    'Sağlayıcı erişim izni eksik. İzin vermek için sağlayıcıya tıkla.',
+  'Set up in settings': 'Ayarlardan kur',
+  'Select provider': 'Sağlayıcıyı seç',
+  'Key saved': 'Anahtar kayıtlı',
+  'Saved on this device': 'Bu cihazda kayıtlı',
+  'Saved for this browser session': 'Bu tarayıcı oturumu için kayıtlı',
+  'Set up': 'Kurulum',
+  'Experimental · No key': 'Deneysel · Anahtarsız',
+  'Translation provider': 'Çeviri sağlayıcısı',
+  '✓ Key saved, not a connection test. One AI key + one Cloud key.':
+    '✓ Anahtar kayıtlı; bağlantı testi değil. Bir AI + bir Cloud anahtarı.',
+  Selected: 'Seçili',
+  'Paid API · Captions sent to': 'Ücretli API · Altyazıların alıcısı',
+  'Captions sent to': 'Altyazıların alıcısı',
+  'Captions enabled': 'Altyazı açık',
+  'Captions not active on this page': 'Bu sayfada altyazı etkin değil',
+  'Recent caption translation received on this page.':
+    'Bu sayfada yakın zamanda altyazı çevirisi alındı.',
+  'Enable captions on a video with an accessible caption track.':
+    'Erişilebilir altyazısı olan bir videoda altyazıyı etkinleştir.',
+  'Could not apply this change. Check settings and page access, then try again.':
+    'Değişiklik uygulanamadı. Ayarları ve sayfa iznini kontrol edip tekrar dene.',
+  'Provider selected. Enable captions to use it on this page.':
+    'Sağlayıcı seçildi. Bu sayfada kullanmak için altyazıyı etkinleştir.',
+  'Preferences saved. Enable captions again after changing languages.':
+    'Tercihler kaydedildi. Dil değişikliğinden sonra altyazıyı yeniden etkinleştir.',
+  'A passed test does not select this provider for videos. Choose it in the popup, select a translation display mode, then enable captions.':
+    'Testin geçmesi bu sağlayıcıyı videolar için seçmez. Popup’ta sağlayıcıyı ve çeviri görünümünü seçip altyazıyı etkinleştir.',
+
   'Subtitles, in your language.': 'Altyazılar, senin dilinde.',
   'Subtitle preferences': 'Altyazı tercihleri',
   'Source language': 'Kaynak dil',

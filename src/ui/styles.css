@@ -582,3 +582,210 @@ summary:focus-visible {
 .popup .footnote {
   margin-top: 14px;
 }
+
+/* A bounded toolbar surface: layered glass without a costly blur filter. */
+.popup-document,
+.popup-document body,
+.popup-document #root,
+.dashboard-popup {
+  width: 420px;
+}
+.popup-document body {
+  max-height: 598px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 5% 0%, #7489cb30, transparent 55%),
+    radial-gradient(ellipse at 100% 65%, #347e7424, transparent 50%), #0b0e16;
+}
+.dashboard-popup {
+  padding: 16px;
+}
+.dashboard-popup .popup-brand {
+  margin: 0 0 12px;
+  gap: 10px;
+}
+.dashboard-popup h1 {
+  font-size: 20px;
+  margin: 0 0 2px;
+}
+.preview-label {
+  font-size: 10px;
+  color: #aebbd5;
+}
+.dashboard-popup fieldset {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.provider-picker legend {
+  font-size: 11px;
+  color: #b8c6de;
+  margin-bottom: 7px;
+}
+.provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+.dashboard-popup .provider-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-content: center;
+  align-items: center;
+  gap: 4px 6px;
+  min-height: 65px;
+  padding: 9px 8px;
+  border-radius: 13px;
+  border: 1px solid #c9d9ff26;
+  background: linear-gradient(135deg, #eff5ff12, #cbd9ff03);
+  color: #eef3ff;
+  box-shadow:
+    inset 0 1px 0 #ffffff12,
+    0 3px 12px #00000012;
+  text-align: start;
+}
+.dashboard-popup .provider-card:hover {
+  background: linear-gradient(135deg, #eff5ff22, #cbd9ff0c);
+  border-color: #b5c9ff70;
+}
+.dashboard-popup .provider-card[aria-pressed='true'] {
+  border-color: #abc4ff;
+  background: linear-gradient(140deg, #8faeff3d, #87a4d815);
+  box-shadow:
+    inset 0 1px 0 #ffffff25,
+    0 0 0 1px #abc4ff25;
+}
+.provider-icon {
+  display: grid;
+  place-items: center;
+}
+.provider-icon img {
+  object-fit: contain;
+}
+.provider-name {
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.provider-detail {
+  grid-column: 1 / -1;
+  color: #b9c6dd;
+  font-size: 9px;
+  line-height: 1.2;
+}
+.saved-tick {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  color: #98efc5;
+  font-size: 11px;
+}
+.dashboard-popup .key-legend {
+  font-size: 10px;
+  color: #b4c4dc;
+  margin: 7px 0;
+}
+.provider-destination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px 8px;
+  font-size: 10px;
+  color: #aebed7;
+  margin-bottom: 10px;
+}
+.provider-destination strong {
+  color: #e4edff;
+  font-weight: 600;
+}
+.provider-destination span {
+  overflow-wrap: anywhere;
+}
+.quick-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.8fr;
+  gap: 7px;
+}
+.dashboard-popup .quick-fields label {
+  margin: 0;
+  font-size: 10px;
+  min-width: 0;
+  color: #c5d2e6;
+}
+.dashboard-popup .quick-fields input,
+.dashboard-popup .quick-fields select {
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 7px;
+  margin-top: 4px;
+  font-size: 11px;
+  border-radius: 9px;
+}
+.dashboard-popup .text-button {
+  min-height: 28px;
+  padding: 3px 0;
+  margin: 2px 0 5px;
+  width: auto;
+  background: transparent;
+  color: #bdd0ff;
+  border: 0;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.playback-summary {
+  padding: 9px 11px;
+  margin-bottom: 10px;
+  border: 1px solid #b9d3ff25;
+  border-radius: 11px;
+  background: #9dbaff08;
+  font-size: 11px;
+  color: #d2def0;
+}
+.playback-summary p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.playback-summary.needs-attention {
+  border-color: #e7c88c45;
+}
+.playback-summary.needs-attention strong {
+  color: #f2d9a9;
+}
+.dashboard-popup .source-confirm {
+  margin-bottom: 10px;
+  font-size: 10px;
+}
+.dashboard-popup .popup-controls {
+  grid-template-columns: 1.25fr 1fr;
+  gap: 8px;
+}
+.dashboard-popup .popup-controls button {
+  min-height: 38px;
+  padding: 7px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+.popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 10px;
+  color: #9eafc9;
+}
+.dashboard-popup .popup-footer button {
+  width: auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 9px;
+}
+@media (forced-colors: active) {
+  .dashboard-popup .provider-card[aria-pressed='true'] {
+    outline: 2px solid Highlight;
+  }
+}

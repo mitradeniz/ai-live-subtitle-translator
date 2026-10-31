@@ -74,7 +74,7 @@ try {
   await popup.getByRole('button', { name: 'Open settings' }).waitFor();
   assert.ok(!(await popup.locator('body').textContent()).includes('MOCK'));
   assert.match(
-    await popup.locator('.footnote').textContent(),
+    await popup.locator('.popup-footer').textContent(),
     new RegExp(version.replaceAll('.', '\\.')),
   );
   const send = (type, extra = {}) =>

@@ -129,23 +129,13 @@ try {
   await popup
     .getByRole('button', { name: 'Enable captions', exact: true })
     .waitFor();
-  assert.equal(
-    await popup.evaluate(() =>
-      performance
-        .getEntriesByType('resource')
-        .some((r) => /\/client-[\w-]+\.js/.test(r.name)),
-    ),
-    false,
-  );
-  await popup.locator('summary').focus();
-  await popup.keyboard.press('Enter');
-  await popup.getByLabel('Target language', { exact: true }).waitFor();
+  await popup.getByLabel('Source language', { exact: true }).focus();
   await popup.keyboard.press('Tab');
   assert.equal(
     await popup.evaluate(() =>
       document.activeElement.getAttribute('aria-label'),
     ),
-    'Source language',
+    'Target language',
   );
   const page = await context.newPage();
   await page.goto('http://127.0.0.1:4173');
@@ -332,8 +322,7 @@ try {
     fullPage: true,
   });
   await options.setViewportSize({ width: 1280, height: 1000 });
-  await popup.locator('summary').click();
-  await popup.setViewportSize({ width: 360, height: 600 });
+  await popup.setViewportSize({ width: 420, height: 600 });
   await popup.screenshot({ path: 'test-results/controls-popup-tr.png' });
   await overlay.getByRole('button', { name: 'Altyazıyı kapat' }).click();
   await overlay.waitFor({ state: 'detached' });

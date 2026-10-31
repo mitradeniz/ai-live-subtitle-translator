@@ -3,6 +3,7 @@ import { cp, mkdtemp, readFile, writeFile, rm, mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { chromium } from 'playwright';
+import { openToolbarPopup } from './browser-toolbar.mjs';
 import { startFixture } from '../scripts/fixture-server.mjs';
 
 // Always offline: no live credential, environment key or quota-exhaustion path.
@@ -298,10 +299,87 @@ try {
     await ai.getByLabel('API key', { exact: true }).fill(keys[value]);
     await ai.getByRole('button', { name: 'Save AI profile and key' }).click();
     await feedback(ai, 'Saved without contacting');
-    await select('ai');
     await page.waitForTimeout(1100);
     await ai.getByRole('button', { name: 'Run small paid test' }).click();
     await feedback(ai, 'Small test passed');
+    // A passing test does not choose an engine. Surface that state and the saved
+    // origin-bound key in the real toolbar, then select it explicitly there.
+    if (name === 'DeepSeek') {
+      await select('none');
+      await engine
+        .getByLabel('Display mode', { exact: true })
+        .selectOption('original');
+      await engine
+        .getByRole('button', { name: 'Save preferences', exact: true })
+        .click();
+      await feedback(engine, 'Preferences saved');
+    }
+    await popup.reload();
+    const providerCard = popup.getByRole('button', {
+      name: `${name} · Select provider`,
+      exact: true,
+    });
+    await providerCard.getByLabel('Key saved', { exact: true }).waitFor();
+    assert.equal(
+      await popup.locator('.saved-tick').count(),
+      2,
+      'Only current AI and Cloud have saved keys',
+    );
+    if (name === 'DeepSeek') {
+      await popup
+        .getByText('Original only is selected.', { exact: false })
+        .waitFor();
+      const before = { ...counts };
+      await page.bringToFront();
+      const toolbar = await openToolbarPopup(context, worker);
+      const toolbarState = await toolbar.evaluate(() => ({
+        text: document.body.innerText,
+        height: document.body.getBoundingClientRect().height,
+        width: document.body.getBoundingClientRect().width,
+      }));
+      assert.match(toolbarState.text, /Selected: No translation/);
+      assert.ok(toolbarState.height <= 600 && toolbarState.width === 420);
+      assert.ok(!toolbarState.text.includes('SENTINEL'));
+      assert.deepEqual(counts, before, 'Opening popup never sends a paid test');
+      await toolbar.evaluate(
+        () =>
+          document
+            .querySelector('[aria-label="DeepSeek · Select provider"]')
+            .click(),
+        null,
+        true,
+      );
+      await toolbar.evaluate(async () => {
+        const deadline = Date.now() + 5000;
+        while (
+          !document.querySelector(
+            '[aria-label="DeepSeek · Select provider"][aria-pressed="true"]',
+          )
+        ) {
+          if (Date.now() > deadline)
+            throw new Error(
+              `Provider selection did not finish: ${document.body.innerText}`,
+            );
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+      });
+      await toolbar.close();
+    } else {
+      await providerCard.click();
+    }
+    await popup.reload();
+    await popup
+      .getByLabel('Display mode', { exact: true })
+      .selectOption('bilingual');
+    await popup
+      .getByRole('button', { name: 'Save preferences', exact: true })
+      .click();
+    await popup
+      .getByText('Preferences saved. Enable captions again', { exact: false })
+      .waitFor();
+    await mkdir('test-results', { recursive: true });
+    await popup.setViewportSize({ width: 420, height: 600 });
+    await popup.screenshot({ path: `test-results/popup-${value}.png` });
     await page.waitForTimeout(1100);
     await seek(1);
     await activate();
@@ -348,6 +426,10 @@ try {
   await seek(4.5);
   await activate();
   await overlayStatus('quota or balance');
+  await popup
+    .getByText('Provider quota or balance is unavailable.', { exact: false })
+    .waitFor();
+  assert.ok(!(await popup.innerText('body')).includes(keys.cloud));
   await caption('Pause here. The caption should stay.');
   await select('google');
   await seek(1);

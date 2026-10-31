@@ -18,7 +18,7 @@ export async function openToolbarPopup(context, worker) {
     flatten: false,
   });
   let serial = 0;
-  async function evaluate(fn, arg = null) {
+  async function evaluate(fn, arg = null, userGesture = false) {
     const requestId = ++serial;
     let listener;
     let timer;
@@ -43,6 +43,7 @@ export async function openToolbarPopup(context, worker) {
           params: {
             expression: `(${fn.toString()})(${JSON.stringify(arg)})`,
             awaitPromise: true,
+            userGesture,
             returnByValue: true,
           },
         }),

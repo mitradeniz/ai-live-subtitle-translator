@@ -122,7 +122,9 @@ try {
     document.querySelector('.popup-controls button').click();
     const deadline = Date.now() + 5000;
     while (
-      document.querySelector('[role="status"]').textContent.startsWith('Choose')
+      !document
+        .querySelector('[role="status"]')
+        .textContent.includes('Select a source caption track in YouTube')
     ) {
       const error = document.querySelector('[role="alert"]');
       if (error) throw new Error(error.textContent);

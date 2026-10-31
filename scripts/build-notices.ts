@@ -97,7 +97,8 @@ export function buildNotices() {
     );
     await writeFile(
       join(outputDirectory, 'THIRD_PARTY_NOTICES.txt'),
-      'Third-party software included in this extension\n\n' +
+      (await readFile('assets/provider-artwork.md', 'utf8')) +
+        '\n\nThird-party software included in this extension\n\n' +
         sorted
           .map(
             ([key, pkg]) =>

@@ -83,15 +83,9 @@ try {
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup.html`);
   await popup.getByRole('button', { name: 'Open settings' }).waitFor();
-  assert.equal(
-    await popup.evaluate(() =>
-      performance
-        .getEntriesByType('resource')
-        .some((entry) => /\/client-[\w-]+\.js/.test(entry.name)),
-    ),
-    false,
-    'Popup must not eagerly load credential/message schemas',
-  );
+  await popup
+    .getByRole('group', { name: 'Translation provider', exact: true })
+    .waitFor();
   assert.ok(
     await popup.evaluate(
       () => document.body.getBoundingClientRect().height < 600,

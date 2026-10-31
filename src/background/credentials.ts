@@ -59,11 +59,16 @@ export class CredentialStore {
     return this.#storage.run((areas) => this.#remove(areas, key));
   }
 
-  status(id: CredentialId) {
+  status(id: CredentialId, origin?: string) {
     const key = this.#key(id);
     return this.#storage.run(async (areas) => {
       const item = await this.#read(areas, key);
-      return { configured: item !== null, retention: item?.retention ?? null };
+      const matches =
+        item !== null && (!origin || item.record.origin === origin);
+      return {
+        configured: matches,
+        retention: matches ? item.retention : null,
+      };
     });
   }
 

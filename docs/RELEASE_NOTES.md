@@ -1,3 +1,22 @@
+# 0.1.2-preview.1 — 2026-10-31
+
+Limited preview; owner playback retest pending. Numeric manifest version: 0.1.2.
+
+- The glass popup now exposes provider selection, language pair and display mode.
+  Packaged provider icons identify integrations without remote image loading.
+- Saved-key ticks distinguish storage from selection or a successful connection test.
+  One AI key and a separate Cloud key are supported; other AI cards open setup.
+- Current page status explains original-only mode, missing keys/access, and recent
+  redacted playback failures. No automatic paid test or provider fallback was added.
+- DeepSeek HTTP 422 now reports rejected configuration instead of a connectivity
+  failure. This does not establish the cause of the owner's reported playback issue.
+- The owner reports a successful DeepSeek small paid test. Live playback with the new
+  controls remains unverified; automated coverage uses synthetic captions/fake keys.
+
+Reload the unpacked extension and refresh the video. Session-only keys are cleared
+by extension reload; remembered device keys remain. Select the saved provider,
+choose Translation only or Original and translation, then Enable captions.
+
 # 0.1.1-preview.1 — 2026-10-31
 
 First versioned, extension-only owner preview package. Numeric manifest version is

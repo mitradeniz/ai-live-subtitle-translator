@@ -20,7 +20,10 @@ import { SettingsStore } from './settings.ts';
 import { TrustedStorage, type StorageAreas } from './storage.ts';
 import type { PlaybackHandler } from '../messaging/playback.ts';
 import { GoogleCoordinator, type GooglePorts } from './google.ts';
-import { TranslationFailure } from '../translation/contracts.ts';
+import {
+  TranslationFailure,
+  type TranslationErrorCode,
+} from '../translation/contracts.ts';
 
 export function createController(
   extensionId: string,
@@ -34,6 +37,10 @@ export function createController(
     changed: async () => {},
     activate: async () => {},
   },
+  popupTab: () => Promise<{
+    tabId: number;
+    youtube: boolean;
+  } | null> = async () => null,
 ) {
   const storage = new TrustedStorage(areas);
   const settings = new SettingsStore(storage);
@@ -49,9 +56,20 @@ export function createController(
   const work = new WorkQueue(storage);
   const sites = new SitePreferences(storage, sitePorts);
   const selection = new ProviderSelection(storage);
+  // No captions, URLs or provider error bodies. Ephemeral and bounded per tab.
+  const recent = new Map<
+    number,
+    { error: TranslationErrorCode | null; at: number }
+  >();
+  function record(tabId: number, error: TranslationErrorCode | null) {
+    recent.delete(tabId);
+    if (recent.size >= 32) recent.delete(recent.keys().next().value!);
+    recent.set(tabId, { error, at: Date.now() });
+  }
   let epoch = 0;
   const cancelAll = () => {
     epoch++;
+    recent.clear();
     work.cancel();
     google.cancelAll();
     ai.cancelAll();
@@ -62,6 +80,7 @@ export function createController(
     extensionId,
     Date.now,
     (tabId) => {
+      recent.delete(tabId);
       google.cancelTab(tabId);
       ai.cancelTab(tabId);
       cloud.cancelTab(tabId);
@@ -102,6 +121,42 @@ export function createController(
               request.type === 'playback.enable' &&
                 request.youtubeSourceConfirmed,
             ),
+          },
+        };
+      } else if (request.type === 'popup.read') {
+        if (sender.kind !== 'ui' || sender.page !== 'popup')
+          throw new BoundaryError('FORBIDDEN');
+        const profile = AIProfileSchema.parse(await ai.profile());
+        const tab = await popupTab();
+        const last = tab ? recent.get(tab.tabId) : undefined;
+        const selected = await selection.read();
+        response = {
+          ok: true,
+          data: {
+            kind: 'popup-status',
+            selected:
+              selected === 'google' && !(await google.enabled())
+                ? 'none'
+                : selected,
+            settings: await settings.read(),
+            profile,
+            ai: {
+              ...(await credentials.status(
+                'ai',
+                new URL(profile.endpoint).origin,
+              )),
+              permitted: await ai.permitted(),
+            },
+            cloud: {
+              ...(await credentials.status(
+                'google-cloud',
+                new URL(CLOUD_PROFILE.endpoint).origin,
+              )),
+              permitted: await cloud.permitted(),
+            },
+            googlePermitted: await googlePorts.permitted(),
+            youtube: tab?.youtube ?? false,
+            recent: last && Date.now() - last.at < 300_000 ? last : null,
           },
         };
       } else if (request.type === 'content.appearance') {
@@ -284,12 +339,21 @@ export function createController(
             )
               throw new TranslationFailure('PERMISSION');
             valid();
+            if (request.job.priority !== 'prefetch')
+              record(sender.identity.tabId, null);
             response = {
               ok: true,
               data: { kind: 'translation', result: { ok: true, ...result } },
             };
           } catch (error) {
             if (!(error instanceof TranslationFailure)) throw error;
+            if (
+              error.code !== 'CANCELLED' &&
+              request.job.priority !== 'prefetch'
+            ) {
+              valid();
+              record(sender.identity.tabId, error.code);
+            }
             response = {
               ok: true,
               data: {

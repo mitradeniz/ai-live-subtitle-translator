@@ -65,16 +65,25 @@ for (const file of files.filter((entry) => entry.isFile())) {
   );
   assert.match(
     path,
-    /^(?:manifest\.json|dependency-provenance\.json|THIRD_PARTY_NOTICES\.txt|LICENSE\.txt|(?:popup|options)\.html|(?:background|youtube-source)\.js|chunks\/[\w.-]+\.js|assets\/[\w.-]+\.css|content-scripts\/(?:auto|captions)\.js|icons\/icon-(?:16|32|48|128)\.png)$/,
+    /^(?:manifest\.json|dependency-provenance\.json|THIRD_PARTY_NOTICES\.txt|LICENSE\.txt|(?:popup|options)\.html|(?:background|youtube-source)\.js|chunks\/[\w.-]+\.js|assets\/[\w.-]+\.css|content-scripts\/(?:auto|captions)\.js|providers\/(?:openai|gemini)\.png|providers\/(?:deepseek|cloud)\.svg|providers\/google\.ico|icons\/icon-(?:16|32|48|128)\.png)$/,
     `Unexpected packaged path ${path}`,
   );
   assert.match(
     file.name,
-    /(?:\.(?:html|js|css|json|png)|^THIRD_PARTY_NOTICES\.txt|^LICENSE\.txt)$/,
+    /(?:\.(?:html|js|css|json|png|svg|ico)|^THIRD_PARTY_NOTICES\.txt|^LICENSE\.txt)$/,
     `Unexpected file ${file.name}`,
   );
   assert.ok(!file.name.startsWith('.'), `Unexpected hidden file ${file.name}`);
-  if (file.name.endsWith('.png')) continue;
+  if (/\.(png|ico)$/.test(file.name)) continue;
+  if (file.name.endsWith('.svg')) {
+    const svg = await readFile(resolve(file.parentPath, file.name), 'utf8');
+    assert.ok(
+      !/<(?:script|foreignObject|image)\b|on\w+\s*=|(?:href|src)=["'](?!#)|url\(\s*["']?(?!#)/i.test(
+        svg,
+      ),
+      'Provider artwork must be inert and self-contained',
+    );
+  }
   const source = await readFile(resolve(file.parentPath, file.name), 'utf8');
   for (const marker of [
     'SENTINEL_NOT_A_REAL',

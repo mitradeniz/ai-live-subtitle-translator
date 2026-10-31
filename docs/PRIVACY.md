@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.1-preview.1.
+Last updated: 2026-10-31. Applies to AI Live Subtitle Translator 0.1.2-preview.1.
 This describes the implemented extension. This file has not been published as a
 hosted privacy-policy page and does not imply store approval.
 
@@ -58,6 +58,11 @@ tests send the synthetic phrase “Hello, world.”; saving a key does not test 
 | Cache identity                                                       | SHA-256 of provider/endpoint/model/languages/config and ordered caption text/context; raw source text is not separately stored in the cache                      |
 | Active playback/job state                                            | Bounded session state containing tab/frame/document/origin bindings, IDs, hashes and expiry; playback/uncertain-job guards expire after 30 minutes               |
 | Provider request counters/cooldown guards                            | Bounded session records; retained when clearing user data to prevent repeated paid dispatch, cleared with the browser/extension session                          |
+
+The popup keeps at most 32 recent per-tab result/error codes and timestamps in worker
+memory, without captions, keys, URLs or provider error bodies. They are shown for up
+to five minutes, cleared on session invalidation and lost on worker restart. These
+summaries are not exported or sent anywhere. Provider icons are packaged locally.
 
 Expiry is checked and stale entries are pruned on access, not by a permanent timer.
 Expired device-cache bytes can remain stored until the next access, explicit clear

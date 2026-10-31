@@ -84,7 +84,8 @@ function httpError(status: number, raw: unknown): TranslationErrorCode {
     )
   )
     return 'LANGUAGE';
-  if (status === 400 || status === 404) return 'PROVIDER_REQUEST';
+  if (status === 400 || status === 404 || status === 422)
+    return 'PROVIDER_REQUEST';
   return 'NETWORK';
 }
 export async function paidJSON(
