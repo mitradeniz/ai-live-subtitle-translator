@@ -561,7 +561,13 @@ Object.assign(turkish, {
 });
 
 Object.assign(turkish, {
-  'Translation is on': 'Çeviri açık',
-  'Translation is off': 'Çeviri kapalı',
+  'Translate this page': 'Bu sayfayı çevir',
+  'Show original': 'Orijinali göster',
+  'Turn on video subtitles': 'Video altyazılarını aç',
+  'Turn off video subtitles': 'Video altyazılarını kapat',
+  'More options': 'Diğer seçenekler',
+  'Languages updated. Subtitles continue in the new language.':
+    'Diller güncellendi. Altyazılar yeni dilde devam ediyor.',
+  'Restarting subtitle translation…': 'Altyazı çevirisi yeniden başlatılıyor…',
   'Video subtitles stopped.': 'Video altyazıları durduruldu.',
 });

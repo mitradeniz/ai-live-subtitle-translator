@@ -354,19 +354,29 @@ try {
   await languages.focus();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Tab');
-  await mini
-    .getByText('Preferences saved. Turn subtitle translation on to resume.', {
-      exact: true,
-    })
-    .waitFor();
+  // Subtitles were running, so they continue in the new language.
   await page.waitForFunction(() => {
-    const select = document
-      .querySelector('translator-player-shortcut')
-      ?.shadowRoot.querySelector('select[aria-label="Target language"]');
-    return select?.value === 'en' && !select.disabled;
+    const root = document.querySelector(
+      'translator-player-shortcut',
+    )?.shadowRoot;
+    const select = root?.querySelector('select[aria-label="Target language"]');
+    return (
+      select?.value === 'en' &&
+      !select.disabled &&
+      root.querySelector('[role="switch"]')?.getAttribute('aria-checked') ===
+        'true'
+    );
   });
   assert.equal((await send('popup.read')).data.settings.targetLanguage, 'en');
-  assert.equal(await toggle.getAttribute('aria-checked'), 'false');
+  await toggle.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('[role="switch"]')
+        ?.getAttribute('aria-checked') === 'false',
+  );
+  await page.waitForTimeout(300);
   const afterChange = providerRequests;
   await providers.focus();
   await page.keyboard.press('o');
@@ -579,7 +589,7 @@ try {
       scanningTicks: after - before,
       providerRequests,
       checks:
-        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, restore and cleanup',
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, restore and cleanup',
     }),
   );
 } finally {

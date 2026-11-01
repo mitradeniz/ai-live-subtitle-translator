@@ -10,7 +10,7 @@ export default defineContentScript({
   main(ctx) {
     let tools: PageTools | undefined;
     let generation = 0;
-    const reloadMenu = async (sessionId: string) => {
+    const reloadMenu = async (sessionId: string, resume = false) => {
       const ticket = ++generation;
       const placement = tools?.placement;
       tools?.dispose();
@@ -31,7 +31,7 @@ export default defineContentScript({
         reloadMenu,
       );
       if (placement) tools.restorePlacement(placement);
-      tools.openPlayerMenu();
+      tools.openPlayerMenu(resume);
     };
     const onMessage: Parameters<
       typeof browser.runtime.onMessage.addListener

@@ -49,7 +49,8 @@ export interface PlayerMenuOptions {
   t(text: string): string;
   recipient: string;
   read(): Promise<PlayerMenu>;
-  change(change: MenuChange): Promise<void>;
+  // resume: subtitles were running, so continue them after the change.
+  change(change: MenuChange, resume: boolean): Promise<void>;
   status(): Promise<PlaybackState>;
   toggle(enabled: boolean): Promise<PlaybackState>;
   settings(): Promise<void>;
@@ -322,7 +323,7 @@ export class PlayerShortcut {
     this.#paint();
     this.#notice('Saving preferences…');
     try {
-      await this.options.change(change);
+      await this.options.change(change, this.#state === 'enabled');
     } catch {
       if (this.#config) this.#paintConfig(this.#config);
       this.#notice(
@@ -416,14 +417,24 @@ export class PlayerShortcut {
       }
     }
   }
-  async #toggle() {
+  // Continue subtitles after a menu change replaced this page session. The
+  // background allows one start per second, so a quick change retries once.
+  async resume() {
+    for (let attempt = 0; attempt < 2 && !this.#closed; attempt++) {
+      if (attempt) await new Promise((resolve) => setTimeout(resolve, 1100));
+      while (this.#busy && !this.#closed)
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      if ((await this.#toggle(true)) !== undefined) return;
+    }
+  }
+  async #toggle(enable = this.#state !== 'enabled') {
     this.#busy = true;
     this.#epoch++;
     this.#notice('');
     this.#paint();
     try {
-      const state = await this.options.toggle(this.#state !== 'enabled');
-      if (this.#closed) return;
+      const state = await this.options.toggle(enable);
+      if (this.#closed) return state;
       this.#state = state;
       const message = {
         enabled: '',
@@ -439,8 +450,10 @@ export class PlayerShortcut {
         unavailable: 'Open the extension popup to re-enable these tools.',
       }[state];
       this.#notice(message);
+      return state;
     } catch {
       this.#notice('Open the extension popup to re-enable these tools.');
+      return undefined;
     } finally {
       this.#busy = false;
       this.#paint();

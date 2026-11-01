@@ -257,8 +257,13 @@ to apply the edited preferences. No key is tested automatically.
 A checkmark means **key saved**, not verified connectivity or sufficient balance.
 There is one saved AI profile/key (OpenAI, DeepSeek or Gemini) plus a separate Cloud
 key. Unconfigured cards open settings; switching AI origins there replaces the old
-AI key. Keys are entered/deleted only in settings. The YouTube source confirmation
-appears on watch pages and is not remembered across popup openings.
+AI key. Keys are entered/deleted only in settings. On YouTube the popup follows the
+saved **For YouTube: I selected an original caption track** choice (on by default).
+
+Picking a source or target language from the list, or using the swap button, saves
+it right away. If subtitles are running on the current tab they start again in the
+new language, so no manual restart is needed. Other edits still use **Save
+preferences**.
 
 The popup distinguishes an active overlay from translation that needs restarting.
 A green **✓ Enabled** button confirms activation; **Restart captions** applies
@@ -465,7 +470,8 @@ caption controls have their own visibility switch. Optional text tools start off
 Provider/model and source/target languages are shared with captions; page display
 mode and enabled tools are separate.
 
-- **Translate visible page** translates visible ordinary text. Scrolling exposes the
+- **Translate visible page** (the popup button, or a click on the edge square)
+  translates visible ordinary text. Scrolling exposes the
   next text to translate; it does not send the whole document in advance. Pages
   start in translation-only display (text is replaced in place); choose
   **Original and translation** under Customize translation → Page display to keep
@@ -481,13 +487,15 @@ mode and enabled tools are separate.
 - **Always show the logo on this site**, under Customize translation, retains the
   narrower one-host alternative. You can use this instead of all-sites access.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
-  the square opens or closes its glass menu; opening it sends nothing. The menu holds
-  only the enabled tools: **Translate visible page** (replaced by **Restore original
-  page** while active), a **Video subtitles** switch, and Translate selection,
-  Translate focused field or AI Writing when those are turned on. A small badge on the
-  square shows a check mark while page or video translation is running. Enter/Space or
-  F2 opens the menu by keyboard; Escape or a click outside closes it, and arrow keys
-  move the dock. Hide/Show preserves its page edge and height. While the page is in
+  the square turns page translation on or off (video subtitles when page translation
+  is turned off in Customize translation); a small check in its corner shows that it
+  is on. Hovering shows what a click will do, the latest status, and two small
+  helpers: **More options** opens the glass menu and × hides the control. The menu
+  holds only the enabled tools: a **Video subtitles** switch, and Translate selection,
+  Translate focused field or AI Writing when those are turned on. Opening it sends
+  nothing. Enter/Space toggles translation by keyboard and F2 opens the menu; Escape
+  or a click outside closes it, and arrow keys move the dock. Hide/Show preserves
+  its page edge and height. While the page is in
   fullscreen the square and its menu step aside; the player's own A文 button stays
   available. Provider, language and tool choices stay in the trusted popup and
   settings.
@@ -520,12 +528,13 @@ mode and enabled tools are separate.
   clicks a send/submit button; Apply writes only to the unchanged original field.
   For other editors, copy the plain preview yourself.
 
-Restore original page stops pending page work and restores owned text changes.
+Clicking the edge square again (or **Restore original page** in the popup) stops
+pending page work and restores owned text changes.
 The popup's Restore action also removes page tools. Provider/language/feature/key
 changes restore the page. Opted-in sites restore the idle logo automatically;
 translation still requires a new action (or an enabled automatic mouse selection). Navigation or expiry ends the translation
 session; automatic mode reconnects idle controls without resuming translation. Page translation and caption sessions are authorized separately.
-If both tools are enabled, the page menu's Video controls opens the caption controls.
+If both tools are enabled, the menu's **Video subtitles** switch controls captions.
 With page tools enabled, a smaller **A文** button also appears inside the largest
 visible main-document video’s recognized control bar, beside CC/settings. It opens a
 compact menu directly above the button with a **Subtitle translation** switch,
@@ -535,8 +544,8 @@ provider/access/key and a translated display mode. It does not change the edge
 button's selected Page/Video action. Opening the menu sends no text.
 
 Provider and target-language changes save the same preferences used by the popup.
-The menu stays open, stops old translation work, and lets you resume using its
-subtitle switch. Changes also stop translation on other open pages. A ✓ means a
+The menu stays open and stops old translation work; if subtitles were running they
+start again with the new choice. Changes also stop translation on other open pages. A ✓ means a
 key is saved for that provider, not that its connection was tested. Only the current
 configured AI profile and the Cloud key are stored; other AI profiles require setup
 in Settings. Missing keys, access or experimental Google opt-in are shown beside

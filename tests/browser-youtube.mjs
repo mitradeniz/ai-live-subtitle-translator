@@ -183,6 +183,47 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
   });
+  // Picking another language while subtitles run applies it live: the popup
+  // saves it and starts subtitles again without a manual restart.
+  const changeTarget = (code) =>
+    toolbar.evaluate(async (code) => {
+      const input = document.querySelector(
+        'input[aria-label="Target language"]',
+      );
+      const status = () =>
+        document.querySelector('[role="status"]')?.textContent ?? '';
+      const wait = async (done, what) => {
+        const deadline = Date.now() + 8000;
+        while (!done()) {
+          if (Date.now() > deadline) throw new Error(`${what}: ${status()}`);
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+      };
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      ).set.call(input, code);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await wait(() => !status().includes('Languages updated'), 'Not saved');
+      await wait(
+        () =>
+          status().includes(
+            'Languages updated. Subtitles continue in the new language.',
+          ) &&
+          document
+            .querySelector('.popup-controls button')
+            .getAttribute('aria-pressed') === 'true',
+        'Subtitles did not continue',
+      );
+    }, code);
+  const target = (await send('settings.read')).data.settings.targetLanguage;
+  await changeTarget('de');
+  assert.equal(
+    (await send('settings.read')).data.settings.targetLanguage,
+    'de',
+  );
+  await page.locator('subtitle-translator-overlay').waitFor();
+  await changeTarget(target);
   await caption('Synthetic manual caption.\n[MOCK] Synthetic manual caption.');
   await toolbar.close();
   await send('playback.disable');

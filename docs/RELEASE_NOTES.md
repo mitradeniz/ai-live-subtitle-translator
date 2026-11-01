@@ -13,6 +13,13 @@ Adds a separate Firefox MV3 build with document-bound messaging, private durable
   Page preferences saved by earlier versions move to both defaults once; either
   can be changed in Customize translation.
 - The page-edge button and its menu step aside while the page is in fullscreen.
+- The page-edge button is smaller and works as an on/off switch for page
+  translation, with a subtler check in its corner. Hovering shows what a click
+  will do, the latest status, a **More options** button for the menu and × to
+  hide it.
+- Changing languages no longer asks for a restart: languages picked in the popup
+  (or swapped) save at once, and running subtitles continue in the new language.
+  The player menu does the same after a language or provider change.
 - The player menu loads provider and language even when the subtitle status check
   is slow or fails, and is removed when its page-tools session expires.
 

@@ -49,6 +49,8 @@ export default function PopupDashboard() {
   const [loadError, setLoadError] = useState('');
   // The saved Customize translation choice (on by default) pre-fills this.
   const [confirmed, setConfirmed] = useState(true);
+  const stateRef = useRef<PlaybackState>('disabled');
+  const autoSave = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [showCaptions, setShowCaptions] = useState(true);
   const dirty = useRef(false);
   const [edited, setEdited] = useState(false);
@@ -108,8 +110,12 @@ export default function PopupDashboard() {
     return () => {
       mounted.current = false;
       clearInterval(timer);
+      clearTimeout(autoSave.current);
     };
   }, []);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -148,20 +154,56 @@ export default function PopupDashboard() {
       setMessage('Provider selected. Enable captions to use it on this page.');
     });
   }
-  async function save() {
-    if (!draft) return;
-    const { schemaVersion, ...preferences } = draft;
+  // Saving new languages stops running subtitles for safety; when they were
+  // running here, start them again right away so the change applies live.
+  async function save(next = draft, resume = stateRef.current === 'enabled') {
+    if (!next || !data) return;
+    clearTimeout(autoSave.current);
+    const { schemaVersion, ...preferences } = next;
     void schemaVersion;
+    const languagesChanged =
+      data.settings.sourceLanguage !== preferences.sourceLanguage ||
+      data.settings.targetLanguage !== preferences.targetLanguage;
     await sendRequest({ type: 'controls.update', preferences });
     dirty.current = false;
     setEdited(false);
+    if (languagesChanged && resume) {
+      const result = await sendRequest({
+        type: 'playback.enable',
+        youtubeSourceConfirmed: confirmed,
+      });
+      if (result.kind !== 'playback') throw new Error();
+      setState(result.state);
+      setMessage(
+        result.state === 'enabled'
+          ? 'Languages updated. Subtitles continue in the new language.'
+          : 'Preferences changed. Restart captions to resume translation.',
+      );
+      return;
+    }
     setMessage(
-      'Preferences saved. Enable captions again after changing languages.',
+      languagesChanged
+        ? 'Preferences saved. Enable captions again after changing languages.'
+        : 'Preferences saved.',
     );
+  }
+  // A language picked from the list applies on its own after a short pause.
+  function scheduleSave(next: Settings) {
+    clearTimeout(autoSave.current);
+    const known = (code: string, source: boolean) =>
+      (source && code === 'auto') ||
+      LANGUAGES.some(([value]) => value === code);
+    if (
+      !known(next.sourceLanguage, true) ||
+      !known(next.targetLanguage, false) ||
+      next.sourceLanguage === next.targetLanguage
+    )
+      return;
+    autoSave.current = setTimeout(() => void run(() => save(next)), 500);
   }
   function control(type: PlaybackOperation) {
     void run(async () => {
-      if (dirty.current) await save();
+      if (dirty.current) await save(draft, false);
       const result = await sendRequest(
         type === 'playback.enable'
           ? { type, youtubeSourceConfirmed: confirmed }
@@ -236,7 +278,7 @@ export default function PopupDashboard() {
     import.meta.env.MODE !== 'mock' &&
     (data.selected === 'none' || data.settings.displayMode === 'original');
   const isOn = state === 'enabled';
-  const restart = state === 'needs-restart' || (isOn && edited);
+  const restart = state === 'needs-restart';
   const attention = Boolean((warning && !originalOnly) || missingKey);
   const title =
     state === 'unavailable'
@@ -346,7 +388,9 @@ export default function PopupDashboard() {
         onChange={(e) => {
           dirty.current = true;
           setEdited(true);
-          setDraft({ ...draft, [name]: e.target.value });
+          const next = { ...draft, [name]: e.target.value };
+          setDraft(next);
+          scheduleSave(next);
         }}
       />
       <datalist id={`${name}-quick`}>
@@ -361,7 +405,7 @@ export default function PopupDashboard() {
       </datalist>
     </label>
   );
-  // Swapping only edits the draft; it is saved with the other preferences.
+  // Swapping applies at once, like picking a language from the list.
   const canSwap =
     draft.sourceLanguage.trim() !== '' &&
     draft.sourceLanguage.trim().toLowerCase() !== 'auto' &&
@@ -379,14 +423,16 @@ export default function PopupDashboard() {
           title={t('Swap source and target languages')}
           disabled={!canSwap}
           onClick={() => {
-            dirty.current = true;
-            setEdited(true);
-            setSwapped(!swapped);
-            setDraft({
+            const next = {
               ...draft,
               sourceLanguage: draft.targetLanguage,
               targetLanguage: draft.sourceLanguage,
-            });
+            };
+            dirty.current = true;
+            setEdited(true);
+            setSwapped(!swapped);
+            setDraft(next);
+            void run(() => save(next));
           }}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">

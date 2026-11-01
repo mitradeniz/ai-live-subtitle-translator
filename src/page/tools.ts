@@ -5,7 +5,7 @@ import type { PagePreferences, PageState, WritingStyle } from './contracts';
 import type { Settings, SelectionLanguages } from '../messaging/protocol';
 import { sendRequest } from '../messaging/client';
 import { translate } from '../ui/strings';
-import { createCheck, createMark } from '../ui/mark';
+import { createCheck, createIcon, createMark } from '../ui/mark';
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
 
 type Feature = 'page' | 'selection' | 'hover' | 'input' | 'writing';
@@ -33,10 +33,14 @@ export class PageTools {
   #writingPanel = document.createElement('details');
   #style = document.createElement('select');
   #apply: HTMLButtonElement;
-  #translate: HTMLButtonElement;
-  #restore: HTMLButtonElement;
   #captions = document.createElement('button');
   #badge = document.createElement('span');
+  #tip = document.createElement('span');
+  #tipAction = document.createElement('span');
+  #tipNote = document.createElement('small');
+  #more = document.createElement('button');
+  #flashTimer: ReturnType<typeof setTimeout> | undefined;
+  #noteTimer: ReturnType<typeof setTimeout> | undefined;
   #captionsOn = false;
   #page: PageText;
   #playerShortcut: PlayerShortcut | undefined;
@@ -68,25 +72,52 @@ export class PageTools {
     settings: Settings,
     label: string,
     ai: boolean,
-    reloadMenu: (sessionId: string) => Promise<void>,
+    reloadMenu: (sessionId: string, resume?: boolean) => Promise<void>,
   ) {
     this.sessionId = sessionId;
     this.prefs = prefs;
     this.settings = settings;
     this.ai = ai;
     const css = document.createElement('style');
-    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:46px;height:46px;padding:0;white-space:nowrap;border:0;border-radius:16px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger{position:relative}.trigger svg{width:30px;height:30px;pointer-events:none}.badge{position:absolute;top:-3px;right:-3px;display:grid;place-items:center;width:12px;height:12px;border-radius:50%;background:rgb(139 147 167 / 90%);box-shadow:0 0 0 2px rgb(16 20 36 / 92%);transition:width .35s cubic-bezier(.34,1.56,.64,1),height .35s cubic-bezier(.34,1.56,.64,1),background .3s}.badge svg{width:11px;height:11px;opacity:0;transition:opacity .2s}.trigger[data-active="true"] .badge{width:18px;height:18px;background:#7fe9c3;color:#06231a}.trigger[data-active="true"] .badge svg{opacity:1}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel{display:flex;flex-direction:column;gap:8px}.panel h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel .destination{margin:-4px 0 4px;color:rgb(226 233 247 / 70%)}.panel .consent{margin:0;color:rgb(226 233 247 / 56%)}.panel .row{margin:0}.wide{width:100%}.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 14px;border-radius:16px}.switch .track{flex:none;width:34px;height:20px;padding:2px;border-radius:999px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);transition:background .3s}.switch .track span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}.switch[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}.switch[aria-checked="true"] .track span{transform:translateX(14px)}.footer button{flex:1}.panel p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px var(--font);color:#f3f6fc;background:rgb(16 20 36 / 70%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}.label{font-size:11px}.status{font-size:12px}.status:empty{display:none}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.show{-webkit-backdrop-filter:none;backdrop-filter:none}}`;
+    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:38px;height:38px;padding:0;white-space:nowrap;border:0;border-radius:13px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger{position:relative}.trigger>svg{width:24px;height:24px;pointer-events:none}.badge{position:absolute;top:-2px;right:-2px;display:grid;place-items:center;width:7px;height:7px;border-radius:50%;background:rgb(139 147 167 / 55%);box-shadow:0 0 0 1.5px rgb(16 20 36 / 80%);transition:width .3s cubic-bezier(.34,1.56,.64,1),height .3s cubic-bezier(.34,1.56,.64,1),background .3s}.badge svg{width:8px;height:8px;opacity:0;transition:opacity .2s}.trigger[data-active="true"] .badge{width:12px;height:12px;background:rgb(127 233 195 / 72%);color:rgb(6 35 26 / 85%)}.trigger[data-active="true"] .badge svg{opacity:1}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel{display:flex;flex-direction:column;gap:8px}.panel h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel .destination{margin:-4px 0 4px;color:rgb(226 233 247 / 70%)}.panel .consent{margin:0;color:rgb(226 233 247 / 56%)}.panel .row{margin:0}.wide{width:100%}.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 14px;border-radius:16px}.switch .track{flex:none;width:34px;height:20px;padding:2px;border-radius:999px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);transition:background .3s}.switch .track span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}.switch[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}.switch[aria-checked="true"] .track span{transform:translateX(14px)}.footer button{flex:1}.panel p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px var(--font);color:#f3f6fc;background:rgb(16 20 36 / 70%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}.label{font-size:11px}.status{font-size:12px}.status:empty{display:none}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.show{-webkit-backdrop-filter:none;backdrop-filter:none}}.tip{position:absolute;top:19px;right:calc(100% + 10px);transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;max-width:min(320px,calc(100vw - 80px));padding:7px 12px;border-radius:12px;background:rgb(10 12 22 / 88%);box-shadow:0 10px 24px -10px rgb(0 0 0 / 70%);font:13px/1.35 var(--font);white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,visibility 0s .15s}.tip small{font-size:11px;color:rgb(226 233 247 / 66%);white-space:normal}.tip small:empty{display:none}.dock[data-side="0"] .tip{right:auto;left:calc(100% + 10px)}.trigger:hover+.tip,.trigger:focus-visible+.tip,.tip[data-flash="true"]{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .tip{display:none}.hover-only{opacity:0;visibility:hidden;transition:opacity .15s .25s,visibility 0s .4s}.dock:hover .hover-only,.dock:has(:focus-visible) .hover-only{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .hover-only{display:none}.extras{position:absolute;top:44px;left:5px;display:flex;flex-direction:column;gap:6px}.dock[data-up="true"] .extras{top:auto;bottom:44px;flex-direction:column-reverse}.mini{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;color:#dfe7f7;background:linear-gradient(180deg,rgb(255 255 255 / 16%),rgb(255 255 255 / 4%)),rgb(16 20 36 / 72%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 35%),inset 0 0 0 1px rgb(255 255 255 / 12%)}.mini:hover{background:linear-gradient(180deg,rgb(255 255 255 / 26%),rgb(255 255 255 / 8%)),rgb(16 20 36 / 80%)}.close{position:absolute;bottom:-5px;left:-7px;width:18px;height:18px}.dock[data-side="0"] .close{left:auto;right:-7px}.close svg{width:10px;height:10px}`;
     this.#dock.className = 'dock';
     this.#button.className = 'trigger';
     this.#button.type = 'button';
-    this.#button.append(createMark(30), this.#badge);
-    // The corner badge shows whether page or video translation is running.
+    this.#button.append(createMark(24), this.#badge);
+    // A click turns translation on or off; the corner badge shows which.
     this.#badge.className = 'badge';
     this.#badge.setAttribute('aria-hidden', 'true');
-    this.#badge.append(createCheck(11));
-    this.#button.setAttribute('aria-label', this.t('Translation tools'));
-    this.#button.setAttribute('aria-haspopup', 'true');
-    this.#button.setAttribute('aria-expanded', 'false');
+    this.#badge.append(createCheck(8));
+    this.#button.setAttribute('aria-pressed', 'false');
+    this.#tip.className = 'tip';
+    this.#tip.setAttribute('aria-hidden', 'true');
+    this.#tip.append(this.#tipAction, this.#tipNote);
+    // Hover shows two small helpers: more options and hide.
+    this.#more.type = 'button';
+    this.#more.className = 'mini';
+    this.#more.append(createIcon('sliders', 15));
+    this.#more.title = this.t('More options');
+    this.#more.setAttribute('aria-label', this.t('More options'));
+    this.#more.setAttribute('aria-haspopup', 'true');
+    this.#more.setAttribute('aria-expanded', 'false');
+    this.#more.addEventListener('click', (event) => {
+      if (!event.isTrusted) return;
+      const opening = Boolean(this.#panel.hidden);
+      this.open(opening);
+      if (opening) this.#panel.querySelector('button')?.focus();
+    });
+    const extras = document.createElement('div');
+    extras.className = 'extras hover-only';
+    extras.append(this.#more);
+    const hide = document.createElement('button');
+    hide.type = 'button';
+    hide.className = 'mini close hover-only';
+    hide.append(createIcon('close', 10));
+    hide.title = this.t('Hide controls');
+    hide.setAttribute('aria-label', this.t('Hide controls'));
+    hide.addEventListener('click', (event) => {
+      if (event.isTrusted) this.#hideDock();
+    });
     this.#panel.className = 'panel';
     this.#panel.hidden = true;
     this.#panel.setAttribute('aria-label', this.t('Translation tools'));
@@ -101,20 +132,6 @@ export class PageTools {
     this.#result.dir = 'auto';
     this.#result.setAttribute('aria-live', 'polite');
     this.#panel.append(heading, destination);
-    // One page action at a time: translate, or restore once translated.
-    this.#translate = this.button('Translate visible page', () => {
-      this.startPage();
-      this.#paintState();
-    });
-    this.#translate.className = 'primary';
-    this.#translate.disabled = !prefs.page;
-    this.#restore = this.button('Restore original page', () => {
-      this.#page.restore();
-      this.state = 'ready';
-      this.#paintState();
-    });
-    this.#restore.className = 'wide';
-    this.#panel.append(this.#translate, this.#restore);
     if (prefs.captions) {
       this.#captions.type = 'button';
       this.#captions.className = 'switch';
@@ -194,12 +211,7 @@ export class PageTools {
       this.button('Open settings', async () => {
         await sendRequest({ type: 'page.open-settings', sessionId });
       }),
-      this.button('Hide controls', () => {
-        this.open(false);
-        this.#dock.hidden = true;
-        this.#show.hidden = false;
-        this.#show.focus();
-      }),
+      this.button('Hide controls', () => this.#hideDock()),
     );
     const consent = document.createElement('p');
     consent.className = 'label consent';
@@ -218,7 +230,7 @@ export class PageTools {
         this.#button.focus();
       }
     });
-    this.#dock.append(this.#button, this.#panel);
+    this.#dock.append(this.#button, this.#tip, hide, extras, this.#panel);
     this.#shadow.append(css, this.#dock, this.#show);
     if (prefs.captions)
       this.#playerShortcut = new PlayerShortcut({
@@ -229,7 +241,7 @@ export class PageTools {
           if (result.kind !== 'player-menu') throw new Error('Unavailable');
           return result;
         },
-        change: async (change) => {
+        change: async (change, resume) => {
           const result = await sendRequest(
             'provider' in change
               ? {
@@ -247,7 +259,7 @@ export class PageTools {
           );
           if (result.kind !== 'player-menu-saved')
             throw new Error('Unavailable');
-          if (!this.#closed) await reloadMenu(result.sessionId);
+          if (!this.#closed) await reloadMenu(result.sessionId, resume);
         },
         status: async () => {
           const result = await sendRequest({
@@ -292,7 +304,7 @@ export class PageTools {
       drag.moved = true;
       this.#position = {
         side: event.clientX < document.documentElement.clientWidth / 2 ? 0 : 1,
-        height: (event.clientY - 29) / Math.max(1, innerHeight - 58),
+        height: (event.clientY - 25) / Math.max(1, innerHeight - 50),
       };
       this.open(false);
       this.layout();
@@ -304,10 +316,9 @@ export class PageTools {
     this.#button.addEventListener('pointercancel', () => {
       this.#drag = undefined;
     });
-    // A real click opens or closes the menu; actions run from menu buttons.
+    // A real click turns translation on or off. More options sit on hover.
     this.#button.addEventListener('click', (event) => {
-      if (event.isTrusted && !this.#drag?.moved)
-        this.open(Boolean(this.#panel.hidden));
+      if (event.isTrusted && !this.#drag?.moved) void this.#toggle();
       this.#drag = undefined;
     });
     this.#button.addEventListener('keydown', (event) => {
@@ -428,14 +439,52 @@ export class PageTools {
   }
   private showStatus(text: string) {
     this.#status.textContent = this.t(text);
+    // With the menu closed, the latest status appears briefly beside the button.
+    clearTimeout(this.#noteTimer);
+    clearTimeout(this.#flashTimer);
+    if (!this.#panel.hidden) return;
+    this.#tipNote.textContent = this.t(text);
+    this.#noteTimer = setTimeout(() => (this.#tipNote.textContent = ''), 6000);
+    if (!this.#dock.hidden) {
+      this.#tip.dataset.flash = 'true';
+      this.#flashTimer = setTimeout(() => delete this.#tip.dataset.flash, 2500);
+    }
   }
   open(value: boolean) {
     if (this.#closed) return;
     const opening = value && Boolean(this.#panel.hidden);
     this.#panel.hidden = !value;
-    this.#button.setAttribute('aria-expanded', String(value));
+    this.#dock.dataset.open = String(value);
+    if (value) {
+      delete this.#tip.dataset.flash;
+      this.#tipNote.textContent = '';
+    }
+    this.#more.setAttribute('aria-expanded', String(value));
     this.layout();
     if (opening) void this.refreshCaptions();
+  }
+  #hideDock() {
+    this.open(false);
+    this.#dock.hidden = true;
+    this.#show.hidden = false;
+    this.#show.focus();
+  }
+  // Page translation when that tool is on, otherwise video subtitles.
+  #target(): 'page' | 'captions' | null {
+    return this.prefs.page ? 'page' : this.prefs.captions ? 'captions' : null;
+  }
+  async #toggle() {
+    if (this.#closed) return;
+    const target = this.#target();
+    this.open(false);
+    if (target === 'page') {
+      if (this.#page.active) {
+        this.#page.restore();
+        this.state = 'ready';
+      } else this.startPage();
+      this.#paintState();
+    } else if (target === 'captions') await this.toggleCaptions();
+    else this.open(true);
   }
   #outside = (event: PointerEvent) => {
     if (
@@ -447,14 +496,34 @@ export class PageTools {
   };
   #paintState() {
     if (this.#closed) return;
-    const translating = this.#page.active;
-    this.#translate.hidden = translating;
-    this.#restore.hidden = !translating;
     this.#captions.setAttribute('aria-checked', String(this.#captionsOn));
-    const active = translating || this.#captionsOn;
+    const target = this.#target();
+    const active =
+      target === 'page'
+        ? this.#page.active
+        : target === 'captions' && this.#captionsOn;
     this.#button.dataset.active = String(active);
-    this.#button.title = this.t(
-      active ? 'Translation is on' : 'Translation is off',
+    this.#button.setAttribute('aria-pressed', String(active));
+    this.#button.setAttribute(
+      'aria-label',
+      this.t(
+        target === 'captions'
+          ? 'Video subtitles'
+          : target === 'page'
+            ? 'Translate this page'
+            : 'Translation tools',
+      ),
+    );
+    this.#tipAction.textContent = this.t(
+      target === 'captions'
+        ? active
+          ? 'Turn off video subtitles'
+          : 'Turn on video subtitles'
+        : target === 'page'
+          ? active
+            ? 'Show original'
+            : 'Translate this page'
+          : 'Translation tools',
     );
   }
   // Display hint only: the overlay exists while captions run in this document.
@@ -537,10 +606,14 @@ export class PageTools {
     this.#show.hidden = !placement.hidden;
     this.layout();
   }
-  openPlayerMenu() {
+  openPlayerMenu(resume = false) {
     this.#playerShortcut?.open(
-      'Preferences saved. Turn subtitle translation on to resume.',
+      resume
+        ? 'Restarting subtitle translation…'
+        : 'Preferences saved. Turn subtitle translation on to resume.',
     );
+    // A language or provider change made while subtitles ran continues them.
+    if (resume) void this.#playerShortcut?.resume();
   }
   startPage() {
     if (!this.prefs.page || this.#page.active) return;
@@ -789,9 +862,11 @@ export class PageTools {
     const width = document.documentElement.clientWidth,
       height = innerHeight;
     this.#position.height = Math.min(1, Math.max(0, this.#position.height));
-    const x = this.#position.side ? Math.max(6, width - 52) : 6,
-      y = 6 + this.#position.height * Math.max(0, height - 58);
+    const x = this.#position.side ? Math.max(6, width - 44) : 6,
+      y = 6 + this.#position.height * Math.max(0, height - 50);
     Object.assign(this.#dock.style, { left: `${x}px`, top: `${y}px` });
+    this.#dock.dataset.side = String(this.#position.side);
+    this.#dock.dataset.up = String(y > height - 130);
     Object.assign(this.#show.style, {
       left: this.#position.side ? 'auto' : '6px',
       right: this.#position.side ? '6px' : 'auto',
@@ -802,9 +877,9 @@ export class PageTools {
     Object.assign(this.#panel.style, {
       width: `${panelWidth}px`,
       left: `${Math.max(12, Math.min(x, width - panelWidth - 12)) - x}px`,
-      top: above ? 'auto' : '54px',
-      bottom: above ? '54px' : 'auto',
-      maxHeight: `${Math.max(100, above ? y - 12 : height - y - 66)}px`,
+      top: above ? 'auto' : '46px',
+      bottom: above ? '46px' : 'auto',
+      maxHeight: `${Math.max(100, above ? y - 12 : height - y - 58)}px`,
     });
   };
   dispose() {
@@ -816,6 +891,8 @@ export class PageTools {
     this.#selectionPopup?.dispose();
     clearInterval(this.#expiry);
     clearTimeout(this.#hoverTimer);
+    clearTimeout(this.#flashTimer);
+    clearTimeout(this.#noteTimer);
     document.removeEventListener('focusin', this.#focus, true);
     document.removeEventListener('pointerdown', this.#outside, true);
     document.removeEventListener('pointerup', this.#select, true);

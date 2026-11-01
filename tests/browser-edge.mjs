@@ -110,11 +110,14 @@ try {
   await page.bringToFront();
   let tools = page.locator('translator-page-tools');
   await tools.waitFor();
-  // The idle logo opens its menu only on a real click; nothing is sent.
+  // Hovering the idle logo reveals its helpers; the menu opens only on a real
+  // click of More options, and nothing is sent.
+  const more = tools.getByRole('button', { name: 'More options', exact: true });
   await tools.locator('.trigger').hover();
-  await tools.locator('.trigger').evaluate((button) => button.click());
+  await more.waitFor({ state: 'visible' });
+  await more.evaluate((button) => button.click());
   assert.equal(await tools.locator('.panel').isVisible(), false);
-  await tools.locator('.trigger').click();
+  await more.click();
   await tools.locator('.panel').waitFor({ state: 'visible' });
   const videoSwitch = tools.getByRole('switch', {
     name: 'Video subtitles',
@@ -138,10 +141,11 @@ try {
   await page.waitForTimeout(2400);
   await tools.waitFor();
   assert.equal(await tools.count(), 1);
-  await tools.locator('.trigger').click();
+  await tools.locator('.trigger').hover();
+  await more.click();
   await tools.locator('.panel').waitFor({ state: 'visible' });
   await tools
-    .getByRole('button', { name: 'Translate visible page', exact: true })
+    .getByRole('switch', { name: 'Video subtitles', exact: true })
     .waitFor();
   await page.screenshot({ path: '.output/edge-auto-menu.png' });
   const other = await context.newPage();
@@ -251,7 +255,7 @@ try {
       browser: context.browser().version(),
       providerRequests: requests,
       checks:
-        'exact-host grant, denial, idle auto logo, refresh, click-to-open menu, SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
+        'exact-host grant, denial, idle auto logo, refresh, hover helpers and menu, SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
     }),
   );
 } finally {

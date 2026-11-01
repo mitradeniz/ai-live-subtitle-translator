@@ -48,3 +48,27 @@ export function createCheck(size: number): SVGSVGElement {
   svg.append(path);
   return svg;
 }
+
+// Small line icons for the edge control's hover buttons.
+const ICONS = {
+  close: ['M7 7l10 10M17 7 7 17'],
+  sliders: ['M4 8h9M17 8h3M4 16h3M11 16h9', 'M15 6v4M9 14v4'],
+} as const;
+export function createIcon(kind: keyof typeof ICONS, size: number) {
+  const svg = document.createElementNS(SVG, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  for (const d of ICONS[kind]) {
+    const path = document.createElementNS(SVG, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '2.2');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.append(path);
+  }
+  return svg;
+}
