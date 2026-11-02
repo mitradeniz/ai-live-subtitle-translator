@@ -5,6 +5,9 @@ import { BoundaryError } from './errors.ts';
 export const EDGE_ALL_KEY = 'edge-all-sites.v1';
 export const EDGE_ALL_HOSTS = ['https://*/*', 'http://*/*'];
 export const EDGE_SITES_KEY = 'edge-sites.v1';
+// Sites where the logo was hidden from its own menu. They override all-sites
+// mode until shown again from the popup.
+export const EDGE_HIDDEN_KEY = 'edge-hidden-sites.v1';
 // Chrome host grants cannot distinguish ports. Keep policy equally explicit.
 export function edgeOrigin(value: string): string | null {
   try {
@@ -27,6 +30,10 @@ export const EdgeOriginSchema = z
 const Saved = z.strictObject({
   schemaVersion: z.literal(1),
   origins: z.array(EdgeOriginSchema).max(64),
+});
+const Hidden = z.strictObject({
+  schemaVersion: z.literal(1),
+  origins: z.array(EdgeOriginSchema).max(256),
 });
 export interface EdgeSitePorts {
   allPermitted?(): Promise<boolean>;
@@ -55,6 +62,47 @@ export class EdgeSites {
       return saved.success ? saved.data.origins : [];
     });
   }
+  async hidden() {
+    return this.#storage.run(async ({ local }) => {
+      const saved = Hidden.safeParse(
+        (await local.get(EDGE_HIDDEN_KEY))[EDGE_HIDDEN_KEY],
+      );
+      return saved.success ? saved.data.origins : [];
+    });
+  }
+  async #setHidden(origin: string, hidden: boolean) {
+    await this.#storage.run(async ({ local }) => {
+      const parsed = Hidden.safeParse(
+        (await local.get(EDGE_HIDDEN_KEY))[EDGE_HIDDEN_KEY],
+      );
+      const origins = (parsed.success ? parsed.data.origins : []).filter(
+        (value) => value !== origin,
+      );
+      if (hidden) origins.push(origin);
+      // Keep the newest choices if the list ever fills up.
+      await local.set({
+        [EDGE_HIDDEN_KEY]: { schemaVersion: 1, origins: origins.slice(-256) },
+      });
+    });
+  }
+  // Hide the logo on one site from its own menu. This only removes access.
+  async hide(origin: string) {
+    if (edgeOrigin(origin) !== origin) throw new BoundaryError('FORBIDDEN');
+    await this.#setHidden(origin, true);
+    await this.#storage.run(async ({ local }) => {
+      const parsed = Saved.safeParse(
+        (await local.get(EDGE_SITES_KEY))[EDGE_SITES_KEY],
+      );
+      if (parsed.success && parsed.data.origins.includes(origin))
+        await local.set({
+          [EDGE_SITES_KEY]: {
+            schemaVersion: 1,
+            origins: parsed.data.origins.filter((value) => value !== origin),
+          },
+        });
+    });
+    await this.#ports.changed();
+  }
   async allEnabled() {
     const enabled = await this.#storage.run(
       async ({ local }) =>
@@ -67,7 +115,10 @@ export class EdgeSites {
       throw new BoundaryError('FORBIDDEN');
     await this.#storage.run(async ({ local }) => {
       await local.set({ [EDGE_ALL_KEY]: enabled });
-      if (!enabled) await local.remove(EDGE_SITES_KEY);
+      // Turning all sites on or off starts from a clean slate.
+      await local.remove(
+        enabled ? EDGE_HIDDEN_KEY : [EDGE_SITES_KEY, EDGE_HIDDEN_KEY],
+      );
     });
     await this.#ports.changed();
     return this.status();
@@ -81,6 +132,7 @@ export class EdgeSites {
   async allowed(origin: string) {
     return (
       edgeOrigin(origin) === origin &&
+      !(await this.hidden()).includes(origin) &&
       ((await this.allEnabled()) || (await this.origins()).includes(origin)) &&
       (await this.#ports.permitted(origin))
     );
@@ -99,6 +151,13 @@ export class EdgeSites {
     const origin = tab && edgeOrigin(tab.origin);
     if (!origin || (enabled && !(await this.#ports.permitted(origin))))
       throw new BoundaryError('FORBIDDEN');
+    // With all sites on, this switch only hides or shows the logo here.
+    if (await this.allEnabled()) {
+      await this.#setHidden(origin, !enabled);
+      await this.#ports.changed();
+      return this.status();
+    }
+    if (enabled) await this.#setHidden(origin, false);
     await this.#storage.run(async ({ local }) => {
       const parsed = Saved.safeParse(
         (await local.get(EDGE_SITES_KEY))[EDGE_SITES_KEY],
@@ -145,7 +204,7 @@ export class EdgeSites {
   }
   async clear() {
     await this.#storage.run(({ local }) =>
-      local.remove([EDGE_SITES_KEY, EDGE_ALL_KEY]),
+      local.remove([EDGE_SITES_KEY, EDGE_ALL_KEY, EDGE_HIDDEN_KEY]),
     );
     await this.#ports.changed();
   }

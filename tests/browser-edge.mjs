@@ -235,6 +235,93 @@ try {
     true,
   );
   await tools.waitFor();
+  // The hover × opens the edge button settings; a script click does not.
+  const dock = () =>
+    page.evaluate(() => {
+      const root = document.querySelector('translator-page-tools')?.shadowRoot;
+      const element = root?.querySelector('.dock');
+      return element
+        ? { compact: element.dataset.compact, hidden: element.hidden }
+        : null;
+    });
+  const openEdgeSettings = async () => {
+    await tools.locator('.trigger').hover();
+    await tools
+      .getByRole('button', { name: 'Edge button settings', exact: true })
+      .click();
+    const dialog = tools.getByRole('dialog', { name: 'Edge button settings' });
+    await dialog.waitFor();
+    return dialog;
+  };
+  await page.bringToFront();
+  await tools.locator('.trigger').hover();
+  await tools
+    .getByRole('button', { name: 'Edge button settings', exact: true })
+    .evaluate((button) => button.click());
+  assert.equal(await tools.locator('.edge-settings').isVisible(), false);
+  let edgeSettings = await openEdgeSettings();
+  await edgeSettings
+    .getByRole('switch', { name: 'Make the button smaller', exact: true })
+    .click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-page-tools')
+        ?.shadowRoot.querySelector('.dock')?.dataset.compact === 'true',
+  );
+  assert.equal(
+    (await message('page.preferences')).data.preferences.compactEdge,
+    true,
+  );
+  // Hide until reload is local: navigation inside the page keeps it hidden.
+  await edgeSettings
+    .getByRole('switch', { name: 'Hide the button', exact: true })
+    .click();
+  assert.equal(
+    await edgeSettings
+      .getByRole('radio', { name: 'Hide until this page is reloaded' })
+      .isChecked(),
+    true,
+  );
+  await edgeSettings
+    .getByRole('button', { name: 'Hide the button', exact: true })
+    .click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('translator-page-tools')
+        ?.shadowRoot.querySelector('.dock')?.hidden === true,
+  );
+  await page.evaluate(() => history.pushState({}, '', '/after-hide'));
+  await page.waitForTimeout(2400);
+  assert.deepEqual(await dock(), { compact: 'true', hidden: true });
+  await page.reload();
+  await tools.locator('.trigger').waitFor();
+  assert.deepEqual(await dock(), { compact: 'true', hidden: false });
+  // Hiding on this site is saved; other sites keep the logo.
+  edgeSettings = await openEdgeSettings();
+  await edgeSettings
+    .getByRole('switch', { name: 'Hide the button', exact: true })
+    .click();
+  await edgeSettings.getByRole('radio', { name: /^Hide on this site/ }).check();
+  await edgeSettings
+    .getByRole('button', { name: 'Hide the button', exact: true })
+    .click();
+  await tools.waitFor({ state: 'detached' });
+  assert.equal((await message('page.site-status')).data.enabled, false);
+  await page.reload();
+  await page.waitForTimeout(800);
+  assert.equal(await tools.count(), 0);
+  await second.reload();
+  await second.locator('translator-page-tools').waitFor();
+  // The popup's per-site switch shows it again.
+  await page.bringToFront();
+  assert.equal(
+    (await message('page.site-configure', { enabled: true })).data.enabled,
+    true,
+  );
+  await tools.waitFor();
+  assert.equal(requests, 0, 'Edge button settings send no text');
   const options = await context.newPage();
   await options.goto(`chrome-extension://${id}/options.html`);
   const cleared = await options.evaluate(() =>
@@ -255,7 +342,7 @@ try {
       browser: context.browser().version(),
       providerRequests: requests,
       checks:
-        'exact-host grant, denial, idle auto logo, refresh, hover helpers and menu, SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
+        'exact-host grant, denial, idle auto logo, refresh, hover helpers and menu, edge button settings (smaller, hide until reload, hide on site), SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
     }),
   );
 } finally {

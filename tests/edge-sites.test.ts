@@ -265,3 +265,136 @@ test('all-sites mode requires its own broad consent, survives restart, and clear
   assert.deepEqual(await sites.matches(), []);
   assert.equal((await sites.status()).enabled, false);
 });
+
+test('the logo hidden on one site overrides all-sites mode until the popup shows it again', async () => {
+  const areas = fakeAreas();
+  let changed = 0;
+  const ports = {
+    current: async () => ({ origin: 'https://first.example.test', tabId: 7 }),
+    permitted: async () => true,
+    allPermitted: async () => true,
+    changed: async () => {
+      changed++;
+    },
+    activate: async () => {},
+  };
+  const sites = new EdgeSites(new TrustedStorage(areas), ports);
+  await sites.configureAll(true);
+  await assert.rejects(sites.hide('https://example.test:8443'));
+  await sites.hide('https://first.example.test');
+  assert.equal(await sites.allowed('https://first.example.test'), false);
+  assert.equal(await sites.allowed('https://second.example.test'), true);
+  assert.equal((await sites.status()).enabled, false);
+  // The popup's per-site switch shows it again without touching other sites.
+  await sites.configure(true);
+  assert.equal(await sites.allowed('https://first.example.test'), true);
+  await sites.configure(false);
+  assert.equal(await sites.allowed('https://first.example.test'), false);
+  assert.deepEqual(await sites.origins(), [], 'All-sites mode adds no entry');
+  // Turning all sites on again starts from a clean slate.
+  await sites.configureAll(false);
+  await sites.configureAll(true);
+  assert.equal(await sites.allowed('https://first.example.test'), true);
+  assert.ok(changed >= 5);
+  // In per-site mode, hiding removes the saved opt-in too.
+  await sites.configureAll(false);
+  await sites.configure(true);
+  await sites.hide('https://first.example.test');
+  assert.deepEqual(await sites.origins(), []);
+  assert.equal(await sites.allowed('https://first.example.test'), false);
+  await sites.clear();
+  assert.deepEqual(await sites.hidden(), []);
+});
+
+test('the edge button menu can change only its size and the selection marker, and can only hide the logo', async () => {
+  let broad = true;
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    {
+      allPermitted: async () => broad,
+      current: async () => ({ origin: contentSender().origin, tabId: 7 }),
+      permitted: async () => true,
+      changed: async () => {},
+      activate: async () => {},
+    },
+  );
+  const sender = contentSender();
+  const sessionId = controller.pageSessions.grant(sender);
+  const send = (type: string, extra = {}, from: unknown = sender) =>
+    controller.dispatch(request(type, { sessionId, ...extra }), from);
+  // Other preferences, other senders and other documents are refused.
+  for (const extra of [{ page: false }, { writing: true }, { captions: true }])
+    assert.equal(
+      (await send('page.edge-preferences', extra)).ok,
+      false,
+      JSON.stringify(extra),
+    );
+  assert.equal(
+    (await send('page.edge-preferences', { compactEdge: true }, uiSender())).ok,
+    false,
+  );
+  assert.equal(
+    (
+      await send(
+        'page.edge-preferences',
+        { compactEdge: true },
+        { ...sender, documentId: 'forged' },
+      )
+    ).ok,
+    false,
+  );
+  const saved = await send('page.edge-preferences', {
+    compactEdge: true,
+    selection: false,
+  });
+  assert.ok(saved.ok && saved.data.kind === 'page-preferences');
+  assert.equal(saved.data.preferences.compactEdge, true);
+  assert.equal(saved.data.preferences.selection, false);
+  assert.equal(saved.data.preferences.autoSelection, false);
+  assert.equal(saved.data.preferences.page, true, 'Other choices are kept');
+  // Hiding can only remove access, for the sender's own site.
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.global-configure', { enabled: true }),
+        uiSender('popup'),
+      )
+    ).ok,
+    true,
+  );
+  for (const extra of [
+    { scope: 'show' },
+    { scope: 'site', origin: 'https://other.example.test' },
+  ])
+    assert.equal((await send('page.edge-hide', extra)).ok, false);
+  assert.equal(
+    (
+      await send(
+        'page.edge-hide',
+        { scope: 'site' },
+        { ...sender, documentId: 'forged' },
+      )
+    ).ok,
+    false,
+  );
+  assert.equal((await send('page.edge-hide', { scope: 'site' })).ok, true);
+  assert.equal(await controller.edgeSites.allowed(sender.origin), false);
+  assert.equal(
+    await controller.edgeSites.allowed('https://other.example.test'),
+    true,
+  );
+  assert.equal((await send('page.edge-hide', { scope: 'all' })).ok, true);
+  assert.equal((await controller.edgeSites.status()).allSites, false);
+  broad = false;
+});

@@ -185,6 +185,22 @@ export const RequestSchema = z.discriminatedUnion('type', [
     sessionId,
     targetLanguage: PreferencesSchema.shape.targetLanguage,
   }),
+  // The edge button's own settings: size and the selection marker only.
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.edge-preferences'),
+    sessionId,
+    compactEdge: z.boolean().optional(),
+    selection: z.boolean().optional(),
+  }),
+  // Hides the edge button on the sender's site or turns automatic logos off.
+  // It can only remove access; showing it again needs the popup.
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.edge-hide'),
+    sessionId,
+    scope: z.enum(['site', 'all']),
+  }),
   // Swaps the saved source and target languages. The page cannot name either
   // language; the background derives both from trusted settings.
   z.strictObject({

@@ -83,7 +83,13 @@ export function createPageHandler(sessions: SessionRegistry) {
       const state = PageStateSchema.parse(
         await browser.tabs.sendMessage(
           tabId,
-          { version: 1, type: 'page.start', sessionId, run },
+          {
+            version: 1,
+            type: 'page.start',
+            sessionId,
+            run,
+            reveal: autoTab === undefined,
+          },
           { documentId },
         ),
       );

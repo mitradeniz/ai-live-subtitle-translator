@@ -19,6 +19,11 @@ Adds a separate Firefox MV3 build with document-bound messaging, private durable
   translation, with a subtler check in its corner. Hovering shows what a click
   will do, the latest status, a **More options** button for the menu and × to
   hide it.
+- The × beside the edge button opens **Edge button settings** in the same glass
+  style: make the button smaller (tucked against the page edge until you point
+  at it), turn the selected-text marker on or off, or hide the button until the
+  page is reloaded, on this site, or on all sites. Hidden sites can be shown again
+  from the popup → Page translation; the edge button can only remove access.
 - Changing languages no longer asks for a restart: languages picked in the popup
   (or swapped) save at once, and running subtitles continue in the new language.
   The player menu does the same after a language or provider change.

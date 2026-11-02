@@ -487,16 +487,23 @@ mode and enabled tools are separate.
   Chrome's host grant stays available to other features; remove it in Chrome if desired.
 - **Always show the logo on this site**, under Customize translation, retains the
   narrower one-host alternative. You can use this instead of all-sites access.
+  With all-sites access on, the same switch reads **Show the logo on this site** and
+  shows the logo again where it was hidden from its settings.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
   the square turns page translation on or off (video subtitles when page translation
   is turned off in Customize translation); a small check in its corner shows that it
   is on. Hovering shows what a click will do, the latest status, and two small
-  helpers: **More options** opens the glass menu and × hides the control. The menu
+  helpers: **More options** opens the glass menu and × opens **Edge button
+  settings**. There you can make the button smaller (it tucks against the page edge
+  until you point at it), turn the selected-text marker on or off, or hide the
+  button: until the page is reloaded, on this site, or on all sites. Hiding on a
+  site or on all sites is saved; show it again from the popup → Page translation.
+  The menu
   holds only the enabled tools: a **Video subtitles** switch, and Translate selection,
   Translate focused field or AI Writing when those are turned on. Opening it sends
   nothing. Enter/Space toggles translation by keyboard and F2 opens the menu; Escape
-  or a click outside closes it, and arrow keys move the dock. Hide/Show preserves
-  its page edge and height. While the page is in
+  or a click outside closes it, and arrow keys move the dock. Its position and a
+  hide-until-reload choice survive navigation within the page. While the page is in
   fullscreen the square and its menu step aside; the player's own A文 button stays
   available. Provider, language and tool choices stay in the trusted popup and
   settings.

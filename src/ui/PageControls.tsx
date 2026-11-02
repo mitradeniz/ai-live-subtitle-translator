@@ -196,17 +196,19 @@ export function PageControls({
       </p>
       <details className="page-customize">
         <summary>{t('Customize translation')}</summary>
-        {!site.allSites && (
-          <label className="page-auto-site">
-            <input
-              type="checkbox"
-              checked={site.enabled}
-              disabled={busy || !site.origin}
-              onChange={(event) => void automatic(event.target.checked)}
-            />
-            {t('Always show the logo on this site')}
-          </label>
-        )}
+        <label className="page-auto-site">
+          <input
+            type="checkbox"
+            checked={site.enabled}
+            disabled={busy || !site.origin}
+            onChange={(event) => void automatic(event.target.checked)}
+          />
+          {t(
+            site.allSites
+              ? 'Show the logo on this site'
+              : 'Always show the logo on this site',
+          )}
+        </label>
         {site.origin && <small className="page-consent">{site.origin}</small>}
         <fieldset disabled={busy}>
           <legend>{t('Choose your tools')}</legend>

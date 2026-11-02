@@ -10,11 +10,23 @@ export default defineContentScript({
   main(ctx) {
     let tools: PageTools | undefined;
     let generation = 0;
-    const reloadMenu = async (sessionId: string, resume = false) => {
-      const ticket = ++generation;
-      const placement = tools?.placement;
+    // Position and a "hide until reload" choice survive tool restarts in this
+    // document (navigation inside the page, settings changes). Each start runs
+    // this script again, so keep them on the extension's isolated-world global,
+    // which the page cannot read.
+    const store = globalThis as typeof globalThis & {
+      __translatorEdgePlacement?: PageTools['placement'];
+    };
+    const remember = (placement: PageTools['placement']) => {
+      store.__translatorEdgePlacement = placement;
+    };
+    const release = () => {
       tools?.dispose();
       tools = undefined;
+    };
+    const reloadMenu = async (sessionId: string, resume = false) => {
+      const ticket = ++generation;
+      release();
       const data = await sendRequest({ type: 'page.settings', sessionId });
       if (
         !ctx.isValid ||
@@ -29,7 +41,9 @@ export default defineContentScript({
         data.label,
         data.ai,
         reloadMenu,
+        remember,
       );
+      const placement = store.__translatorEdgePlacement;
       if (placement) tools.restorePlacement(placement);
       tools.openPlayerMenu(resume);
     };
@@ -50,8 +64,7 @@ export default defineContentScript({
         return;
       }
       const ticket = ++generation;
-      tools?.dispose();
-      tools = undefined;
+      release();
       if (message.type !== 'page.start') {
         respond('off');
         return;
@@ -76,7 +89,13 @@ export default defineContentScript({
             data.label,
             data.ai,
             reloadMenu,
+            remember,
           );
+          const placement = store.__translatorEdgePlacement;
+          if (placement)
+            tools.restorePlacement(
+              message.reveal ? { ...placement, hidden: false } : placement,
+            );
           if (message.run) tools.startPage();
           respond(tools.state);
         },

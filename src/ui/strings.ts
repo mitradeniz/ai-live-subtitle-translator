@@ -566,6 +566,22 @@ Object.assign(turkish, {
   'Turn on video subtitles': 'Video altyazılarını aç',
   'Turn off video subtitles': 'Video altyazılarını kapat',
   'More options': 'Diğer seçenekler',
+  Close: 'Kapat',
+  'Edge button settings': 'Kenar düğmesi ayarları',
+  'Make the button smaller': 'Düğmeyi küçült',
+  'Hide the button': 'Düğmeyi gizle',
+  'Where to hide the button': 'Düğme nerede gizlensin',
+  'Hide until this page is reloaded': 'Sayfa yenilenene kadar gizle',
+  'Hide on this site': 'Bu sitede gizle',
+  'Show it again from the extension popup → Page translation.':
+    "Eklenti penceresi → Sayfa çevirisi'nden yeniden gösterebilirsin.",
+  'Turn off on all sites': 'Tüm sitelerde kapat',
+  'Turn it back on from the extension popup → Page translation.':
+    "Eklenti penceresi → Sayfa çevirisi'nden yeniden açabilirsin.",
+  'Selected text marker': 'Seçili metin işareti',
+  'Could not save. Try again from the extension popup.':
+    'Kaydedilemedi. Eklenti penceresinden tekrar dene.',
+  'Show the logo on this site': 'Logoyu bu sitede göster',
   'Languages updated. Subtitles continue in the new language.':
     'Diller güncellendi. Altyazılar yeni dilde devam ediyor.',
   'Restarting subtitle translation…': 'Altyazı çevirisi yeniden başlatılıyor…',

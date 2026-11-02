@@ -1,4 +1,9 @@
 import { SelectionPopup } from './selection-popup';
+import {
+  EdgeSettings,
+  EDGE_SETTINGS_CSS,
+  type HideScope,
+} from './edge-settings';
 import { PageText, EXCLUDED } from './dom';
 import { PlayerShortcut } from '../playback/shortcut';
 import type { PagePreferences, PageState, WritingStyle } from './contracts';
@@ -26,7 +31,6 @@ export class PageTools {
   #dock = document.createElement('div');
   #button = document.createElement('button');
   #panel = document.createElement('section');
-  #show = document.createElement('button');
   #status = document.createElement('p');
   #result = document.createElement('div');
   #draft = document.createElement('textarea');
@@ -39,6 +43,9 @@ export class PageTools {
   #tipAction = document.createElement('span');
   #tipNote = document.createElement('small');
   #more = document.createElement('button');
+  #edgeSettings: EdgeSettings;
+  #selectionButton: HTMLButtonElement | undefined;
+  #createSelection: () => SelectionPopup;
   #flashTimer: ReturnType<typeof setTimeout> | undefined;
   #noteTimer: ReturnType<typeof setTimeout> | undefined;
   #captionsOn = false;
@@ -73,13 +80,15 @@ export class PageTools {
     label: string,
     ai: boolean,
     reloadMenu: (sessionId: string, resume?: boolean) => Promise<void>,
+    // Receives the position and hidden state when these tools close.
+    private remember: (placement: PageTools['placement']) => void = () => {},
   ) {
     this.sessionId = sessionId;
     this.prefs = prefs;
     this.settings = settings;
     this.ai = ai;
     const css = document.createElement('style');
-    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:38px;height:38px;padding:0;white-space:nowrap;border:0;border-radius:13px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger{position:relative}.trigger>svg{width:24px;height:24px;pointer-events:none}.badge{position:absolute;top:-2px;right:-2px;display:grid;place-items:center;width:7px;height:7px;border-radius:50%;background:rgb(139 147 167 / 55%);box-shadow:0 0 0 1.5px rgb(16 20 36 / 80%);transition:width .3s cubic-bezier(.34,1.56,.64,1),height .3s cubic-bezier(.34,1.56,.64,1),background .3s}.badge svg{width:8px;height:8px;opacity:0;transition:opacity .2s}.trigger[data-active="true"] .badge{width:12px;height:12px;background:rgb(127 233 195 / 72%);color:rgb(6 35 26 / 85%)}.trigger[data-active="true"] .badge svg{opacity:1}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel{display:flex;flex-direction:column;gap:8px}.panel h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel .destination{margin:-4px 0 4px;color:rgb(226 233 247 / 70%)}.panel .consent{margin:0;color:rgb(226 233 247 / 56%)}.panel .row{margin:0}.wide{width:100%}.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 14px;border-radius:16px}.switch .track{flex:none;width:34px;height:20px;padding:2px;border-radius:999px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);transition:background .3s}.switch .track span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}.switch[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}.switch[aria-checked="true"] .track span{transform:translateX(14px)}.footer button{flex:1}.panel p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.show{position:fixed;pointer-events:auto;font:12px var(--font);color:#f3f6fc;background:rgb(16 20 36 / 70%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}.label{font-size:11px}.status{font-size:12px}.status:empty{display:none}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.show{-webkit-backdrop-filter:none;backdrop-filter:none}}.tip{position:absolute;top:19px;right:calc(100% + 10px);transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;max-width:min(320px,calc(100vw - 80px));padding:7px 12px;border-radius:12px;background:rgb(10 12 22 / 88%);box-shadow:0 10px 24px -10px rgb(0 0 0 / 70%);font:13px/1.35 var(--font);white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,visibility 0s .15s}.tip small{font-size:11px;color:rgb(226 233 247 / 66%);white-space:normal}.tip small:empty{display:none}.dock[data-side="0"] .tip{right:auto;left:calc(100% + 10px)}.trigger:hover+.tip,.trigger:focus-visible+.tip,.tip[data-flash="true"]{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .tip{display:none}.hover-only{opacity:0;visibility:hidden;transition:opacity .15s .25s,visibility 0s .4s}.dock:hover .hover-only,.dock:has(:focus-visible) .hover-only{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .hover-only{display:none}.extras{position:absolute;top:44px;left:5px;display:flex;flex-direction:column;gap:6px}.dock[data-up="true"] .extras{top:auto;bottom:44px;flex-direction:column-reverse}.mini{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;color:#dfe7f7;background:linear-gradient(180deg,rgb(255 255 255 / 16%),rgb(255 255 255 / 4%)),rgb(16 20 36 / 72%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 35%),inset 0 0 0 1px rgb(255 255 255 / 12%)}.mini:hover{background:linear-gradient(180deg,rgb(255 255 255 / 26%),rgb(255 255 255 / 8%)),rgb(16 20 36 / 80%)}.close{position:absolute;bottom:-5px;left:-7px;width:18px;height:18px}.dock[data-side="0"] .close{left:auto;right:-7px}.close svg{width:10px;height:10px}`;
+    css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:38px;height:38px;padding:0;white-space:nowrap;border:0;border-radius:13px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger{position:relative}.trigger>svg{width:24px;height:24px;pointer-events:none}.badge{position:absolute;top:-2px;right:-2px;display:grid;place-items:center;width:7px;height:7px;border-radius:50%;background:rgb(139 147 167 / 55%);box-shadow:0 0 0 1.5px rgb(16 20 36 / 80%);transition:width .3s cubic-bezier(.34,1.56,.64,1),height .3s cubic-bezier(.34,1.56,.64,1),background .3s}.badge svg{width:8px;height:8px;opacity:0;transition:opacity .2s}.trigger[data-active="true"] .badge{width:12px;height:12px;background:rgb(127 233 195 / 72%);color:rgb(6 35 26 / 85%)}.trigger[data-active="true"] .badge svg{opacity:1}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel,.sheet{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel,.sheet{display:flex;flex-direction:column;gap:8px}.panel h2,.sheet h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel .destination{margin:-4px 0 4px;color:rgb(226 233 247 / 70%)}.panel .consent{margin:0;color:rgb(226 233 247 / 56%)}.panel .row{margin:0}.wide{width:100%}.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 14px;border-radius:16px}.switch .track{flex:none;width:34px;height:20px;padding:2px;border-radius:999px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);transition:background .3s}.switch .track span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}.switch[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}.switch[aria-checked="true"] .track span{transform:translateX(14px)}.footer button{flex:1}.panel p,.sheet p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.label{font-size:11px}.status{font-size:12px}.status:empty{display:none}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.sheet{-webkit-backdrop-filter:none;backdrop-filter:none}}.tip{position:absolute;top:19px;right:calc(100% + 10px);transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;max-width:min(320px,calc(100vw - 80px));padding:7px 12px;border-radius:12px;background:rgb(10 12 22 / 88%);box-shadow:0 10px 24px -10px rgb(0 0 0 / 70%);font:13px/1.35 var(--font);white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,visibility 0s .15s}.tip small{font-size:11px;color:rgb(226 233 247 / 66%);white-space:normal}.tip small:empty{display:none}.dock[data-side="0"] .tip{right:auto;left:calc(100% + 10px)}.trigger:hover+.tip,.trigger:focus-visible+.tip,.tip[data-flash="true"]{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .tip{display:none}.hover-only{opacity:0;visibility:hidden;transition:opacity .15s .25s,visibility 0s .4s}.dock:hover .hover-only,.dock:has(:focus-visible) .hover-only{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .hover-only{display:none}.extras{position:absolute;top:44px;left:5px;display:flex;flex-direction:column;gap:6px}.dock[data-up="true"] .extras{top:auto;bottom:44px;flex-direction:column-reverse}.mini{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;color:#dfe7f7;background:linear-gradient(180deg,rgb(255 255 255 / 16%),rgb(255 255 255 / 4%)),rgb(16 20 36 / 72%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 35%),inset 0 0 0 1px rgb(255 255 255 / 12%)}.mini:hover{background:linear-gradient(180deg,rgb(255 255 255 / 26%),rgb(255 255 255 / 8%)),rgb(16 20 36 / 80%)}.close{position:absolute;bottom:-5px;left:-7px;width:18px;height:18px}.dock[data-side="0"] .close{left:auto;right:-7px}.close svg{width:10px;height:10px}.dock[data-compact="true"] .trigger{width:28px;height:28px;border-radius:10px;opacity:.85;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .2s}.dock[data-compact="true"] .trigger>svg{width:18px;height:18px}.dock[data-compact="true"][data-side="1"] .trigger{transform:translateX(12px)}.dock[data-compact="true"][data-side="0"] .trigger{transform:translateX(-12px)}.dock[data-compact="true"]:hover .trigger,.dock[data-compact="true"] .trigger:focus-visible,.dock[data-compact="true"][data-open="true"] .trigger{transform:none;opacity:1}.dock[data-compact="true"] .tip{top:14px}.dock[data-compact="true"] .extras{top:34px;left:0}.dock[data-compact="true"][data-up="true"] .extras{top:auto;bottom:34px}${EDGE_SETTINGS_CSS}`;
     this.#dock.className = 'dock';
     this.#button.className = 'trigger';
     this.#button.type = 'button';
@@ -113,10 +122,11 @@ export class PageTools {
     hide.type = 'button';
     hide.className = 'mini close hover-only';
     hide.append(createIcon('close', 10));
-    hide.title = this.t('Hide controls');
-    hide.setAttribute('aria-label', this.t('Hide controls'));
+    hide.title = this.t('Edge button settings');
+    hide.setAttribute('aria-label', this.t('Edge button settings'));
+    hide.setAttribute('aria-haspopup', 'dialog');
     hide.addEventListener('click', (event) => {
-      if (event.isTrusted) this.#hideDock();
+      if (event.isTrusted) this.#openSettings(true);
     });
     this.#panel.className = 'panel';
     this.#panel.hidden = true;
@@ -151,8 +161,11 @@ export class PageTools {
     }
     const textRow = document.createElement('div');
     textRow.className = 'row';
-    if (prefs.selection)
-      textRow.append(this.button('Translate selection', () => this.selected()));
+    this.#selectionButton = this.button('Translate selection', () =>
+      this.selected(),
+    );
+    this.#selectionButton.hidden = !prefs.selection;
+    textRow.append(this.#selectionButton);
     if (prefs.input)
       textRow.append(
         this.button('Translate focused field', () => this.field()),
@@ -211,7 +224,7 @@ export class PageTools {
       this.button('Open settings', async () => {
         await sendRequest({ type: 'page.open-settings', sessionId });
       }),
-      this.button('Hide controls', () => this.#hideDock()),
+      this.button('Hide controls', () => this.#openSettings(true)),
     );
     const consent = document.createElement('p');
     consent.className = 'label consent';
@@ -219,19 +232,51 @@ export class PageTools {
       'Requested text goes to this provider. User-key services may charge.',
     );
     this.#panel.append(footer, consent);
-    this.#show.type = 'button';
-    this.#show.className = 'show';
-    this.#show.textContent = this.t('Show controls');
-    this.#show.hidden = true;
-    this.#show.addEventListener('click', (event) => {
-      if (event.isTrusted) {
-        this.#dock.hidden = false;
-        this.#show.hidden = true;
+    this.#edgeSettings = new EdgeSettings({
+      t: (text) => this.t(text),
+      compact: prefs.compactEdge,
+      selection: prefs.selection,
+      setCompact: async (value) => {
+        this.#dock.dataset.compact = String(value);
+        this.layout();
+        try {
+          await this.#savePreferences({ compactEdge: value });
+        } catch (error) {
+          this.#dock.dataset.compact = String(!value);
+          this.layout();
+          throw error;
+        }
+      },
+      setSelection: async (value) => {
+        await this.#savePreferences({ selection: value });
+        this.prefs = {
+          ...this.prefs,
+          selection: value,
+          autoSelection: value && this.prefs.autoSelection,
+        };
+        this.#selectionPopup?.dispose();
+        this.#selectionPopup = value ? this.#createSelection() : undefined;
+        if (this.#selectionButton) this.#selectionButton.hidden = !value;
+      },
+      hide: (scope) => this.#hide(scope),
+      settings: async () => {
+        await sendRequest({ type: 'page.open-settings', sessionId });
+      },
+      close: () => {
+        this.#openSettings(false);
         this.#button.focus();
-      }
+      },
     });
-    this.#dock.append(this.#button, this.#tip, hide, extras, this.#panel);
-    this.#shadow.append(css, this.#dock, this.#show);
+    this.#dock.dataset.compact = String(prefs.compactEdge);
+    this.#dock.append(
+      this.#button,
+      this.#tip,
+      hide,
+      extras,
+      this.#panel,
+      this.#edgeSettings.element,
+    );
+    this.#shadow.append(css, this.#dock);
     if (prefs.captions)
       this.#playerShortcut = new PlayerShortcut({
         t: (text) => this.t(text),
@@ -342,6 +387,7 @@ export class PageTools {
       if (event.key === 'Escape') {
         this.#button.focus();
         this.open(false);
+        this.#openSettings(false);
       }
     });
     this.#page = new PageText(
@@ -354,9 +400,9 @@ export class PageTools {
         this.#paintState();
       },
     );
-    if (prefs.selection)
-      this.#selectionPopup = new SelectionPopup({
-        mode: prefs.autoSelection ? 'auto' : 'click',
+    this.#createSelection = () =>
+      new SelectionPopup({
+        mode: this.prefs.autoSelection ? 'auto' : 'click',
         t: (text) => this.t(text),
         languages: {
           sourceLanguage: settings.sourceLanguage,
@@ -369,7 +415,7 @@ export class PageTools {
             'selection',
             [{ id: `selection-${serial}`, revision: serial, text }],
             undefined,
-            prefs.autoSelection,
+            this.prefs.autoSelection,
             languages,
           );
           return result!;
@@ -378,6 +424,7 @@ export class PageTools {
           await sendRequest({ type: 'page.open-settings', sessionId });
         },
       });
+    if (prefs.selection) this.#selectionPopup = this.#createSelection();
     document.addEventListener('focusin', this.#focus, true);
     document.addEventListener('pointerdown', this.#outside, true);
     document.addEventListener('pointerup', this.#select, true);
@@ -453,6 +500,7 @@ export class PageTools {
   open(value: boolean) {
     if (this.#closed) return;
     const opening = value && Boolean(this.#panel.hidden);
+    if (value) this.#edgeSettings.element.hidden = true;
     this.#panel.hidden = !value;
     this.#dock.dataset.open = String(value);
     if (value) {
@@ -463,11 +511,44 @@ export class PageTools {
     this.layout();
     if (opening) void this.refreshCaptions();
   }
-  #hideDock() {
+  #openSettings(value: boolean) {
+    if (this.#closed) return;
+    if (value) {
+      this.open(false);
+      this.#edgeSettings.reset();
+    }
+    this.#edgeSettings.element.hidden = !value;
+    this.#dock.dataset.open = String(value);
+    if (value) delete this.#tip.dataset.flash;
+    this.layout();
+    if (value) this.#edgeSettings.focus();
+  }
+  async #savePreferences(patch: {
+    compactEdge?: boolean;
+    selection?: boolean;
+  }) {
+    const result = await sendRequest({
+      type: 'page.edge-preferences',
+      sessionId: this.sessionId,
+      ...patch,
+    });
+    if (result.kind !== 'page-preferences') throw new Error('Unavailable');
+  }
+  // 'once' hides the button until this page loads again. 'site' and 'all'
+  // also save the choice; the popup can show the button again.
+  async #hide(scope: HideScope) {
+    if (scope !== 'once') {
+      const result = await sendRequest({
+        type: 'page.edge-hide',
+        sessionId: this.sessionId,
+        scope,
+      });
+      if (result.kind !== 'saved') throw new Error('Unavailable');
+    }
+    if (this.#closed) return;
     this.open(false);
+    this.#openSettings(false);
     this.#dock.hidden = true;
-    this.#show.hidden = false;
-    this.#show.focus();
   }
   // Page translation when that tool is on, otherwise video subtitles.
   #target(): 'page' | 'captions' | null {
@@ -477,6 +558,7 @@ export class PageTools {
     if (this.#closed) return;
     const target = this.#target();
     this.open(false);
+    if (!this.#edgeSettings.element.hidden) this.#openSettings(false);
     if (target === 'page') {
       if (this.#page.active) {
         this.#page.restore();
@@ -489,10 +571,12 @@ export class PageTools {
   #outside = (event: PointerEvent) => {
     if (
       event.isTrusted &&
-      !this.#panel.hidden &&
+      (!this.#panel.hidden || !this.#edgeSettings.element.hidden) &&
       !event.composedPath().includes(this.host)
-    )
+    ) {
       this.open(false);
+      this.#openSettings(false);
+    }
   };
   #paintState() {
     if (this.#closed) return;
@@ -603,7 +687,6 @@ export class PageTools {
   }) {
     this.#position = { side: placement.side, height: placement.height };
     this.#dock.hidden = placement.hidden;
-    this.#show.hidden = !placement.hidden;
     this.layout();
   }
   openPlayerMenu(resume = false) {
@@ -859,31 +942,35 @@ export class PageTools {
     if (this.host.parentElement !== parent) parent.append(this.host);
     this.host.style.display = fullscreen ? 'none' : 'block';
     if (fullscreen && !this.#panel.hidden) this.open(false);
+    if (fullscreen && !this.#edgeSettings.element.hidden)
+      this.#openSettings(false);
     const width = document.documentElement.clientWidth,
       height = innerHeight;
     this.#position.height = Math.min(1, Math.max(0, this.#position.height));
-    const x = this.#position.side ? Math.max(6, width - 44) : 6,
+    const compact = this.#dock.dataset.compact === 'true';
+    const x = this.#position.side
+        ? Math.max(6, width - (compact ? 30 : 44))
+        : compact
+          ? 2
+          : 6,
       y = 6 + this.#position.height * Math.max(0, height - 50);
     Object.assign(this.#dock.style, { left: `${x}px`, top: `${y}px` });
     this.#dock.dataset.side = String(this.#position.side);
     this.#dock.dataset.up = String(y > height - 130);
-    Object.assign(this.#show.style, {
-      left: this.#position.side ? 'auto' : '6px',
-      right: this.#position.side ? '6px' : 'auto',
-      top: `${y}px`,
-    });
     const panelWidth = Math.min(320, width - 24);
     const above = y > height / 2;
-    Object.assign(this.#panel.style, {
-      width: `${panelWidth}px`,
-      left: `${Math.max(12, Math.min(x, width - panelWidth - 12)) - x}px`,
-      top: above ? 'auto' : '46px',
-      bottom: above ? '46px' : 'auto',
-      maxHeight: `${Math.max(100, above ? y - 12 : height - y - 58)}px`,
-    });
+    for (const panel of [this.#panel, this.#edgeSettings.element])
+      Object.assign(panel.style, {
+        width: `${panelWidth}px`,
+        left: `${Math.max(12, Math.min(x, width - panelWidth - 12)) - x}px`,
+        top: above ? 'auto' : '46px',
+        bottom: above ? '46px' : 'auto',
+        maxHeight: `${Math.max(100, above ? y - 12 : height - y - 58)}px`,
+      });
   };
   dispose() {
     if (this.#closed) return;
+    this.remember(this.placement);
     this.#closed = true;
     this.#serial++;
     this.#page.dispose();

@@ -45,7 +45,8 @@ options page and receives no credentials or configurable destination.
 
 Page tools require a deliberate popup action on the current HTTP(S) main document.
 The optional automatic logo stores either an all-sites opt-in or exact sites you
-allow (up to 64). “Show the logo on all sites” explicitly requests HTTP(S) access
+allow (up to 64), plus sites where you hid the logo from its own settings (up to
+256, origins only). Hiding until a page is reloaded is not stored. “Show the logo on all sites” explicitly requests HTTP(S) access
 across websites once. Alternatively, the per-site option requests one host at a time.
 Installation itself grants no hosts. Packaged main-frame scripts run on the chosen
 scope; they show idle controls, and no text is transmitted by showing the logo or

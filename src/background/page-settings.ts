@@ -55,6 +55,28 @@ export class PageSettings {
       return preferences;
     });
   }
+  // The edge button's own menu may change only its size and the selection
+  // marker. Turning the marker off also turns automatic selection off.
+  async edge(
+    patch: {
+      compactEdge?: boolean | undefined;
+      selection?: boolean | undefined;
+    },
+    valid: () => void,
+  ) {
+    return this.storage.run(async ({ local }) => {
+      const preferences = await load(local);
+      valid();
+      if (patch.compactEdge !== undefined)
+        preferences.compactEdge = patch.compactEdge;
+      if (patch.selection !== undefined) {
+        preferences.selection = patch.selection;
+        if (!patch.selection) preferences.autoSelection = false;
+      }
+      await save(local, preferences);
+      return preferences;
+    });
+  }
   async update(value: unknown) {
     const preferences = PagePreferencesSchema.parse(value);
     await this.storage.run(({ local }) => save(local, preferences));

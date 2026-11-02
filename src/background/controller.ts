@@ -232,6 +232,27 @@ export function createController(
           sender.identity.origin,
         );
         response = { ok: true, data: { kind: 'saved' } };
+      } else if (request.type === 'page.edge-preferences') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        const valid = () =>
+          pageSessions.assertBound(request.sessionId, sender.identity);
+        valid();
+        const preferences = await pageSettings.edge(
+          { compactEdge: request.compactEdge, selection: request.selection },
+          valid,
+        );
+        valid();
+        response = {
+          ok: true,
+          data: { kind: 'page-preferences', preferences },
+        };
+      } else if (request.type === 'page.edge-hide') {
+        if (sender.kind !== 'content' || sender.identity.frameId !== 0)
+          throw new BoundaryError('FORBIDDEN');
+        pageSessions.assertBound(request.sessionId, sender.identity);
+        if (request.scope === 'all') await edgeSites.configureAll(false);
+        else await edgeSites.hide(sender.identity.origin);
+        response = { ok: true, data: { kind: 'saved' } };
       } else if (request.type === 'page.action') {
         if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
         const valid = () =>

@@ -19,6 +19,8 @@ export const PagePreferencesSchema = z.strictObject({
   youtubeSourceConfirmed: z.boolean().default(true),
   selection: z.boolean().default(true),
   autoSelection: z.boolean().default(false),
+  // A smaller edge button tucked against the page edge.
+  compactEdge: z.boolean().default(false),
   hover: z.boolean().default(false),
   input: z.boolean().default(false),
   writing: z.boolean().default(false),
@@ -44,6 +46,8 @@ export const PageControlSchema = z.discriminatedUnion('type', [
     type: z.literal('page.start'),
     sessionId: z.uuid(),
     run: z.boolean(),
+    // Started from the popup: show the edge button even if it was hidden.
+    reveal: z.boolean().default(false),
   }),
   ...(['page.stop', 'page.inspect', 'page.reset'] as const).map((type) =>
     z.strictObject({ version: z.literal(1), type: z.literal(type) }),
