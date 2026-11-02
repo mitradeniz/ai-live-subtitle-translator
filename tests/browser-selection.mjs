@@ -120,6 +120,7 @@ try {
   await send('google.enable');
   const prefs = (await send('page.preferences')).data.preferences;
   assert.equal(prefs.autoSelection, false);
+  assert.equal(prefs.selection, true, 'The selection marker is on by default');
   await send('page.configure', { preferences: { ...prefs, selection: true } });
   await enable();
   await select('#selectable');
@@ -362,7 +363,7 @@ try {
       browser: context.browser().version(),
       requests: sent.length,
       checks:
-        'default off, options opt-in, trusted selection, anchored preview, form/size exclusion, one in flight, newest selection, literal output, close/Escape, stale result, click-to-translate icon',
+        'marker on and automatic off by default, options opt-in, trusted selection, anchored preview, form/size exclusion, one in flight, newest selection, literal output, close/Escape, stale result, click-to-translate icon',
     }),
   );
 } finally {

@@ -5,31 +5,37 @@ import {
   type PagePreferences,
 } from '../page/contracts.ts';
 import type { StorageArea, TrustedStorage } from './storage.ts';
-export const PAGE_PREFERENCES_KEY = 'page-preferences.v2';
-// Version 1 started pages in bilingual display and asked to confirm the
-// YouTube caption track every time. Version 2 starts pages translation-only
-// and treats the selected track as confirmed, so version 1 preferences move to
-// those defaults once. Both remain adjustable in Customize translation.
-export const LEGACY_PAGE_PREFERENCES_KEY = 'page-preferences.v1';
+export const PAGE_PREFERENCES_KEY = 'page-preferences.v3';
+// Earlier versions started pages bilingual, asked to confirm the YouTube caption
+// track every time and kept selected-text translation off. Version 3 starts
+// pages translation-only, treats the selected track as confirmed and shows the
+// small selection marker (it sends nothing until clicked). Earlier preferences
+// move to these defaults once; all stay adjustable in Customize translation.
+export const LEGACY_PAGE_PREFERENCES_KEYS = [
+  'page-preferences.v2',
+  'page-preferences.v1',
+] as const;
 async function load(local: StorageArea): Promise<PagePreferences> {
   const current = PagePreferencesSchema.safeParse(
     (await local.get(PAGE_PREFERENCES_KEY))[PAGE_PREFERENCES_KEY],
   );
   if (current.success) return current.data;
-  const legacy = PagePreferencesSchema.safeParse(
-    (await local.get(LEGACY_PAGE_PREFERENCES_KEY))[LEGACY_PAGE_PREFERENCES_KEY],
-  );
-  if (legacy.success)
-    return {
-      ...legacy.data,
-      display: 'translated',
-      youtubeSourceConfirmed: true,
-    };
+  for (const key of LEGACY_PAGE_PREFERENCES_KEYS) {
+    const legacy = PagePreferencesSchema.safeParse((await local.get(key))[key]);
+    if (legacy.success)
+      return {
+        ...legacy.data,
+        display: 'translated',
+        youtubeSourceConfirmed: true,
+        selection: true,
+        autoSelection: false,
+      };
+  }
   return { ...DEFAULT_PAGE_PREFERENCES };
 }
 async function save(local: StorageArea, preferences: PagePreferences) {
   await local.set({ [PAGE_PREFERENCES_KEY]: preferences });
-  await local.remove(LEGACY_PAGE_PREFERENCES_KEY);
+  await local.remove([...LEGACY_PAGE_PREFERENCES_KEYS]);
 }
 export class PageSettings {
   private storage: TrustedStorage;

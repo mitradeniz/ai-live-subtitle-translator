@@ -60,9 +60,9 @@ It does not access iframe or shadow-root content. This does not identify every k
 of sensitive information displayed as ordinary page text; choose pages deliberately.
 
 Selected text (up to 1,000 characters) is transmitted after an explicit translation
-action — clicking the icon shown next to a selection, or Translate selection in the
+action — clicking the small marker shown under a selection, or Translate selection in the
 edge menu — or after a mouse selection when you separately enable **Translate
-automatically after selection**. Showing the icon sends nothing. This setting defaults off, including for existing installations.
+automatically after selection**. Showing the marker sends nothing. Automatic translation after selection defaults off, including for existing installations.
 Automatic selections go to the selected provider/target language and can incur its
 charges. One selection request runs at a time; only the latest pending selection is
 kept. Closing the preview discards pending/displayed results; an already dispatched

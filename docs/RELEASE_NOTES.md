@@ -5,13 +5,15 @@ Adds a separate Firefox MV3 build with document-bound messaging, private durable
 - Offer 30 widely used languages (including Arabic, Hebrew, Persian, Hindi,
   Japanese, Korean and Simplified/Traditional Chinese) in the popup, settings,
   player menu and selection preview. The Google providers accept the same list.
-- Selected text: with automatic translation off, a small icon appears next to a
-  mouse selection and the translation opens only when it is clicked. The
+- Selected text: a small round marker in the extension's colors appears just
+  under the end of a mouse selection, and the translation opens only when it is
+  clicked. Selected text translation is now on by default because the marker
+  sends nothing by itself; automatic translation after selection stays off. The
   preview's language choices apply to these clicks too.
 - Pages start in translation-only display. The YouTube caption track is treated
   as an original track by default, so it no longer has to be confirmed each time.
-  Page preferences saved by earlier versions move to both defaults once; either
-  can be changed in Customize translation.
+  Page preferences saved by earlier versions move to these defaults (and to the
+  selection marker) once; each can be changed in Customize translation.
 - The page-edge button and its menu step aside while the page is in fullscreen.
 - The page-edge button is smaller and works as an on/off switch for page
   translation, with a subtler check in its corner. Hovering shows what a click
@@ -23,8 +25,8 @@ Adds a separate Firefox MV3 build with document-bound messaging, private durable
 - The player menu loads provider and language even when the subtitle status check
   is slow or fails, and is removed when its page-tools session expires.
 
-Page preferences move to a new storage key (`page-preferences.v2`); the old key
-is removed after the first save and by Clear data. No permissions or network
+Page preferences move to a new storage key (`page-preferences.v3`); older keys
+are removed after the first save and by Clear data. No permissions or network
 destinations changed.
 
 # 0.2.1-preview.1 — 2026-10-31

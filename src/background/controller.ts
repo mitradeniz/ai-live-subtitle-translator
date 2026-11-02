@@ -2,7 +2,7 @@ import { EdgeSites, type EdgeSitePorts } from './edge-sites.ts';
 import {
   PageSettings,
   PAGE_PREFERENCES_KEY,
-  LEGACY_PAGE_PREFERENCES_KEY,
+  LEGACY_PAGE_PREFERENCES_KEYS,
 } from './page-settings.ts';
 import type { PageHandler } from '../page/contracts.ts';
 import { SitePreferences, YOUTUBE_ORIGIN, type SitePorts } from './sites.ts';
@@ -900,7 +900,7 @@ export function createController(
               'ai-profile.v1',
               'settings.v1',
               PAGE_PREFERENCES_KEY,
-              LEGACY_PAGE_PREFERENCES_KEY,
+              ...LEGACY_PAGE_PREFERENCES_KEYS,
             ]);
           });
         }

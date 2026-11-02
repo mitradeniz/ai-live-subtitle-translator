@@ -131,6 +131,13 @@ test('disabled page features and writing without AI cause no provider calls; pag
   });
   await controller.dispatch(request('google.enable'), uiSender());
   await controller.work.cache.configure(true);
+  // The selection marker is on by default; turn it off to check the gate.
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: { ...DEFAULT_PAGE_PREFERENCES, selection: false },
+    }),
+    uiSender('popup'),
+  );
   const sender = contentSender();
   let sessionId = controller.pageSessions.grant(sender);
   for (const feature of ['selection', 'hover', 'input', 'writing']) {
@@ -559,35 +566,45 @@ test('selection language overrides are scoped, validated, and never saved as glo
   assert.equal(settings.data.settings.targetLanguage, 'tr');
 });
 
-test('page display starts translation-only, the YouTube track counts as confirmed, and earlier preferences move to both once', async () => {
+test('pages start translation-only with a confirmed YouTube track and the selection marker, and earlier preferences move to these defaults once', async () => {
   assert.equal(DEFAULT_PAGE_PREFERENCES.display, 'translated');
-  const areas = fakeAreas();
   assert.equal(DEFAULT_PAGE_PREFERENCES.youtubeSourceConfirmed, true);
-  areas.local.data['page-preferences.v1'] = {
-    ...DEFAULT_PAGE_PREFERENCES,
-    selection: true,
-    display: 'bilingual',
-    youtubeSourceConfirmed: false,
-  };
-  const controller = createController(EXTENSION_ID, areas);
-  const read = async () => {
-    const result = await controller.dispatch(
-      request('page.preferences'),
+  assert.equal(DEFAULT_PAGE_PREFERENCES.selection, true);
+  assert.equal(DEFAULT_PAGE_PREFERENCES.autoSelection, false);
+  for (const key of ['page-preferences.v1', 'page-preferences.v2']) {
+    const areas = fakeAreas();
+    areas.local.data[key] = {
+      ...DEFAULT_PAGE_PREFERENCES,
+      hover: true,
+      selection: false,
+      autoSelection: false,
+      display: 'bilingual',
+      youtubeSourceConfirmed: false,
+    };
+    const controller = createController(EXTENSION_ID, areas);
+    const read = async () => {
+      const result = await controller.dispatch(
+        request('page.preferences'),
+        uiSender(),
+      );
+      assert.ok(result.ok && result.data.kind === 'page-preferences');
+      return result.data.preferences;
+    };
+    const migrated = await read();
+    assert.equal(migrated.display, 'translated');
+    assert.equal(migrated.youtubeSourceConfirmed, true);
+    assert.equal(migrated.selection, true);
+    assert.equal(migrated.autoSelection, false);
+    assert.equal(migrated.hover, true, 'Other choices are kept');
+    await controller.dispatch(
+      request('page.configure', {
+        preferences: { ...migrated, display: 'bilingual', selection: false },
+      }),
       uiSender(),
     );
-    assert.ok(result.ok && result.data.kind === 'page-preferences');
-    return result.data.preferences;
-  };
-  const migrated = await read();
-  assert.equal(migrated.display, 'translated');
-  assert.equal(migrated.youtubeSourceConfirmed, true);
-  assert.equal(migrated.selection, true, 'Other choices are kept');
-  await controller.dispatch(
-    request('page.configure', {
-      preferences: { ...migrated, display: 'bilingual' },
-    }),
-    uiSender(),
-  );
-  assert.equal('page-preferences.v1' in areas.local.data, false);
-  assert.equal((await read()).display, 'bilingual', 'A later choice is kept');
+    assert.equal(key in areas.local.data, false);
+    const later = await read();
+    assert.equal(later.display, 'bilingual', 'A later choice is kept');
+    assert.equal(later.selection, false, 'A later choice is kept');
+  }
 });

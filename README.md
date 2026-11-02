@@ -466,7 +466,8 @@ response timings are not live-provider latency or billing guarantees.
 Open the extension popup on a regular HTTP(S) page and choose a provider using the
 existing provider cards. **Customize translation** enables page translation, selected
 text, Alt-hover previews, text-field translation and AI Writing separately. Video
-caption controls have their own visibility switch. Optional text tools start off.
+caption controls have their own visibility switch. Selected text translation starts
+on (its marker sends nothing until clicked); hover, field and writing tools start off.
 Provider/model and source/target languages are shared with captions; page display
 mode and enabled tools are separate.
 
@@ -503,14 +504,14 @@ mode and enabled tools are separate.
   If you prefer to confirm it each time, turn off **For YouTube: I selected an
   original caption track** in Customize translation. Choose a provider and
   translated/bilingual caption display first; original-only is not silently changed.
-- **Selected text**: turn on Selected text translation, enable tools, then select up
-  to 1,000 characters with the mouse. A small A文 icon appears next to the selection;
-  nothing is sent until you click it. Clicking opens a nearby glass preview with the
+- **Selected text**: with page tools enabled, select up to 1,000 characters with the
+  mouse. A small round marker in the extension's colors appears just under the end
+  of the selection; nothing is sent until you click it. Clicking opens a nearby glass preview with the
   original, translation, provider and target language. Translate selection in the
-  edge menu does the same. To skip the icon, turn on **Translate automatically after
+  edge menu does the same. To skip the marker, turn on **Translate automatically after
   selection** in Settings or popup → Customize translation (off by default); the
   preview then opens as soon as a selection completes. Escape, × or clicking outside
-  closes the preview or the icon. Source (including Auto-detect) and target language can be changed inside
+  closes the preview or the marker. Source (including Auto-detect) and target language can be changed inside
   the preview; each change retranslates the same selection. These choices last for
   this page-tools session and do not change caption/global language preferences.
   It uses the selected provider (paid usage may apply), skips forms/editable
