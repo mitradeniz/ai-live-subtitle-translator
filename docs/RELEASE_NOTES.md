@@ -1,6 +1,6 @@
-# 0.2.2-preview.1
+# 0.2.3-preview.1 — 2026-11-02
 
-Adds a separate Firefox MV3 build with document-bound messaging, private durable storage and Firefox installation-time data disclosures. Chromium artifacts use the existing trusted storage boundary. Browser and live-provider verification limits are documented in SUPPORT.md.
+Updates the page, selection and player controls. Browser and live-provider verification limits remain documented in SUPPORT.md.
 
 - Offer 30 widely used languages (including Arabic, Hebrew, Persian, Hindi,
   Japanese, Korean and Simplified/Traditional Chinese) in the popup, settings,
@@ -33,6 +33,10 @@ Adds a separate Firefox MV3 build with document-bound messaging, private durable
 Page preferences move to a new storage key (`page-preferences.v3`); older keys
 are removed after the first save and by Clear data. No permissions or network
 destinations changed.
+
+# 0.2.2-preview.1 — 2026-10-31
+
+Adds a separate Firefox MV3 build with document-bound messaging, private durable storage and Firefox installation-time data disclosures. Chromium artifacts use the existing trusted storage boundary.
 
 # 0.2.1-preview.1 — 2026-10-31
 
