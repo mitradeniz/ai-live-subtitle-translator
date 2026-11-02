@@ -351,8 +351,9 @@ try {
   await languages.evaluate((select) => {
     select.value = 'tr';
   });
+  // Choose an unambiguous label in one key before the control locks to save.
   await languages.focus();
-  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('d');
   await page.keyboard.press('Tab');
   // Subtitles were running, so they continue in the new language.
   await page.waitForFunction(() => {
@@ -361,13 +362,13 @@ try {
     )?.shadowRoot;
     const select = root?.querySelector('select[aria-label="Target language"]');
     return (
-      select?.value === 'en' &&
+      select?.value === 'de' &&
       !select.disabled &&
       root.querySelector('[role="switch"]')?.getAttribute('aria-checked') ===
         'true'
     );
   });
-  assert.equal((await send('popup.read')).data.settings.targetLanguage, 'en');
+  assert.equal((await send('popup.read')).data.settings.targetLanguage, 'de');
   await toggle.click();
   await page.waitForFunction(
     () =>
@@ -398,9 +399,20 @@ try {
     return select?.value === 'google' && !select.disabled;
   });
   assert.equal((await send('controls.read')).data.selected, 'google');
-  await languages.focus();
-  await page.keyboard.press('t');
-  await page.keyboard.press('Tab');
+  // Native type-ahead cycles through Tiếng Việt and Türkçe. Saving briefly
+  // disables the picker, so wait before advancing to the next matching label.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await languages.focus();
+    await page.keyboard.press('t');
+    await page.keyboard.press('Tab');
+    await page.waitForFunction(() => {
+      const select = document
+        .querySelector('translator-player-shortcut')
+        ?.shadowRoot.querySelector('select[aria-label="Target language"]');
+      return select && !select.disabled;
+    });
+    if ((await languages.inputValue()) === 'tr') break;
+  }
   await page.waitForFunction(() => {
     const select = document
       .querySelector('translator-player-shortcut')

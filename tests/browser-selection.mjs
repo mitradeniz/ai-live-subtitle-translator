@@ -169,8 +169,9 @@ try {
   });
   await page.waitForTimeout(350);
   assert.equal(sent.length, 1, 'Synthetic language changes cannot send text');
+  // Use the full native type-ahead label: E alone also matches Español.
   await targetLanguage.focus();
-  await page.keyboard.press('ArrowUp');
+  await page.keyboard.type('English');
   await page.keyboard.press('Tab');
   await card
     .locator('.result')
@@ -308,7 +309,7 @@ try {
   for (let i = 0; i < 100 && !release; i++) await page.waitForTimeout(50);
   assert.ok(release);
   await targetLanguage.focus();
-  await page.keyboard.press('ArrowUp');
+  await page.keyboard.type('English');
   await page.keyboard.press('Tab');
   hold = false;
   release();
