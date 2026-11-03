@@ -566,6 +566,15 @@ Object.assign(turkish, {
   'Turn off video subtitles': 'Video altyazılarını kapat',
   'More options': 'Diğer seçenekler',
   Close: 'Kapat',
+  'The extension was updated. Refresh this page to use it again.':
+    'Eklenti güncellendi. Kullanmaya devam etmek için sayfayı yenile.',
+  'Reconnecting…': 'Yeniden bağlanıyor…',
+  'Turn on Video subtitles in Customize translation.':
+    "Çeviriyi özelleştir'de Video altyazıları'nı aç.",
+  'The extension is busy. Try again in a moment.':
+    'Eklenti meşgul. Birazdan tekrar dene.',
+  'The extension did not answer in time. Try again.':
+    'Eklenti zamanında yanıt vermedi. Tekrar dene.',
   'Edge button settings': 'Kenar düğmesi ayarları',
   'Make the button smaller': 'Düğmeyi küçült',
   'Hide the button': 'Düğmeyi gizle',

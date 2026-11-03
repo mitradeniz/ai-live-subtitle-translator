@@ -1,6 +1,30 @@
 import type { PlayerMenu, MenuProvider } from '../messaging/protocol.ts';
 import { nativeSourceWebVtt } from './download.ts';
-import { readWithDeadline } from '../messaging/deadline.ts';
+import { readWithDeadline, ReadTimeout } from '../messaging/deadline.ts';
+import { RequestError } from '../messaging/client.ts';
+
+// Why the menu could not load, in words a person can act on.
+const LOAD_MESSAGES = [
+  'Open the extension popup to re-enable these tools.',
+  'The extension was updated. Refresh this page to use it again.',
+  'Reconnecting…',
+  'Turn on Video subtitles in Customize translation.',
+  'The extension is busy. Try again in a moment.',
+  'The extension did not answer in time. Try again.',
+] as const;
+function loadMessage(error: unknown): (typeof LOAD_MESSAGES)[number] {
+  if (error instanceof ReadTimeout) return LOAD_MESSAGES[5];
+  if (!(error instanceof RequestError)) return LOAD_MESSAGES[0];
+  return error.code === 'CONTEXT'
+    ? LOAD_MESSAGES[1]
+    : error.code === 'INVALID_SESSION'
+      ? LOAD_MESSAGES[2]
+      : error.code === 'FORBIDDEN'
+        ? LOAD_MESSAGES[3]
+        : error.code === 'BUSY'
+          ? LOAD_MESSAGES[4]
+          : LOAD_MESSAGES[0];
+}
 import { createMark } from '../ui/mark.ts';
 import { LANGUAGES, languageName } from '../translation/languages.ts';
 import type { PlaybackState } from '../messaging/playback.ts';
@@ -380,6 +404,7 @@ export class PlayerShortcut {
     this.#refreshing = true;
     this.#lastRead = Date.now();
     let loaded = Boolean(this.#config);
+    let failure: unknown;
     try {
       // Settings and subtitle status are read independently, so a slow or
       // failed status check never leaves the provider and language empty.
@@ -388,6 +413,7 @@ export class PlayerShortcut {
         readWithDeadline(this.options.read(), 5000),
       ]);
       if (!this.#closed && epoch === this.#epoch && !this.#busy) {
+        if (config.status === 'rejected') failure = config.reason;
         if (config.status === 'fulfilled') {
           loaded = true;
           // Avoid replacing options under an open native select during polling.
@@ -407,11 +433,11 @@ export class PlayerShortcut {
       this.#refreshing = false;
       if (!this.#closed && epoch === this.#epoch) {
         this.#paint();
-        if (!loaded)
-          this.#notice('Open the extension popup to re-enable these tools.');
+        if (!loaded) this.#notice(loadMessage(failure));
         else if (
-          this.#status.textContent ===
-          this.options.t('Open the extension popup to re-enable these tools.')
+          LOAD_MESSAGES.some(
+            (text) => this.#status.textContent === this.options.t(text),
+          )
         )
           this.#notice('');
       }

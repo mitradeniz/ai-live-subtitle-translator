@@ -8,7 +8,7 @@ import { PageText, EXCLUDED } from './dom';
 import { PlayerShortcut } from '../playback/shortcut';
 import type { PagePreferences, PageState, WritingStyle } from './contracts';
 import type { Settings, SelectionLanguages } from '../messaging/protocol';
-import { sendRequest } from '../messaging/client';
+import { extensionAlive, RequestError, sendRequest } from '../messaging/client';
 import { translate } from '../ui/strings';
 import { createCheck, createIcon, createMark } from '../ui/mark';
 import { TRANSLATION_MESSAGES } from '../translation/contracts';
@@ -282,7 +282,9 @@ export class PageTools {
         t: (text) => this.t(text),
         recipient: `${label} · ${settings.sourceLanguage} → ${settings.targetLanguage}`,
         read: async () => {
-          const result = await sendRequest({ type: 'page.menu', sessionId });
+          const result = await this.#watch(
+            sendRequest({ type: 'page.menu', sessionId }),
+          );
           if (result.kind !== 'player-menu') throw new Error('Unavailable');
           return result;
         },
@@ -307,18 +309,15 @@ export class PageTools {
           if (!this.#closed) await reloadMenu(result.sessionId, resume);
         },
         status: async () => {
-          const result = await sendRequest({
-            type: 'page.caption-status',
-            sessionId,
-          });
+          const result = await this.#watch(
+            sendRequest({ type: 'page.caption-status', sessionId }),
+          );
           return result.kind === 'playback' ? result.state : 'unavailable';
         },
         toggle: async (enabled) => {
-          const result = await sendRequest({
-            type: 'page.caption-toggle',
-            sessionId,
-            enabled,
-          });
+          const result = await this.#watch(
+            sendRequest({ type: 'page.caption-toggle', sessionId, enabled }),
+          );
           return result.kind === 'playback' ? result.state : 'unavailable';
         },
         settings: async () => {
@@ -433,37 +432,72 @@ export class PageTools {
     window.addEventListener('resize', this.layout);
     document.addEventListener('fullscreenchange', this.layout);
     this.#expiry = setInterval(() => {
+      if (!extensionAlive()) {
+        this.#stale();
+        return;
+      }
       this.#watchCaptions();
       if (location.href !== this.#url) this.dispose();
-      else if (
-        Date.now() - this.#started >= 30 * 60_000 &&
-        !this.host.dataset.edgeExpired
-      ) {
-        this.#page.dispose();
-        this.#selectionPopup?.dispose();
-        // The player menu shares this session; remove it rather than leave
-        // controls that can no longer load or save anything.
-        this.#playerShortcut?.dispose();
-        this.#playerShortcut = undefined;
-        this.#epoch++;
-        this.#serial++;
-        this.#draft.value = '';
-        this.#result.textContent = '';
-        this.#selection = '';
-        this.#fieldResult = '';
-        this.#fieldOriginal = '';
-        this.#field = null;
-        this.#lastHover = '';
-        this.#apply.disabled = true;
-        this.state = 'ready';
-        // The permitted bootstrap replaces this expired session with idle tools.
-        // Keep the logo visible while doing so; never resume translation automatically.
-        this.host.dataset.edgeExpired = 'true';
-        this.showStatus('Open the extension popup to re-enable these tools.');
-      }
+      else if (Date.now() - this.#started >= 30 * 60_000) this.#expire();
     }, 1000);
     this.layout();
     this.#paintState();
+  }
+  // Ends this session's work but keeps the logo. Sites with the automatic logo
+  // then reconnect idle tools; translation never resumes by itself.
+  #expire(message = 'Open the extension popup to re-enable these tools.') {
+    if (this.#closed || this.host.dataset.edgeExpired) return;
+    this.#page.dispose();
+    this.#selectionPopup?.dispose();
+    this.#selectionPopup = undefined;
+    // The player menu shares this session; remove it rather than leave
+    // controls that can no longer load or save anything.
+    this.#playerShortcut?.dispose();
+    this.#playerShortcut = undefined;
+    this.#epoch++;
+    this.#serial++;
+    this.#draft.value = '';
+    this.#result.textContent = '';
+    this.#selection = '';
+    this.#fieldResult = '';
+    this.#fieldOriginal = '';
+    this.#field = null;
+    this.#lastHover = '';
+    this.#apply.disabled = true;
+    this.state = 'ready';
+    this.host.dataset.edgeExpired = 'true';
+    this.showStatus(message);
+    this.#paintState();
+  }
+  // After an extension reload or update this script can no longer reach the
+  // extension; say so instead of leaving controls that silently fail.
+  #stale() {
+    if (this.#closed || this.host.dataset.stale) return;
+    this.host.dataset.stale = 'true';
+    this.#expire(
+      'The extension was updated. Refresh this page to use it again.',
+    );
+    clearInterval(this.#expiry);
+    this.#tipAction.textContent = this.t(
+      'The extension was updated. Refresh this page to use it again.',
+    );
+    clearTimeout(this.#noteTimer);
+    this.#tipNote.textContent = '';
+  }
+  // A revoked page session (for example after a settings change elsewhere)
+  // reconnects instead of leaving empty menus.
+  #failed(error: unknown) {
+    if (!(error instanceof RequestError)) return;
+    if (error.code === 'CONTEXT') this.#stale();
+    else if (error.code === 'INVALID_SESSION') this.#expire('Reconnecting…');
+  }
+  async #watch<T>(request: Promise<T>) {
+    try {
+      return await request;
+    } catch (error) {
+      this.#failed(error);
+      throw error;
+    }
   }
   private t(text: string) {
     return translate(text, this.settings.uiLanguage);
@@ -556,6 +590,14 @@ export class PageTools {
   }
   async #toggle() {
     if (this.#closed) return;
+    if (this.host.dataset.stale || this.host.dataset.edgeExpired) {
+      this.showStatus(
+        this.host.dataset.stale
+          ? 'The extension was updated. Refresh this page to use it again.'
+          : 'Open the extension popup to re-enable these tools.',
+      );
+      return;
+    }
     const target = this.#target();
     this.open(false);
     if (!this.#edgeSettings.element.hidden) this.#openSettings(false);
@@ -579,7 +621,7 @@ export class PageTools {
     }
   };
   #paintState() {
-    if (this.#closed) return;
+    if (this.#closed || this.host.dataset.stale) return;
     this.#captions.setAttribute('aria-checked', String(this.#captionsOn));
     const target = this.#target();
     const active =
@@ -724,20 +766,22 @@ export class PageTools {
     this.#requests++;
     this.#pending++;
     try {
-      const result = await sendRequest({
-        type: 'page.translate',
-        sessionId: this.sessionId,
-        feature,
-        ...(automaticSelection ? { automaticSelection: true as const } : {}),
-        ...(selectionLanguages ? { selectionLanguages } : {}),
-        ...(style ? { style } : {}),
-        job: {
-          jobId: crypto.randomUUID(),
-          generation: epoch,
-          priority: feature === 'page' ? 'prefetch' : 'current',
-          items,
-        },
-      });
+      const result = await this.#watch(
+        sendRequest({
+          type: 'page.translate',
+          sessionId: this.sessionId,
+          feature,
+          ...(automaticSelection ? { automaticSelection: true as const } : {}),
+          ...(selectionLanguages ? { selectionLanguages } : {}),
+          ...(style ? { style } : {}),
+          job: {
+            jobId: crypto.randomUUID(),
+            generation: epoch,
+            priority: feature === 'page' ? 'prefetch' : 'current',
+            items,
+          },
+        }),
+      );
       if (this.#closed || epoch !== this.#epoch)
         throw new Error(this.t('Translation cancelled.'));
       if (result.kind !== 'translation' || !result.result.ok)

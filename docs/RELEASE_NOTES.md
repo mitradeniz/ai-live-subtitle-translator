@@ -1,6 +1,12 @@
 # Unreleased
 
 - Rename the extension to **Free AI Video Subtitle Translator**. Installation and experimental keyless Google remain free; optional user-key providers may charge for usage.
+- Pages opened before the extension was reloaded or updated now say so: the
+  edge button reads "The extension was updated. Refresh this page to use it
+  again." and the player menu and selection marker are removed instead of
+  failing silently. If a page session ends for another reason the tools
+  reconnect on their own, and the player menu explains why it could not load
+  (busy, timed out, video subtitles turned off) instead of leaving empty fields.
 
 # 0.2.4-preview.1 — 2026-11-03
 

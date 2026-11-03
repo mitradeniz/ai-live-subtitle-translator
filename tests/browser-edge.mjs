@@ -333,13 +333,31 @@ try {
   await page.reload();
   await page.waitForTimeout(500);
   assert.equal(await tools.count(), 0);
+  // After an extension reload the old page script says so instead of leaving
+  // controls that silently fail.
+  await page.bringToFront();
+  assert.equal(
+    (await message('page.global-configure', { enabled: true })).data.enabled,
+    true,
+  );
+  await page.reload();
+  await tools.waitFor();
+  await options.evaluate(() => chrome.runtime.reload()).catch(() => {});
+  await page.waitForFunction(
+    () =>
+      document.querySelector('translator-page-tools')?.dataset.stale === 'true',
+  );
+  assert.equal(
+    await tools.locator('.tip').textContent(),
+    'The extension was updated. Refresh this page to use it again.',
+  );
   console.log(
     JSON.stringify({
       result: 'passed',
       browser: context.browser().version(),
       providerRequests: requests,
       checks:
-        'exact-host grant, denial, idle auto logo, refresh, hover helpers and menu, edge button settings (smaller, hide until reload, hide on site), SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo and expiry refresh',
+        'exact-host grant, denial, idle auto logo, refresh, hover helpers and menu, edge button settings (smaller, hide until reload, hide on site), SPA, browser restart, other-origin isolation, opt-out, clear data, all-sites consent/denial, cross-site idle logo, expiry refresh and stale page after extension reload',
     }),
   );
 } finally {

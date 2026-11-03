@@ -294,7 +294,9 @@ preserve an existing explicit selection. Failures never select another provider.
 Changes to the engine, profile, key or language cancel pending work and clear translated
 results. The overlay switches to **Original captions**, with instructions to open the
 extension popup and choose **Enable captions** again. This stop message is not a quota
-error or evidence that a paid request succeeded. Refresh the video tab after extension reload.
+error or evidence that a paid request succeeded. Refresh open pages after an extension
+reload or update: until then their edge button reads "The extension was updated.
+Refresh this page to use it again." and the player menu is removed.
 
 ## Google Cloud Translation Basic v2
 
