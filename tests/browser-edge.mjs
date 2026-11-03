@@ -67,10 +67,7 @@ try {
     });
   await page.bringToFront();
   await popup.reload();
-  // Page tools live in the popup's second section; the choice is remembered.
-  await popup
-    .getByRole('tab', { name: 'Page translation', exact: true })
-    .click();
+  // Page tools share the popup's single page with video subtitles.
   await popup.getByText('Customize translation', { exact: true }).click();
   await popup.getByText('https://edge.example.test', { exact: true }).waitFor();
   const automatic = popup.getByLabel('Always show the logo on this site');

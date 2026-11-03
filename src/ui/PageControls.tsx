@@ -180,7 +180,34 @@ export function PageControls({
           {t(enabled ? 'Page tools on' : 'Off')}
         </span>
       </div>
-      <label className="page-auto-site">
+      <div className="page-actions">
+        <button
+          className="page-translate-button"
+          disabled={busy || !prefs.page}
+          onClick={() => void activate(true)}
+        >
+          {t('Translate visible page')}
+        </button>
+        <button
+          className="secondary"
+          disabled={busy || !enabled}
+          onClick={() =>
+            void restore().catch(() =>
+              setMessage(
+                'Could not restore the page. Refresh it to show originals.',
+              ),
+            )
+          }
+        >
+          {t('Restore original page')}
+        </button>
+      </div>
+      <label
+        className="page-auto-site"
+        title={t(
+          'Allow access once for all websites. The logo stays visible until you turn this off; showing it does not translate anything.',
+        )}
+      >
         <input
           type="checkbox"
           checked={site.allSites}
@@ -189,11 +216,15 @@ export function PageControls({
         />
         {t('Show the logo on all sites')}
       </label>
-      <p className="page-consent">
-        {t(
-          'Allow access once for all websites. The logo stays visible until you turn this off; showing it does not translate anything.',
-        )}
-      </p>
+      {!site.allSites && !site.enabled && (
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={() => void activate(false)}
+        >
+          {t('Enable edge tools')}
+        </button>
+      )}
       <details className="page-customize">
         <summary>{t('Customize translation')}</summary>
         <label className="page-auto-site">
@@ -246,9 +277,6 @@ export function PageControls({
           <small className="page-consent">
             {t(
               'When this is off, click the icon next to selected text to translate it.',
-            )}{' '}
-            {t(
-              'Selecting text sends it to your selected provider. Paid providers may charge per selection.',
             )}
           </small>
           {prefs.captions && (
@@ -280,41 +308,12 @@ export function PageControls({
             </select>
           </label>
         </fieldset>
+        <p className="page-consent">
+          {t(
+            'Visible text goes to your selected provider as you scroll. User-key services may charge. Fields are sent only by an explicit action.',
+          )}
+        </p>
       </details>
-      <p className="page-consent">
-        {t(
-          'Visible text goes to your selected provider as you scroll. User-key services may charge. Fields are sent only by an explicit action.',
-        )}
-      </p>
-      <button
-        className="page-translate-button"
-        disabled={busy || !prefs.page}
-        onClick={() => void activate(true)}
-      >
-        {t('Translate visible page')}
-      </button>
-      <div className="page-actions">
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => void activate(false)}
-        >
-          {t('Enable edge tools')}
-        </button>
-        <button
-          className="secondary"
-          disabled={busy || !enabled}
-          onClick={() =>
-            void restore().catch(() =>
-              setMessage(
-                'Could not restore the page. Refresh it to show originals.',
-              ),
-            )
-          }
-        >
-          {t('Restore original page')}
-        </button>
-      </div>
       {message && (
         <p className="page-feedback" aria-live="polite">
           {t(message)}

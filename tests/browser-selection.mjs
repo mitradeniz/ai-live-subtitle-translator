@@ -358,13 +358,33 @@ try {
   assert.equal(sent.length, beforeOff + 1);
   await page.mouse.click(5, 5);
   await card.waitFor({ state: 'hidden' });
+  // A marker click is explicit, so ordinary text in forms and in regions a
+  // site marks translate="no" can be chosen; fields and editors never can.
+  await page.evaluate(() =>
+    document.documentElement.setAttribute('translate', 'no'),
+  );
+  for (const selector of ['form p', '#selectable']) {
+    await select(selector);
+    await chip.waitFor();
+    await page.keyboard.press('Escape');
+    await chip.waitFor({ state: 'hidden' });
+  }
+  await page.evaluate(() =>
+    document.documentElement.removeAttribute('translate'),
+  );
+  for (const selector of ['#editor', 'p[contenteditable]', 'p[hidden]']) {
+    await select(selector).catch(() => {});
+    await page.waitForTimeout(400);
+    assert.equal(await chip.isVisible(), false, `${selector} has no marker`);
+  }
+  assert.equal(sent.length, beforeOff + 1, 'Showing markers sends nothing');
   console.log(
     JSON.stringify({
       result: 'passed',
       browser: context.browser().version(),
       requests: sent.length,
       checks:
-        'marker on and automatic off by default, options opt-in, trusted selection, anchored preview, form/size exclusion, one in flight, newest selection, literal output, close/Escape, stale result, click-to-translate icon',
+        'marker on and automatic off by default, options opt-in, trusted selection, anchored preview, form/size exclusion, one in flight, newest selection, literal output, close/Escape, stale result, click-to-translate marker incl. form text, no marker in fields',
     }),
   );
 } finally {

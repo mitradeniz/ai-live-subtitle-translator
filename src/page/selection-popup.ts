@@ -3,8 +3,15 @@ import { EXCLUDED } from './dom.ts';
 import { createMark } from '../ui/mark.ts';
 import { LANGUAGES } from '../translation/languages.ts';
 
+// A click on the marker is an explicit choice, so ordinary visible text in
+// forms, code or buttons can be translated. Text fields, editable areas,
+// hidden text and the extension's own controls never are. Automatic
+// translation after selection keeps the stricter page rules (EXCLUDED).
+export const CLICK_EXCLUDED =
+  'script,style,noscript,template,textarea,input,select,[contenteditable]:not([contenteditable="false"]),[hidden],translator-selection-popup,translator-player-shortcut,translator-page-tools,subtitle-translator-overlay,[data-page-translation]';
+
 type Selected = { text: string; range: Range; snapshot: string };
-function selected(): Selected | null {
+function selected(excluded: string): Selected | null {
   const selection = getSelection();
   if (!selection || selection.rangeCount !== 1 || selection.isCollapsed)
     return null;
@@ -15,14 +22,14 @@ function selected(): Selected | null {
     range.commonAncestorContainer instanceof Element
       ? range.commonAncestorContainer
       : range.commonAncestorContainer.parentElement;
-  if (!parent || parent.getRootNode() !== document || parent.closest(EXCLUDED))
+  if (!parent || parent.getRootNode() !== document || parent.closest(excluded))
     return null;
   // Bound the inspection even for a selection spanning a very large document.
   const walk = document.createTreeWalker(parent, NodeFilter.SHOW_ELEMENT);
   let count = 0;
   for (let node = walk.nextNode(); node; node = walk.nextNode()) {
     if (++count > 2000) return null;
-    if ((node as Element).matches(EXCLUDED) && range.intersectsNode(node))
+    if ((node as Element).matches(excluded) && range.intersectsNode(node))
       return null;
   }
   if (!range.getBoundingClientRect().height) return null;
@@ -54,6 +61,9 @@ export class SelectionPopup {
     | undefined;
   #generation = 0;
   #busy = false;
+  get #excluded() {
+    return this.options.mode === 'auto' ? EXCLUDED : CLICK_EXCLUDED;
+  }
   #closed = false;
   constructor(
     private options: {
@@ -245,11 +255,18 @@ export class SelectionPopup {
   #pointerDown = (event: PointerEvent) => {
     this.#down = undefined;
     if (!event.isTrusted || this.#closed) return;
-    if (!(event.target instanceof Element) || event.target.closest(EXCLUDED))
+    if (
+      !(event.target instanceof Element) ||
+      event.target.closest(this.#excluded)
+    )
       return;
     this.hide();
     if (event.button !== 0 || event.pointerType !== 'mouse') return;
-    this.#down = { before: selected(), x: event.clientX, y: event.clientY };
+    this.#down = {
+      before: selected(this.#excluded),
+      x: event.clientX,
+      y: event.clientY,
+    };
   };
   #pointerUp = (event: PointerEvent) => {
     const down = this.#down;
@@ -259,7 +276,7 @@ export class SelectionPopup {
     const generation = this.#generation;
     this.#timer = setTimeout(() => {
       if (this.#closed || generation !== this.#generation) return;
-      const value = selected();
+      const value = selected(this.#excluded);
       if (
         !value ||
         (same(value, down.before) &&

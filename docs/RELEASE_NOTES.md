@@ -1,3 +1,16 @@
+# Unreleased
+
+- The popup is now a single page instead of two tabs: languages, video
+  subtitles, page translation and providers appear together. Longer notices
+  moved into Customize translation or tooltips, the YouTube track checkbox only
+  appears when it is needed, and **Enable edge tools** is shown only where the
+  logo does not appear automatically.
+- The selected-text marker now also appears for ordinary text inside forms and
+  in areas a site marks as not to translate (many sites mark the whole page this
+  way). Clicking it is an explicit choice; text fields, editors and hidden text
+  are still never read. Automatic translation after selection keeps the
+  stricter rules.
+
 # 0.2.3-preview.1 — 2026-11-02
 
 Updates the page, selection and player controls. Browser and live-provider verification limits remain documented in SUPPORT.md.

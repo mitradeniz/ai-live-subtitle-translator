@@ -1,6 +1,6 @@
 import { PageControls } from './PageControls';
 import { readWithDeadline } from '../messaging/deadline';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { sendRequest } from '../messaging/client';
 import type { PopupStatus, Settings } from '../messaging/protocol';
@@ -12,34 +12,9 @@ import { useI18n } from './useI18n';
 import { DevelopmentNotice } from './DevelopmentNotice';
 
 type Engine = PopupStatus['selected'];
-type Section = 'captions' | 'page';
-const SECTIONS: readonly Section[] = ['captions', 'page'];
-const SECTION_KEY = 'popup.section';
-// A presentation-only convenience; storage can be unavailable in some contexts.
-function savedSection(): Section {
-  try {
-    return localStorage.getItem(SECTION_KEY) === 'page' ? 'page' : 'captions';
-  } catch {
-    return 'captions';
-  }
-}
 export default function PopupDashboard() {
   const { t, locale } = useI18n();
-  const [section, setSection] = useState<Section>(savedSection);
   const [swapped, setSwapped] = useState(false);
-  const tabs = useRef<Record<Section, HTMLButtonElement | null>>({
-    captions: null,
-    page: null,
-  });
-  function choose(next: Section, focus = false) {
-    setSection(next);
-    if (focus) tabs.current[next]?.focus();
-    try {
-      localStorage.setItem(SECTION_KEY, next);
-    } catch {
-      // Keep the in-memory choice only.
-    }
-  }
   const [data, setData] = useState<PopupStatus | null>(null);
   const [draft, setDraft] = useState<Settings | null>(null);
   const [state, setState] = useState<PlaybackState>('disabled');
@@ -49,6 +24,8 @@ export default function PopupDashboard() {
   const [loadError, setLoadError] = useState('');
   // The saved Customize translation choice (on by default) pre-fills this.
   const [confirmed, setConfirmed] = useState(true);
+  const [savedConfirmed, setSavedConfirmed] = useState(true);
+  const confirmTouched = useRef(false);
   const stateRef = useRef<PlaybackState>('disabled');
   const autoSave = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [showCaptions, setShowCaptions] = useState(true);
@@ -91,20 +68,26 @@ export default function PopupDashboard() {
         if (mounted.current && ticket === sequence.current)
           setState('unavailable');
       });
-    loading.current = Promise.all([summary, playback]).then(() => {
-      loading.current = null;
-    });
+    // The saved YouTube track choice follows Customize translation until the
+    // checkbox here is changed for this popup.
+    const confirmation = sendRequest({ type: 'page.preferences' })
+      .then((result) => {
+        if (!mounted.current || result.kind !== 'page-preferences') return;
+        setSavedConfirmed(result.preferences.youtubeSourceConfirmed);
+        if (!confirmTouched.current)
+          setConfirmed(result.preferences.youtubeSourceConfirmed);
+      })
+      .catch(() => {});
+    loading.current = Promise.all([summary, playback, confirmation]).then(
+      () => {
+        loading.current = null;
+      },
+    );
     return loading.current;
   }
   useEffect(() => {
     mounted.current = true;
     void load();
-    void sendRequest({ type: 'page.preferences' })
-      .then((result) => {
-        if (mounted.current && result.kind === 'page-preferences')
-          setConfirmed(result.preferences.youtubeSourceConfirmed);
-      })
-      .catch(() => {});
     // Only local status reads; opening this popup never tests a key or translates.
     const timer = setInterval(() => void load(), 2000);
     return () => {
@@ -500,13 +483,17 @@ export default function PopupDashboard() {
           </p>
         )}
       </div>
-      {(data.youtube || state === 'source-required') &&
+      {/* Only while off, when the saved choice is off or YouTube asked for it. */}
+      {((data.youtube && !savedConfirmed) || state === 'source-required') &&
         (!isOn || restart || attention) && (
           <label className="source-confirm">
             <input
               type="checkbox"
               checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
+              onChange={(e) => {
+                confirmTouched.current = true;
+                setConfirmed(e.target.checked);
+              }}
             />
             <span>
               {t(
@@ -560,126 +547,60 @@ export default function PopupDashboard() {
         <DevelopmentNotice />
       </>
     );
-  const labels: Record<Section, string> = {
-    captions: 'Video subtitles',
-    page: 'Page translation',
-  };
+  // Everything on one page: languages, the two main actions, then providers.
   return (
-    <>
-      <div
-        className="popup-tabs"
-        role="tablist"
-        aria-label={t('Popup sections')}
-        onKeyDown={(event) => {
-          const index = SECTIONS.indexOf(section);
-          const next =
-            event.key === 'ArrowRight'
-              ? SECTIONS[(index + 1) % SECTIONS.length]
-              : event.key === 'ArrowLeft'
-                ? SECTIONS[(index + SECTIONS.length - 1) % SECTIONS.length]
-                : event.key === 'Home'
-                  ? SECTIONS[0]
-                  : event.key === 'End'
-                    ? SECTIONS[SECTIONS.length - 1]
-                    : undefined;
-          if (!next) return;
-          event.preventDefault();
-          choose(next, true);
+    <div className="popup-panel">
+      {quickPreferences}
+      {captionSection}
+      <PageControls
+        prepare={async () => {
+          if (dirty.current) await save(draft, false);
         }}
-      >
-        <span
-          className="tab-pill"
-          aria-hidden="true"
-          style={{ '--index': SECTIONS.indexOf(section) } as CSSProperties}
-        />
-        {SECTIONS.map((name) => (
-          <button
-            key={name}
-            ref={(element) => {
-              tabs.current[name] = element;
-            }}
-            id={`popup-tab-${name}`}
-            className="popup-tab"
-            type="button"
-            role="tab"
-            aria-selected={section === name}
-            aria-controls={`popup-panel-${name}`}
-            tabIndex={section === name ? 0 : -1}
-            onClick={() => choose(name)}
-          >
-            {t(labels[name])}
-          </button>
-        ))}
-      </div>
-      <section
-        id="popup-panel-captions"
-        className="popup-panel"
-        role="tabpanel"
-        aria-labelledby="popup-tab-captions"
-        hidden={section !== 'captions'}
-      >
-        {captionSection}
-        {quickPreferences}
-        <fieldset className="provider-picker" disabled={busy}>
-          <legend className="visually-hidden">
-            {t('Translation provider')}
-          </legend>
-          <div className="provider-grid">
-            {card('Google', 'google.ico', 'google')}
-            {card(
-              'Google Cloud',
-              'cloud.svg',
-              'google-cloud',
-              data.cloud.configured,
-              !data.cloud.configured,
-              data.cloud.retention,
-            )}
-            {card(t('Original only'), null, 'none')}
-            {AI_PROFILES.map((p) =>
-              card(
-                p.name,
-                p.name === 'DeepSeek'
-                  ? 'deepseek.svg'
-                  : `${p.name.toLowerCase()}.png`,
-                'ai',
-                p.name === currentAI && data.ai.configured,
-                p.name !== currentAI || !data.ai.configured,
-                data.ai.retention,
-              ),
-            )}
-          </div>
-        </fieldset>
-        <div className="provider-destination">
-          <strong>
-            {t('Selected')}: {selectedName}
-          </strong>
-          {data.selected !== 'none' && (
-            <span>
-              {t(paid ? 'Paid API · Text sent to' : 'Text sent to')} {recipient}
-            </span>
+        captions={setShowCaptions}
+      />
+      <fieldset className="provider-picker" disabled={busy}>
+        <legend className="visually-hidden">{t('Translation provider')}</legend>
+        <div className="provider-grid">
+          {card('Google', 'google.ico', 'google')}
+          {card(
+            'Google Cloud',
+            'cloud.svg',
+            'google-cloud',
+            data.cloud.configured,
+            !data.cloud.configured,
+            data.cloud.retention,
           )}
-          {data.selected === 'ai' && <span>{data.profile.model}</span>}
-          <p className="key-legend">
-            {t(
-              'Saved keys are not automatically tested. One AI key + one Cloud key.',
-            )}
-          </p>
+          {card(t('Original only'), null, 'none')}
+          {AI_PROFILES.map((p) =>
+            card(
+              p.name,
+              p.name === 'DeepSeek'
+                ? 'deepseek.svg'
+                : `${p.name.toLowerCase()}.png`,
+              'ai',
+              p.name === currentAI && data.ai.configured,
+              p.name !== currentAI || !data.ai.configured,
+              data.ai.retention,
+            ),
+          )}
         </div>
-      </section>
-      <section
-        id="popup-panel-page"
-        className="popup-panel"
-        role="tabpanel"
-        aria-labelledby="popup-tab-page"
-        hidden={section !== 'page'}
+      </fieldset>
+      <div
+        className="provider-destination"
+        title={t(
+          'Saved keys are not automatically tested. One AI key + one Cloud key.',
+        )}
       >
-        <PageControls
-          prepare={async () => {
-            if (dirty.current) await save();
-          }}
-          captions={setShowCaptions}
-        />
-      </section>
-    </>
+        <strong>
+          {t('Selected')}: {selectedName}
+        </strong>
+        {data.selected !== 'none' && (
+          <span>
+            {t(paid ? 'Paid API · Text sent to' : 'Text sent to')} {recipient}
+          </span>
+        )}
+        {data.selected === 'ai' && <span>{data.profile.model}</span>}
+      </div>
+    </div>
   );
 }

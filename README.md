@@ -144,10 +144,11 @@ Build output and local caches are ignored by Git.
 3. The overlay follows the video clock. **Disable captions** removes the overlay
    and restores native track modes. Caption text is rendered as plain text, including
    any markup-like strings present in the source.
-4. The popup has two tabs. **Video subtitles** shows the caption status with
-   **Enable captions**/**Disable captions**, source/target language (with a swap
-   button), original/translated/bilingual display and provider cards. **Page
-   translation** holds the page tools; the popup remembers the last tab.
+4. The popup is a single page: source/target language (with a swap button) and
+   display mode, the caption status with **Enable captions**/**Disable captions**,
+   the **Page translation** card (translate, restore, the all-sites logo switch and
+   **Customize translation**) and the provider cards. Longer notices sit inside
+   Customize translation or appear as tooltips.
    **Open settings** also offers a live caption preview, font size, contrast,
    top/bottom position and English/Turkish interface language. **Save preferences**
    applies appearance changes during playback. Language or provider changes stop
@@ -521,8 +522,12 @@ mode and enabled tools are separate.
   closes the preview or the marker. Source (including Auto-detect) and target language can be changed inside
   the preview; each change retranslates the same selection. These choices last for
   this page-tools session and do not change caption/global language preferences.
-  It uses the selected provider (paid usage may apply), skips forms/editable
-  and excluded content, and limits selections to 1,000 characters. Rapid selections
+  A marker click or the edge menu works on any ordinary visible text, including
+  labels and help text inside forms or areas a site marks as not to translate;
+  text fields, editors and hidden text are never read. Automatic translation
+  after selection keeps the stricter page rules (it also skips forms, code and
+  translate-disabled areas). It uses the selected provider (paid usage may apply)
+  and limits selections to 1,000 characters. Rapid selections
   keep only the latest waiting result; closing prevents late results reopening it.
   This is translation, not a dictionary, pronunciation or example-sentence service.
 - **Hover**: opt in, then hold Alt while hovering over ordinary text for 650 ms.

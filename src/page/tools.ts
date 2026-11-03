@@ -1,4 +1,4 @@
-import { SelectionPopup } from './selection-popup';
+import { SelectionPopup, CLICK_EXCLUDED } from './selection-popup';
 import {
   EdgeSettings,
   EDGE_SETTINGS_CSS,
@@ -814,14 +814,14 @@ export class PageTools {
     if (
       !parent ||
       parent.getRootNode() !== document ||
-      parent.closest(EXCLUDED) ||
+      parent.closest(CLICK_EXCLUDED) ||
       text.length > 1000
     ) {
       this.#selection = '';
       return;
     }
     if (
-      [...parent.querySelectorAll(EXCLUDED)].some((node) =>
+      [...parent.querySelectorAll(CLICK_EXCLUDED)].some((node) =>
         range.intersectsNode(node),
       )
     ) {
