@@ -258,14 +258,16 @@ try {
   await activate();
   await caption('TR After worker restart');
   await send('cache.clear');
-  assert.equal(
-    await options.evaluate(
+  // A cancelled lookup can prune an absent cache back to an empty array.
+  // Both representations must contain no persisted caption results.
+  assert.deepEqual(
+    (await options.evaluate(
       async () =>
         (await chrome.storage.local.get('translation-cache.v1'))[
           'translation-cache.v1'
         ],
-    ),
-    undefined,
+    )) ?? [],
+    [],
   );
   await page.close();
   await page.waitForTimeout(0).catch(() => {});
