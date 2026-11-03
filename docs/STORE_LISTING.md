@@ -5,7 +5,7 @@ store approval. Compatibility and live-provider claims are limited to actual che
 
 ## English
 
-Name: AI Video Subtitle Translator
+Name: Free AI Video Subtitle Translator
 
 Short description: Translate visible page text and available captions with Google or your own API key. Limited preview.
 
@@ -48,7 +48,7 @@ any time. Device storage is not an encrypted vault. Read the privacy notice befo
 
 ## Türkçe
 
-Ad: AI Video Subtitle Translator
+Ad: Free AI Video Subtitle Translator
 
 Kısa açıklama: Görünen sayfa metnini ve altyazıları Google veya kendi API anahtarınla çevir. Sınırlı önizleme.
 

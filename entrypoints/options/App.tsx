@@ -91,7 +91,7 @@ export function App() {
         </details>
       )}
       <footer className="settings-footer">
-        <span>AI Video Subtitle Translator</span>
+        <span>Free AI Video Subtitle Translator</span>
         <span>
           {t('Version')}{' '}
           {browser.runtime.getManifest().version_name ??

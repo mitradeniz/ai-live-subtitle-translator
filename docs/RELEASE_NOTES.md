@@ -1,3 +1,7 @@
+# Unreleased
+
+- Rename the extension to **Free AI Video Subtitle Translator**. Installation and experimental keyless Google remain free; optional user-key providers may charge for usage.
+
 # 0.2.4-preview.1 — 2026-11-03
 
 - The popup is now a single page instead of two tabs: languages, video

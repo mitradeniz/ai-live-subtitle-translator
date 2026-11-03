@@ -1,4 +1,4 @@
-# AI Video Subtitle Translator
+# Free AI Video Subtitle Translator
 
 An open-source browser extension being developed for video subtitle translation.
 
@@ -137,7 +137,7 @@ Build output and local caches are ignored by Git.
 
 1. Run `pnpm build`. Open `chrome://extensions`, turn on **Developer mode**, click
    **Load unpacked**, and select `.output/chrome-mv3` from this repository.
-2. Pin **AI Video Subtitle Translator**. On a regular webpage with a visible HTML5
+2. Pin **Free AI Video Subtitle Translator**. On a regular webpage with a visible HTML5
    video and accessible text tracks, open the extension and choose **Enable
    captions**. This grants temporary access to that tab. It does not grant permanent
    access to all websites.

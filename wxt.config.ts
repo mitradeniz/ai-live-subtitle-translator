@@ -24,7 +24,7 @@ export default defineConfig({
     name:
       mode === 'mock'
         ? '[TEST] Subtitle timing lab'
-        : 'AI Video Subtitle Translator',
+        : 'Free AI Video Subtitle Translator',
     description:
       mode === 'mock'
         ? 'Local caption timing test. Mock output is not translation.'
@@ -69,7 +69,7 @@ export default defineConfig({
           ],
     incognito: 'not_allowed',
     action: {
-      default_title: 'AI Video Subtitle Translator',
+      default_title: 'Free AI Video Subtitle Translator',
       default_icon: { 16: 'icons/icon-16.png', 32: 'icons/icon-32.png' },
     },
     content_security_policy: {
