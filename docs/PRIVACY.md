@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-11-02. Applies to AI Video Subtitle Translator 0.2.3-preview.1.
+Last updated: 2026-11-03. Applies to AI Video Subtitle Translator 0.2.4-preview.1.
 
 This notice describes the implemented extension and its optional translation
 services. Publication of this notice does not imply store approval.

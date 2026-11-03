@@ -1,4 +1,4 @@
-# Unreleased
+# 0.2.4-preview.1 — 2026-11-03
 
 - The popup is now a single page instead of two tabs: languages, video
   subtitles, page translation and providers appear together. Longer notices
