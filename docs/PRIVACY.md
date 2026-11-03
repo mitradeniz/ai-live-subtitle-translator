@@ -1,6 +1,6 @@
 # Privacy notice — limited preview
 
-Last updated: 2026-11-02. Applies to AI Video Subtitle Translator 0.2.3-preview.1.
+Last updated: 2026-11-03. Applies to AI Video Subtitle Translator 0.2.4-preview.1.
 
 This notice describes the implemented extension and its optional translation
 services. Publication of this notice does not imply store approval.
@@ -64,7 +64,10 @@ of sensitive information displayed as ordinary page text; choose pages deliberat
 Selected text (up to 1,000 characters) is transmitted after an explicit translation
 action — clicking the small marker shown under a selection, or Translate selection in the
 edge menu — or after a mouse selection when you separately enable **Translate
-automatically after selection**. Showing the marker sends nothing. Automatic translation after selection defaults off, including for existing installations.
+automatically after selection**. Showing the marker sends nothing. An explicit
+action can include ordinary visible text inside forms or in areas a site marks as
+not to translate; text fields, editable areas and hidden text are never read.
+Automatic selection keeps the page-translation exclusions above. Automatic translation after selection defaults off, including for existing installations.
 Automatic selections go to the selected provider/target language and can incur its
 charges. One selection request runs at a time; only the latest pending selection is
 kept. Closing the preview discards pending/displayed results; an already dispatched
