@@ -1,3 +1,8 @@
+# 0.2.6-preview.1 — 2026-11-04
+
+- Translate visible captions in supported Vidstack, Video.js, Shaka UI and HTML5 Plyr layouts. This includes the Vidstack layout used by DeepLearning.AI. Turn on the player’s original CC before enabling translation.
+- Clarify the extension summary and link to the public project.
+
 # 0.2.5-preview.1 — 2026-11-04
 
 - Rename the extension to **Free AI Video Subtitle Translator**. Installation and experimental keyless Google remain free; optional user-key providers may charge for usage.
