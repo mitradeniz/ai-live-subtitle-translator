@@ -1,4 +1,4 @@
-# Unreleased
+# 0.2.5-preview.1 — 2026-11-04
 
 - Rename the extension to **Free AI Video Subtitle Translator**. Installation and experimental keyless Google remain free; optional user-key providers may charge for usage.
 - Pages opened before the extension was reloaded or updated now say so: the
