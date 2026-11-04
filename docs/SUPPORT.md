@@ -76,12 +76,13 @@ nonstandard-port pages remain manual-only.
 
 The popup loads provider/settings data without waiting for the page. Native track
 mode changes are observed by a bounded poll, and page-text discovery yields between
-small batches. On `learn.deeplearning.ai`, the extension can read the visible
-caption layer of the Vidstack lesson player. Turn on CC and choose an original
-caption language in the lesson, then enable video subtitles in the extension.
-Only the current on-screen caption is available for translation in this mode.
-An isolated synthetic lesson tests this layout and caption toggling. Playback in
-a signed-in DeepLearning.AI lesson still needs verification.
+small batches. For recognized HTML caption layouts, the extension can translate
+the current on-screen caption in Vidstack (including the DeepLearning.AI lesson
+layout), Video.js, Shaka's UI text displayer, and HTML5 Plyr. Turn on CC in the
+player and choose an original language, then enable video subtitles in the
+extension. The rendered caption path has no timing data for lookahead.
+Synthetic browser fixtures cover these layouts and CC toggling. Playback in a
+signed-in DeepLearning.AI lesson still needs verification.
 
 With page tools enabled, a glass button inside the largest visible main-document
 video opens a compact caption switch/download/settings menu without starting a
@@ -92,6 +93,7 @@ It occupies a slot beside
 CC/settings in recognized HTML control rows (Video.js, JW, Shaka, Vidstack-style
 rows and semantic toolbars). Selectors are compatibility hints, not a promise of
 universal player support. Unknown layouts and browser-native controls use the
-page-edge menu. The button follows native toolbar hiding and replacement. Main-document
-HTML5 tracks and supported container fullscreen are required; iframe/shadow-root
-players, video-element fullscreen and Picture-in-Picture remain unsupported.
+page-edge menu. The button follows native toolbar hiding and replacement.
+Translation uses main-document HTML5 tracks or a recognized rendered caption
+layout. Iframe and shadow-root players, video-element fullscreen, and
+Picture-in-Picture remain unsupported.

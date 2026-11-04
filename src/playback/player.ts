@@ -8,7 +8,7 @@ import {
   type Cue,
 } from './cues.ts';
 import { NativeTrackAdapter } from './native-track.ts';
-import { LessonCaptions } from './lesson-captions.ts';
+import { RenderedCaptions } from './rendered-captions.ts';
 import { CaptionOverlay, type Appearance } from './overlay.ts';
 import { TranslationFailure } from '../translation/contracts.ts';
 
@@ -16,7 +16,7 @@ export class CaptionPlayer {
   #video: HTMLVideoElement;
   #sentences = new SentenceIndex();
   #adapter: NativeTrackAdapter | undefined;
-  #lesson: LessonCaptions | undefined;
+  #rendered: RenderedCaptions | undefined;
   #overlay: CaptionOverlay;
   #settings: Settings;
   #label: string;
@@ -47,7 +47,7 @@ export class CaptionPlayer {
     this.#source = video.currentSrc;
     this.#settings = settings;
     this.#label = label;
-    this.#lesson = LessonCaptions.forVideo(video);
+    this.#rendered = RenderedCaptions.forVideo(video);
     if (transform)
       this.#window = new TimedWindow(
         transform,
@@ -56,10 +56,10 @@ export class CaptionPlayer {
           this.#overlay.setTranslationStatus(
             error instanceof TranslationFailure ? error.message : '',
           ),
-        Boolean(this.#lesson),
+        Boolean(this.#rendered),
       );
     this.#isValid = isValid;
-    if (!this.#lesson) this.#adapter = new NativeTrackAdapter(video);
+    if (!this.#rendered) this.#adapter = new NativeTrackAdapter(video);
     this.#overlay = new CaptionOverlay(video, settings.fontSize, label, {
       settings,
       openSettings: onOpenSettings,
@@ -115,7 +115,7 @@ export class CaptionPlayer {
   }
 
   #seek = () => {
-    if (this.#lesson) this.#cues = [];
+    if (this.#rendered) this.#cues = [];
     this.#invalidate(true);
   };
 
@@ -124,7 +124,7 @@ export class CaptionPlayer {
     this.#generation.next();
     this.#active = [];
     this.#result = null;
-    if (this.#lesson) this.#overlay.nativeCaption(null);
+    if (this.#rendered) this.#overlay.nativeCaption(null);
     this.#overlay.render('');
   };
 
@@ -140,10 +140,10 @@ export class CaptionPlayer {
       return;
     }
     this.#source = this.#video.currentSrc;
-    const cues = this.#lesson
+    const cues = this.#rendered
       ? this.#video.seeking
         ? this.#cues
-        : this.#lesson.snapshot()
+        : this.#rendered.snapshot()
       : this.#sentences.snapshot(this.#adapter?.snapshot() ?? []);
     if (cues !== this.#cues) {
       this.#cues = cues;
@@ -164,7 +164,7 @@ export class CaptionPlayer {
     this.#overlay.layout();
     const cues = this.#video.seeking
       ? []
-      : this.#lesson
+      : this.#rendered
         ? this.#cues
         : activeCues(this.#cues, this.#video.currentTime);
     if (
@@ -179,10 +179,10 @@ export class CaptionPlayer {
       this.#window?.update(this.#cues, this.#video.currentTime);
     this.#result = this.#window?.texts(cues) || null;
 
-    const state = this.#lesson
+    const state = this.#rendered
       ? this.#cues.length
         ? 'Visible captions'
-        : 'Turn on CC in the lesson player to translate visible captions.'
+        : 'Turn on CC in the video player to translate visible captions.'
       : !this.#cues.length
         ? 'No accessible caption text'
         : !cues.length
@@ -192,9 +192,9 @@ export class CaptionPlayer {
     const original = cues.map((cue) => cue.text).join('\n');
     const mock = this.#result?.join('\n');
     const mode = this.#settings.displayMode;
-    if (this.#lesson) {
+    if (this.#rendered) {
       this.#overlay.nativeCaption(
-        mock && mode !== 'original' ? this.#lesson.layer : null,
+        mock && mode !== 'original' ? this.#rendered.layer : null,
       );
       if (!mock || mode === 'original') {
         this.#overlay.render('');

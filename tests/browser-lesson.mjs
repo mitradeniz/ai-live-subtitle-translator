@@ -3,6 +3,32 @@ import { cp, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright';
+const renderedLayouts = [
+  {
+    name: 'Vidstack',
+    player: 'class="lesson-video-player" data-media-player',
+    layer: 'class="vds-captions" data-part="captions"',
+    cue: 'data-part="cue"',
+  },
+  {
+    name: 'Video.js',
+    player: 'class="video-js"',
+    layer: 'class="vjs-text-track-display"',
+    cue: 'class="vjs-text-track-cue"',
+  },
+  {
+    name: 'Shaka',
+    player: 'class="shaka-video-container"',
+    layer: 'class="shaka-text-container"',
+    cue: '',
+  },
+  {
+    name: 'Plyr',
+    player: 'class="plyr plyr--html5"',
+    layer: 'class="plyr__captions"',
+    cue: 'class="plyr__caption"',
+  },
+];
 const temp = await mkdtemp(join(tmpdir(), 'lesson-controls-'));
 let context;
 let providerRequests = 0;
@@ -44,18 +70,20 @@ try {
           contentType: 'video/webm',
           body: await readFile('tests/fixtures/native/pattern.webm'),
         });
+      const layout = renderedLayouts.find(
+        ({ name }) => url.pathname === `/test/${name}`,
+      );
+      if (!layout) return route.abort();
       return route.fulfill({
         contentType: 'text/html',
-        body: `<!doctype html><title>Synthetic Vidstack lesson</title>
-          <div class="lesson-video-player" data-media-player>
+        body: `<!doctype html><title>Synthetic ${layout.name} lesson</title>
+          <div ${layout.player}>
             <video width="640" height="360" src="/pattern.webm" muted></video>
-            <div class="vds-captions" data-part="captions" aria-hidden="true">
-              <div data-part="cue-display"><span data-part="cue"></span></div>
+            <div ${layout.layer} id="captions" aria-hidden="true">
+              <div ${layout.cue} id="cue"></div>
             </div>
           </div>
-          <div class="vds-captions" data-part="captions">
-            <span data-part="cue">Unrelated caption.</span>
-          </div>`,
+          <div ${layout.layer}><div ${layout.cue}>Unrelated caption.</div></div>`,
       });
     }
     if (url.origin === 'https://lesson.example.test') {
@@ -614,8 +642,6 @@ try {
     'Synthetic paragraph 0.',
     'Disabling restores the original text',
   );
-  await page.goto('https://learn.deeplearning.ai/courses/test/lesson/test');
-  await page.bringToFront();
   await send('controls.update', {
     preferences: { ...preferences, displayMode: 'translated' },
   });
@@ -623,41 +649,49 @@ try {
     (await send('controls.select', { provider: 'google' })).ok,
     true,
   );
-  const initialRequests = providerRequests;
-  assert.equal(
-    (await send('playback.enable', { youtubeSourceConfirmed: false })).data
-      .state,
-    'enabled',
-  );
-  const overlay = page.locator('subtitle-translator-overlay');
-  await overlay
-    .getByText(/Turn on CC in the lesson player/)
-    .waitFor({ state: 'attached' });
-  assert.equal(providerRequests, initialRequests, 'CC off sends no text');
-  const layer = page.locator('.lesson-video-player .vds-captions');
-  const showCaption = (line) =>
-    layer.evaluate((node, text) => {
-      node.setAttribute('aria-hidden', 'false');
-      node.querySelector('[data-part="cue"]').textContent = text;
-    }, line);
-  await showCaption('A rendered lesson caption.');
-  await overlay
-    .getByText('TR A rendered lesson caption.', { exact: true })
-    .waitFor();
-  assert.equal(await layer.evaluate((node) => node.style.opacity), '0');
-  assert.equal(providerRequests, initialRequests + 1);
-  await layer.evaluate((node) => node.setAttribute('aria-hidden', 'true'));
-  await overlay
-    .getByText('TR A rendered lesson caption.', { exact: true })
-    .waitFor({ state: 'hidden' });
-  assert.equal(await layer.evaluate((node) => node.style.opacity), '');
-  await showCaption('A new lesson caption.');
-  await overlay
-    .getByText('TR A new lesson caption.', { exact: true })
-    .waitFor();
-  assert.equal((await send('playback.disable')).data.state, 'disabled');
-  assert.equal(await layer.evaluate((node) => node.style.opacity), '');
-  assert.equal(await overlay.count(), 0);
+  for (const { name } of renderedLayouts) {
+    const lesson = await context.newPage();
+    await lesson.goto(`https://learn.deeplearning.ai/test/${name}`);
+    await lesson.bringToFront();
+    const initialRequests = providerRequests;
+    assert.equal(
+      (await send('playback.enable', { youtubeSourceConfirmed: false })).data
+        .state,
+      'enabled',
+      name,
+    );
+    const overlay = lesson.locator('subtitle-translator-overlay');
+    await overlay
+      .getByText(/Turn on CC in the video player/)
+      .waitFor({ state: 'attached' });
+    assert.equal(
+      providerRequests,
+      initialRequests,
+      `${name}: CC off sends no text`,
+    );
+    const layer = lesson.locator('#captions');
+    const showCaption = (line) =>
+      layer.evaluate((node, text) => {
+        node.setAttribute('aria-hidden', 'false');
+        node.querySelector('#cue').textContent = text;
+      }, line);
+    const first = `A rendered ${name} caption.`;
+    await showCaption(first);
+    const firstResult = overlay.getByText(`TR ${first}`, { exact: true });
+    await firstResult.waitFor();
+    assert.equal(await layer.evaluate((node) => node.style.opacity), '0');
+    assert.equal(providerRequests, initialRequests + 1);
+    await layer.evaluate((node) => node.setAttribute('aria-hidden', 'true'));
+    await firstResult.waitFor({ state: 'hidden' });
+    assert.equal(await layer.evaluate((node) => node.style.opacity), '');
+    const next = `A new ${name} caption.`;
+    await showCaption(next);
+    await overlay.getByText(`TR ${next}`, { exact: true }).waitFor();
+    assert.equal((await send('playback.disable')).data.state, 'disabled');
+    assert.equal(await layer.evaluate((node) => node.style.opacity), '');
+    assert.equal(await overlay.count(), 0);
+    await lesson.close();
+  }
   console.log(
     JSON.stringify({
       result: 'passed',
@@ -666,7 +700,7 @@ try {
       scanningTicks: after - before,
       providerRequests,
       checks:
-        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack cues, CC toggle and original restoration',
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack, Video.js, Shaka and Plyr cues, CC toggle and original restoration',
     }),
   );
 } finally {
