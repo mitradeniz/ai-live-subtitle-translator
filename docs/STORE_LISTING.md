@@ -1,13 +1,16 @@
 # Store copy — limited preview
 
-Listing content for version 0.2.1-preview.1. This document is not evidence of
-store approval. Compatibility and live-provider claims are limited to actual checks.
+Listing copy for the limited preview.
 
 ## English
 
 Name: Free AI Video Subtitle Translator
 
-Short description: Translate visible page text and available captions with Google or your own API key. Limited preview.
+Short description: Translate video subtitles and web pages. Read bilingual captions and choose Google or your own AI provider.
+
+Homepage: https://github.com/mitradeniz/ai-live-subtitle-translator
+
+Support: https://github.com/mitradeniz/ai-live-subtitle-translator/issues
 
 Detailed description:
 

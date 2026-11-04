@@ -28,7 +28,13 @@ export default defineConfig({
     description:
       mode === 'mock'
         ? 'Local caption timing test. Mock output is not translation.'
-        : 'Limited preview. Page and video translation with optional Google, Google Cloud and user-key AI.',
+        : 'Translate video subtitles and web pages. Read bilingual captions and choose Google or your own AI provider.',
+    ...(mode === 'mock'
+      ? {}
+      : {
+          homepage_url:
+            'https://github.com/mitradeniz/ai-live-subtitle-translator',
+        }),
     ...(browser === 'firefox'
       ? {
           browser_specific_settings: {
