@@ -18,6 +18,7 @@ try {
       ...manifest,
       host_permissions: [
         'https://lesson.example.test/*',
+        'https://learn.deeplearning.ai/*',
         'https://translate.googleapis.com/*',
       ],
     }),
@@ -37,6 +38,26 @@ try {
   await context.route('**/*', async (route) => {
     const url = new URL(route.request().url());
     if (url.protocol === 'chrome-extension:') return route.continue();
+    if (url.origin === 'https://learn.deeplearning.ai') {
+      if (url.pathname === '/pattern.webm')
+        return route.fulfill({
+          contentType: 'video/webm',
+          body: await readFile('tests/fixtures/native/pattern.webm'),
+        });
+      return route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><title>Synthetic Vidstack lesson</title>
+          <div class="lesson-video-player" data-media-player>
+            <video width="640" height="360" src="/pattern.webm" muted></video>
+            <div class="vds-captions" data-part="captions" aria-hidden="true">
+              <div data-part="cue-display"><span data-part="cue"></span></div>
+            </div>
+          </div>
+          <div class="vds-captions" data-part="captions">
+            <span data-part="cue">Unrelated caption.</span>
+          </div>`,
+      });
+    }
     if (url.origin === 'https://lesson.example.test') {
       if (url.pathname === '/pattern.webm')
         return route.fulfill({
@@ -593,6 +614,50 @@ try {
     'Synthetic paragraph 0.',
     'Disabling restores the original text',
   );
+  await page.goto('https://learn.deeplearning.ai/courses/test/lesson/test');
+  await page.bringToFront();
+  await send('controls.update', {
+    preferences: { ...preferences, displayMode: 'translated' },
+  });
+  assert.equal(
+    (await send('controls.select', { provider: 'google' })).ok,
+    true,
+  );
+  const initialRequests = providerRequests;
+  assert.equal(
+    (await send('playback.enable', { youtubeSourceConfirmed: false })).data
+      .state,
+    'enabled',
+  );
+  const overlay = page.locator('subtitle-translator-overlay');
+  await overlay
+    .getByText(/Turn on CC in the lesson player/)
+    .waitFor({ state: 'attached' });
+  assert.equal(providerRequests, initialRequests, 'CC off sends no text');
+  const layer = page.locator('.lesson-video-player .vds-captions');
+  const showCaption = (line) =>
+    layer.evaluate((node, text) => {
+      node.setAttribute('aria-hidden', 'false');
+      node.querySelector('[data-part="cue"]').textContent = text;
+    }, line);
+  await showCaption('A rendered lesson caption.');
+  await overlay
+    .getByText('TR A rendered lesson caption.', { exact: true })
+    .waitFor();
+  assert.equal(await layer.evaluate((node) => node.style.opacity), '0');
+  assert.equal(providerRequests, initialRequests + 1);
+  await layer.evaluate((node) => node.setAttribute('aria-hidden', 'true'));
+  await overlay
+    .getByText('TR A rendered lesson caption.', { exact: true })
+    .waitFor({ state: 'hidden' });
+  assert.equal(await layer.evaluate((node) => node.style.opacity), '');
+  await showCaption('A new lesson caption.');
+  await overlay
+    .getByText('TR A new lesson caption.', { exact: true })
+    .waitFor();
+  assert.equal((await send('playback.disable')).data.state, 'disabled');
+  assert.equal(await layer.evaluate((node) => node.style.opacity), '');
+  assert.equal(await overlay.count(), 0);
   console.log(
     JSON.stringify({
       result: 'passed',
@@ -601,7 +666,7 @@ try {
       scanningTicks: after - before,
       providerRequests,
       checks:
-        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, restore and cleanup',
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack cues, CC toggle and original restoration',
     }),
   );
 } finally {

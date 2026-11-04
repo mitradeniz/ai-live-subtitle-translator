@@ -20,6 +20,7 @@ export class TimedWindow {
   #transform: CaptionTransform;
   #changed: () => void;
   #error: (error: unknown) => void;
+  #observed: boolean;
   #generation = new PlaybackGeneration();
   #results = new Map<Cue, string>();
   #attempted = new Set<Cue>();
@@ -32,10 +33,12 @@ export class TimedWindow {
     transform: CaptionTransform,
     changed: () => void,
     error: (error: unknown) => void,
+    observed = false,
   ) {
     this.#transform = transform;
     this.#changed = changed;
     this.#error = error;
+    this.#observed = observed;
   }
   reset(retainCompleted = false) {
     this.#generation.next();
@@ -50,8 +53,8 @@ export class TimedWindow {
     this.#active = [];
   }
   update(cues: readonly Cue[], time: number) {
-    this.#window = cueWindow(cues, time);
-    this.#active = activeCues(cues, time);
+    this.#window = this.#observed ? [...cues] : cueWindow(cues, time);
+    this.#active = this.#observed ? this.#window : activeCues(cues, time);
     for (const cue of this.#results.keys())
       if (!this.#window.includes(cue)) this.#results.delete(cue);
     for (const cue of this.#attempted)
@@ -115,7 +118,7 @@ export class TimedWindow {
     const generation = this.#generation.value;
     void this.#transform(batch, generation, pending.abort.signal, {
       priority: current ? 'current' : 'prefetch',
-      observed: false,
+      observed: this.#observed,
     })
       .then((result) => {
         if (pending.abort.signal.aborted) return;

@@ -521,6 +521,8 @@ Object.assign(turkish, {
   'Original captions': 'Orijinal altyazılar',
   'Native timed track': 'Zamanlı video altyazısı',
   'Visible captions': 'Görünür altyazılar',
+  'Turn on CC in the lesson player to translate visible captions.':
+    'Görünen altyazıları çevirmek için ders oynatıcısında CC’yi aç.',
   'no cue timestamps': 'zaman bilgisi yok',
   manual: 'manuel',
   'auto-generated': 'otomatik oluşturulan',

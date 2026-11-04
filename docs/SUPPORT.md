@@ -76,9 +76,12 @@ nonstandard-port pages remain manual-only.
 
 The popup loads provider/settings data without waiting for the page. Native track
 mode changes are observed by a bounded poll, and page-text discovery yields between
-small batches. An isolated synthetic lesson covers a large changing transcript, a
-player that reasserts native captions, and unresponsive status reads. This does not
-verify DeepLearning.AI's signed-in player or any other course site's account state.
+small batches. On `learn.deeplearning.ai`, the extension can read the visible
+caption layer of the Vidstack lesson player. Turn on CC and choose an original
+caption language in the lesson, then enable video subtitles in the extension.
+Only the current on-screen caption is available for translation in this mode.
+An isolated synthetic lesson tests this layout and caption toggling. Playback in
+a signed-in DeepLearning.AI lesson still needs verification.
 
 With page tools enabled, a glass button inside the largest visible main-document
 video opens a compact caption switch/download/settings menu without starting a

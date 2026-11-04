@@ -8,13 +8,15 @@ import {
   type Cue,
 } from './cues.ts';
 import { NativeTrackAdapter } from './native-track.ts';
+import { LessonCaptions } from './lesson-captions.ts';
 import { CaptionOverlay, type Appearance } from './overlay.ts';
 import { TranslationFailure } from '../translation/contracts.ts';
 
 export class CaptionPlayer {
   #video: HTMLVideoElement;
   #sentences = new SentenceIndex();
-  #adapter: NativeTrackAdapter;
+  #adapter: NativeTrackAdapter | undefined;
+  #lesson: LessonCaptions | undefined;
   #overlay: CaptionOverlay;
   #settings: Settings;
   #label: string;
@@ -45,6 +47,7 @@ export class CaptionPlayer {
     this.#source = video.currentSrc;
     this.#settings = settings;
     this.#label = label;
+    this.#lesson = LessonCaptions.forVideo(video);
     if (transform)
       this.#window = new TimedWindow(
         transform,
@@ -53,9 +56,10 @@ export class CaptionPlayer {
           this.#overlay.setTranslationStatus(
             error instanceof TranslationFailure ? error.message : '',
           ),
+        Boolean(this.#lesson),
       );
     this.#isValid = isValid;
-    this.#adapter = new NativeTrackAdapter(video);
+    if (!this.#lesson) this.#adapter = new NativeTrackAdapter(video);
     this.#overlay = new CaptionOverlay(video, settings.fontSize, label, {
       settings,
       openSettings: onOpenSettings,
@@ -110,13 +114,17 @@ export class CaptionPlayer {
     this.#paint();
   }
 
-  #seek = () => this.#invalidate(true);
+  #seek = () => {
+    if (this.#lesson) this.#cues = [];
+    this.#invalidate(true);
+  };
 
   #invalidate = (retainCompleted = false) => {
     this.#window?.reset(retainCompleted);
     this.#generation.next();
     this.#active = [];
     this.#result = null;
+    if (this.#lesson) this.#overlay.nativeCaption(null);
     this.#overlay.render('');
   };
 
@@ -132,7 +140,11 @@ export class CaptionPlayer {
       return;
     }
     this.#source = this.#video.currentSrc;
-    const cues = this.#sentences.snapshot(this.#adapter.snapshot());
+    const cues = this.#lesson
+      ? this.#video.seeking
+        ? this.#cues
+        : this.#lesson.snapshot()
+      : this.#sentences.snapshot(this.#adapter?.snapshot() ?? []);
     if (cues !== this.#cues) {
       this.#cues = cues;
       this.#invalidate();
@@ -152,7 +164,9 @@ export class CaptionPlayer {
     this.#overlay.layout();
     const cues = this.#video.seeking
       ? []
-      : activeCues(this.#cues, this.#video.currentTime);
+      : this.#lesson
+        ? this.#cues
+        : activeCues(this.#cues, this.#video.currentTime);
     if (
       cues.length !== this.#active.length ||
       cues.some((cue, i) => cue !== this.#active[i])
@@ -165,15 +179,28 @@ export class CaptionPlayer {
       this.#window?.update(this.#cues, this.#video.currentTime);
     this.#result = this.#window?.texts(cues) || null;
 
-    const state = !this.#cues.length
-      ? 'No accessible caption text'
-      : !cues.length
-        ? 'Waiting for next caption'
-        : '';
+    const state = this.#lesson
+      ? this.#cues.length
+        ? 'Visible captions'
+        : 'Turn on CC in the lesson player to translate visible captions.'
+      : !this.#cues.length
+        ? 'No accessible caption text'
+        : !cues.length
+          ? 'Waiting for next caption'
+          : '';
     this.#overlay.setLabel([this.#label, state].filter(Boolean).join(' · '));
     const original = cues.map((cue) => cue.text).join('\n');
     const mock = this.#result?.join('\n');
     const mode = this.#settings.displayMode;
+    if (this.#lesson) {
+      this.#overlay.nativeCaption(
+        mock && mode !== 'original' ? this.#lesson.layer : null,
+      );
+      if (!mock || mode === 'original') {
+        this.#overlay.render('');
+        return;
+      }
+    }
     this.#overlay.render(
       mode === 'translated' &&
         !mock &&
@@ -212,7 +239,7 @@ export class CaptionPlayer {
     window.removeEventListener('popstate', this.dispose);
     window.removeEventListener('hashchange', this.dispose);
     document.removeEventListener('fullscreenchange', this.#paint);
-    this.#adapter.dispose();
+    this.#adapter?.dispose();
     this.#overlay.dispose();
   };
 }
