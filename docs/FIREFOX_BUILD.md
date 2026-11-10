@@ -15,7 +15,7 @@ pnpm install --frozen-lockfile
 pnpm release:firefox
 ```
 
-The archive is `.output/ai-live-subtitle-translator-0.2.5-firefox.zip`; the unpacked
+The archive is `.output/ai-live-subtitle-translator-0.2.7-firefox.zip`; the unpacked
 files are in `.output/firefox-mv3`. The command checks the actual manifest, local
 scripts, CSP, allowed inventory and ZIP/build alignment and writes a SHA-256 file.
 The source archive contains the original TypeScript, React components, styles,

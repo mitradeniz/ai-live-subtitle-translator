@@ -1,4 +1,4 @@
-# Unreleased
+# 0.2.7-preview.1 — 2026-11-10
 
 - On a page built around a video (a lesson or watch page), clicking the edge
   button now turns video subtitles on or off instead of page translation, and
