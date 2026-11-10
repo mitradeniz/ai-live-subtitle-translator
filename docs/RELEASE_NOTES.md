@@ -1,3 +1,14 @@
+# Unreleased
+
+- On a page built around a video (a lesson or watch page), clicking the edge
+  button now turns video subtitles on or off instead of page translation, and
+  its check shows whether subtitles are running. The menu has a **Page
+  translation** switch beside **Video subtitles**, so both stay available.
+- When subtitles are on but there is nothing to translate, the reason appears
+  beside the captions: turn on captions (CC) in the player, or no readable
+  captions were found. Before, this was only shown in controls that are hidden
+  while the page tools are present.
+
 # 0.2.6-preview.1 — 2026-11-04
 
 - Translate visible captions in supported Vidstack, Video.js, Shaka UI and HTML5 Plyr layouts. This includes the Vidstack layout used by DeepLearning.AI. Turn on the player’s original CC before enabling translation.

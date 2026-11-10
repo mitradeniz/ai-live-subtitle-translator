@@ -33,6 +33,7 @@ export class CaptionOverlay {
   #text = '';
   #labelText = '';
   #statusText = '';
+  #hintText = '';
   #locale: Locale = 'en';
   #settings: Appearance;
   #mode = document.createElement('select');
@@ -412,7 +413,21 @@ export class CaptionOverlay {
   }
   setTranslationStatus(text: string) {
     this.#statusText = text;
-    const rendered = translate(text, this.#locale);
+    this.#paintStatus();
+  }
+  // A short note beside the captions, shown when there is no provider status.
+  // The caption controls are hidden while the page tools are present, so this
+  // is where a viewer learns why nothing is being translated.
+  setHint(text: string) {
+    if (text === this.#hintText) return;
+    this.#hintText = text;
+    this.#paintStatus();
+  }
+  #paintStatus() {
+    const rendered = translate(
+      this.#statusText || this.#hintText,
+      this.#locale,
+    );
     if (this.#status.textContent !== rendered)
       this.#status.textContent = rendered;
   }

@@ -572,6 +572,40 @@ try {
   );
   assert.equal(await page.evaluate(() => window.track.mode), 'showing');
   await page.keyboard.press('Escape');
+  // On a page built around a video the edge logo switches its subtitles, and
+  // only for a real click. The page text is left alone.
+  const edge = tools.locator('.trigger');
+  const edgeActive = (value) =>
+    page.waitForFunction(
+      (expected) =>
+        document
+          .querySelector('translator-page-tools')
+          ?.shadowRoot.querySelector('.trigger')?.dataset.active === expected,
+      value,
+    );
+  assert.equal(await edge.getAttribute('aria-label'), 'Video subtitles');
+  await edge.evaluate((button) => button.click());
+  // Keep the existing one-second caption-activation rate gate intact.
+  await page.waitForTimeout(1100);
+  assert.equal(
+    await page.locator('subtitle-translator-overlay').count(),
+    0,
+    'A scripted logo click cannot start subtitles',
+  );
+  await edge.click();
+  await page.locator('subtitle-translator-overlay').waitFor();
+  await edgeActive('true');
+  assert.equal(
+    await page.locator('#transcript p').first().textContent(),
+    'Synthetic paragraph 0.',
+    'The logo starts subtitles, not page translation',
+  );
+  await edge.click();
+  await page
+    .locator('subtitle-translator-overlay')
+    .waitFor({ state: 'detached' });
+  await edgeActive('false');
+  assert.equal(await page.evaluate(() => window.track.mode), 'showing');
   const before = await page.evaluate(() => window.ticks);
   assert.equal((await send('page.enable', { run: true })).ok, true);
   // Pages start in translation-only display: text is replaced in place.
@@ -664,6 +698,13 @@ try {
     await overlay
       .getByText(/Turn on CC in the video player/)
       .waitFor({ state: 'attached' });
+    // The reason is also shown beside the captions, where it stays visible.
+    const hint = overlay.locator('.provider-status');
+    await hint
+      .filter({
+        hasText: 'Turn on captions (CC) in the video player to translate them.',
+      })
+      .waitFor();
     assert.equal(
       providerRequests,
       initialRequests,
@@ -679,6 +720,7 @@ try {
     await showCaption(first);
     const firstResult = overlay.getByText(`TR ${first}`, { exact: true });
     await firstResult.waitFor();
+    assert.equal(await hint.textContent(), '', `${name}: hint clears`);
     assert.equal(await layer.evaluate((node) => node.style.opacity), '0');
     assert.equal(providerRequests, initialRequests + 1);
     await layer.evaluate((node) => node.setAttribute('aria-hidden', 'true'));
@@ -700,7 +742,7 @@ try {
       scanningTicks: after - before,
       providerRequests,
       checks:
-        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack, Video.js, Shaka and Plyr cues, CC toggle and original restoration',
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack, Video.js, Shaka and Plyr cues, CC toggle with visible hint and original restoration, edge logo switching subtitles on a video page',
     }),
   );
 } finally {

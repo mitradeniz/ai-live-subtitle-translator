@@ -571,6 +571,10 @@ Object.assign(turkish, {
   'The extension was updated. Refresh this page to use it again.':
     'Eklenti güncellendi. Kullanmaya devam etmek için sayfayı yenile.',
   'Reconnecting…': 'Yeniden bağlanıyor…',
+  'Turn on captions (CC) in the video player to translate them.':
+    'Çevirmek için video oynatıcıda altyazıyı (CC) aç.',
+  'No readable captions found for this video. Turn on captions (CC) in the player if it has them.':
+    'Bu videoda okunabilir altyazı bulunamadı. Altyazısı varsa oynatıcıda altyazıyı (CC) aç.',
   'Turn on Video subtitles in Customize translation.':
     "Çeviriyi özelleştir'de Video altyazıları'nı aç.",
   'The extension is busy. Try again in a moment.':

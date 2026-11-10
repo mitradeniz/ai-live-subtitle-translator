@@ -29,6 +29,7 @@ export class RenderedCaptions {
   #player: Element;
   #layout: Layout;
   #layer: HTMLElement | null = null;
+  #off = true;
 
   static forVideo(video: HTMLVideoElement) {
     for (const layout of layouts) {
@@ -47,6 +48,10 @@ export class RenderedCaptions {
   get layer() {
     return this.#layer;
   }
+  // True while the player's own captions are switched off or hidden.
+  get off() {
+    return this.#off;
+  }
 
   snapshot(): readonly Cue[] {
     const layer = this.#player.querySelector<HTMLElement>(this.#layout.layer);
@@ -56,8 +61,11 @@ export class RenderedCaptions {
       layer.closest(this.#layout.player) !== this.#player ||
       layer.getAttribute('aria-hidden') === 'true' ||
       !layer.checkVisibility({ visibilityProperty: true })
-    )
+    ) {
+      this.#off = true;
       return (this.#last = EMPTY);
+    }
+    this.#off = false;
 
     const nodes = layer.querySelectorAll<HTMLElement>(this.#layout.cue);
     if (nodes.length > 4) return (this.#last = EMPTY);

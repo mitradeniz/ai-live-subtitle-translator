@@ -49,6 +49,9 @@ export class PageTools {
   #flashTimer: ReturnType<typeof setTimeout> | undefined;
   #noteTimer: ReturnType<typeof setTimeout> | undefined;
   #captionsOn = false;
+  #captionBusy = false;
+  #videoFirst = false;
+  #pageSwitch: HTMLButtonElement | undefined;
   #page: PageText;
   #playerShortcut: PlayerShortcut | undefined;
   #selectionPopup: SelectionPopup | undefined;
@@ -142,6 +145,27 @@ export class PageTools {
     this.#result.dir = 'auto';
     this.#result.setAttribute('aria-live', 'polite');
     this.#panel.append(heading, destination);
+    if (prefs.page) {
+      // The logo may be switching video subtitles, so the page keeps its own
+      // switch here.
+      const page = document.createElement('button');
+      page.type = 'button';
+      page.className = 'switch';
+      page.setAttribute('role', 'switch');
+      page.setAttribute('aria-checked', 'false');
+      const name = document.createElement('span');
+      name.textContent = this.t('Page translation');
+      const track = document.createElement('span');
+      track.className = 'track';
+      track.setAttribute('aria-hidden', 'true');
+      track.append(document.createElement('span'));
+      page.append(name, track);
+      page.addEventListener('click', (event) => {
+        if (event.isTrusted) this.#togglePage();
+      });
+      this.#pageSwitch = page;
+      this.#panel.append(page);
+    }
     if (prefs.captions) {
       this.#captions.type = 'button';
       this.#captions.className = 'switch';
@@ -437,10 +461,12 @@ export class PageTools {
         return;
       }
       this.#watchCaptions();
+      this.#watchVideo();
       if (location.href !== this.#url) this.dispose();
       else if (Date.now() - this.#started >= 30 * 60_000) this.#expire();
     }, 1000);
     this.layout();
+    this.#watchVideo();
     this.#paintState();
   }
   // Ends this session's work but keeps the logo. Sites with the automatic logo
@@ -584,9 +610,47 @@ export class PageTools {
     this.#openSettings(false);
     this.#dock.hidden = true;
   }
-  // Page translation when that tool is on, otherwise video subtitles.
+  // On a page built around a video the logo switches its subtitles; elsewhere
+  // it translates the page. Each keeps its own switch in the menu.
   #target(): 'page' | 'captions' | null {
-    return this.prefs.page ? 'page' : this.prefs.captions ? 'captions' : null;
+    if (this.prefs.captions && (this.#videoFirst || !this.prefs.page))
+      return 'captions';
+    return this.prefs.page ? 'page' : null;
+  }
+  // A visible video filling a fifth of the window is the page's main content.
+  // The choice is kept for this page so the logo does not change meaning while
+  // scrolling.
+  #watchVideo() {
+    if (this.#videoFirst || !this.prefs.captions || this.#closed) return;
+    const needed = innerWidth * innerHeight * 0.2;
+    for (const video of Array.from(document.querySelectorAll('video')).slice(
+      0,
+      32,
+    )) {
+      const rect = video.getBoundingClientRect();
+      const width = Math.min(rect.right, innerWidth) - Math.max(rect.left, 0);
+      const height = Math.min(rect.bottom, innerHeight) - Math.max(rect.top, 0);
+      if (
+        rect.width < 320 ||
+        rect.height < 180 ||
+        width <= 0 ||
+        height <= 0 ||
+        width * height < needed ||
+        !video.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
+      )
+        continue;
+      this.#videoFirst = true;
+      this.#paintState();
+      return;
+    }
+  }
+  #togglePage() {
+    if (this.#closed || !this.prefs.page) return;
+    if (this.#page.active) {
+      this.#page.restore();
+      this.state = 'ready';
+    } else this.startPage();
+    this.#paintState();
   }
   async #toggle() {
     if (this.#closed) return;
@@ -601,13 +665,8 @@ export class PageTools {
     const target = this.#target();
     this.open(false);
     if (!this.#edgeSettings.element.hidden) this.#openSettings(false);
-    if (target === 'page') {
-      if (this.#page.active) {
-        this.#page.restore();
-        this.state = 'ready';
-      } else this.startPage();
-      this.#paintState();
-    } else if (target === 'captions') await this.toggleCaptions();
+    if (target === 'page') this.#togglePage();
+    else if (target === 'captions') await this.toggleCaptions();
     else this.open(true);
   }
   #outside = (event: PointerEvent) => {
@@ -623,6 +682,7 @@ export class PageTools {
   #paintState() {
     if (this.#closed || this.host.dataset.stale) return;
     this.#captions.setAttribute('aria-checked', String(this.#captionsOn));
+    this.#pageSwitch?.setAttribute('aria-checked', String(this.#page.active));
     const target = this.#target();
     const active =
       target === 'page'
@@ -655,7 +715,7 @@ export class PageTools {
   // Display hint only: the overlay exists while captions run in this document.
   // The menu switch asks the background for the real state when it opens.
   #watchCaptions() {
-    if (!this.prefs.captions || this.#pending) return;
+    if (!this.prefs.captions || this.#captionBusy) return;
     const running = Boolean(
       document.querySelector('subtitle-translator-overlay'),
     );
@@ -671,7 +731,8 @@ export class PageTools {
         type: 'page.caption-status',
         sessionId: this.sessionId,
       });
-      if (this.#closed || this.#pending || result.kind !== 'playback') return;
+      if (this.#closed || this.#captionBusy || result.kind !== 'playback')
+        return;
       this.#captionsOn = result.state === 'enabled';
       this.#paintState();
     } catch {
@@ -679,9 +740,9 @@ export class PageTools {
     }
   }
   private async toggleCaptions() {
-    if (!this.prefs.captions || this.#pending) return;
+    if (!this.prefs.captions || this.#captionBusy) return;
     const enable = !this.#captionsOn;
-    this.#pending++;
+    this.#captionBusy = true;
     this.#captions.disabled = true;
     try {
       const result = await sendRequest({
@@ -714,7 +775,7 @@ export class PageTools {
         'Video subtitles could not start. Try again from the popup.',
       );
     } finally {
-      this.#pending--;
+      this.#captionBusy = false;
       this.#captions.disabled = false;
       this.#paintState();
     }

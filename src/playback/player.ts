@@ -32,6 +32,11 @@ export class CaptionPlayer {
   #url = location.href;
   #source: string;
   #expiresAt = Date.now() + 30 * 60_000;
+  #hint = '';
+  #hintSince = 0;
+  #seen = false;
+  #quietPlayback = 0;
+  #lastTime = 0;
 
   constructor(
     video: HTMLVideoElement,
@@ -189,6 +194,7 @@ export class CaptionPlayer {
           ? 'Waiting for next caption'
           : '';
     this.#overlay.setLabel([this.#label, state].filter(Boolean).join(' · '));
+    this.#explain();
     const original = cues.map((cue) => cue.text).join('\n');
     const mock = this.#result?.join('\n');
     const mode = this.#settings.displayMode;
@@ -215,6 +221,37 @@ export class CaptionPlayer {
       mode === 'bilingual' && mock ? original : undefined,
     );
   };
+
+  // Say why nothing is being translated, once that has lasted a moment.
+  #explain() {
+    if (this.#cues.length) this.#seen = true;
+    // Count played time without any caption, for players that give no signal
+    // when their captions are switched off.
+    const time = this.#video.currentTime;
+    const played = time - this.#lastTime;
+    this.#lastTime = time;
+    if (this.#seen) this.#quietPlayback = 0;
+    else if (played > 0 && played < 1) this.#quietPlayback += played;
+    const hint =
+      this.#translationStopped || this.#settings.displayMode === 'original'
+        ? ''
+        : this.#rendered
+          ? this.#cues.length
+            ? ''
+            : this.#rendered.off || (!this.#seen && this.#quietPlayback >= 8)
+              ? 'Turn on captions (CC) in the video player to translate them.'
+              : ''
+          : this.#cues.length
+            ? ''
+            : 'No readable captions found for this video. Turn on captions (CC) in the player if it has them.';
+    if (hint !== this.#hint) {
+      this.#hint = hint;
+      this.#hintSince = performance.now();
+    }
+    this.#overlay.setHint(
+      hint && performance.now() - this.#hintSince >= 1500 ? hint : '',
+    );
+  }
 
   #animate = () => {
     if (this.#closed) return;

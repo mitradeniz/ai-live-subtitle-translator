@@ -493,16 +493,18 @@ mode and enabled tools are separate.
   With all-sites access on, the same switch reads **Show the logo on this site** and
   shows the logo again where it was hidden from its settings.
 - **Enable edge tools** installs the page control without transmitting text. Clicking
-  the square turns page translation on or off (video subtitles when page translation
-  is turned off in Customize translation); a small check in its corner shows that it
-  is on. Hovering shows what a click will do, the latest status, and two small
+  the square turns translation on or off: video subtitles on a page built around a
+  video (one filling at least a fifth of the window, such as a lesson or watch
+  page), page translation everywhere else. A small check in its corner shows that
+  it is on. Hovering shows what a click will do, the latest status, and two small
   helpers: **More options** opens the glass menu and × opens **Edge button
   settings**. There you can make the button smaller (it tucks against the page edge
   until you point at it), turn the selected-text marker on or off, or hide the
   button: until the page is reloaded, on this site, or on all sites. Hiding on a
   site or on all sites is saved; show it again from the popup → Page translation.
   The menu
-  holds only the enabled tools: a **Video subtitles** switch, and Translate selection,
+  holds only the enabled tools: **Page translation** and **Video subtitles**
+  switches (so either can be used whatever the square controls), and Translate selection,
   Translate focused field or AI Writing when those are turned on. Opening it sends
   nothing. Enter/Space toggles translation by keyboard and F2 opens the menu; Escape
   or a click outside closes it, and arrow keys move the dock. Its position and a

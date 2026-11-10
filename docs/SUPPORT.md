@@ -81,8 +81,12 @@ the current on-screen caption in Vidstack (including the DeepLearning.AI lesson
 layout), Video.js, Shaka's UI text displayer, and HTML5 Plyr. Turn on CC in the
 player and choose an original language, then enable video subtitles in the
 extension. The rendered caption path has no timing data for lookahead.
-Synthetic browser fixtures cover these layouts and CC toggling. Playback in a
-signed-in DeepLearning.AI lesson still needs verification.
+Synthetic browser fixtures cover these layouts and CC toggling. The Vidstack
+path was also checked by hand against the published Vidstack 1.15.7 player with
+its default layout (edge-button start, play, CC off/on and seeking); that check
+is not part of the automated suite. Playback in a signed-in DeepLearning.AI
+lesson still needs verification. If subtitles are on and nothing is translated,
+the reason is shown beside the captions.
 
 With page tools enabled, a glass button inside the largest visible main-document
 video opens a compact caption switch/download/settings menu without starting a

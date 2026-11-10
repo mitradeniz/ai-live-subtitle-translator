@@ -207,6 +207,13 @@ try {
   // Opening and closing the menu leaves the translation alone.
   await menu();
   await tools.locator('.panel').waitFor({ state: 'visible' });
+  assert.equal(
+    await tools
+      .getByRole('switch', { name: 'Page translation', exact: true })
+      .getAttribute('aria-checked'),
+    'true',
+    'The menu switch follows page translation',
+  );
   await page.keyboard.press('Escape');
   await tools.locator('.panel').waitFor({ state: 'hidden' });
   await page.waitForTimeout(250);
