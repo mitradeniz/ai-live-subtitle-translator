@@ -1,4 +1,4 @@
-# Unreleased
+# 0.2.8-preview.1 — 2026-11-11
 
 - The video player menu has a **Subtitle style** page: display mode
   (**Translation only**, **Original and translation**, **Original only**),
