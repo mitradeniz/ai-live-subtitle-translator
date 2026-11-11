@@ -6,6 +6,11 @@ import {
 } from './edge-settings';
 import { PageText, EXCLUDED } from './dom';
 import { PlayerShortcut } from '../playback/shortcut';
+import {
+  CaptionControl,
+  captionMessage,
+  type CaptionResult,
+} from './caption-control';
 import type { PagePreferences, PageState, WritingStyle } from './contracts';
 import type { Settings, SelectionLanguages } from '../messaging/protocol';
 import { extensionAlive, RequestError, sendRequest } from '../messaging/client';
@@ -48,8 +53,8 @@ export class PageTools {
   #createSelection: () => SelectionPopup;
   #flashTimer: ReturnType<typeof setTimeout> | undefined;
   #noteTimer: ReturnType<typeof setTimeout> | undefined;
-  #captionsOn = false;
-  #captionBusy = false;
+  #captionControl: CaptionControl;
+  #overlaySeen = false;
   #videoFirst = false;
   #pageSwitch: HTMLButtonElement | undefined;
   #page: PageText;
@@ -90,6 +95,34 @@ export class PageTools {
     this.prefs = prefs;
     this.settings = settings;
     this.ai = ai;
+    const captionResult = (result: Awaited<ReturnType<typeof sendRequest>>) =>
+      (result.kind === 'playback'
+        ? { state: result.state, reason: result.reason }
+        : { state: 'unavailable' }) satisfies CaptionResult;
+    this.#captionControl = new CaptionControl({
+      request: async (enabled) =>
+        captionResult(
+          await this.#watch(
+            sendRequest({ type: 'page.caption-toggle', sessionId, enabled }),
+          ),
+        ),
+      // Turning translation on from original-only switches to showing both,
+      // which the player menu can change.
+      translateDisplay: async () => {
+        const menu = await this.#watch(
+          sendRequest({ type: 'page.menu', sessionId }),
+        );
+        if (menu.kind !== 'player-menu') throw new Error('Unavailable');
+        await this.#watch(
+          sendRequest({
+            type: 'page.menu-appearance',
+            sessionId,
+            appearance: { ...menu.appearance, displayMode: 'bilingual' },
+          }),
+        );
+      },
+    });
+    this.#captionControl.subscribe(() => this.#paintState());
     const css = document.createElement('style');
     css.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;color-scheme:dark;--font:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}*{box-sizing:border-box}[hidden]{display:none!important}.dock{position:fixed;pointer-events:auto;font:13px/1.5 var(--font);color:#f3f6fc}.trigger{display:grid;place-items:center;width:38px;height:38px;padding:0;white-space:nowrap;border:0;border-radius:13px;touch-action:none;cursor:grab;background:linear-gradient(180deg,rgb(255 255 255 / 20%),rgb(255 255 255 / 5%)),rgb(16 20 36 / 66%);-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 14%),0 12px 28px -10px rgb(0 0 0 / 60%)}.trigger{position:relative}.trigger>svg{width:24px;height:24px;pointer-events:none}.badge{position:absolute;top:-2px;right:-2px;display:grid;place-items:center;width:7px;height:7px;border-radius:50%;background:rgb(139 147 167 / 55%);box-shadow:0 0 0 1.5px rgb(16 20 36 / 80%);transition:width .3s cubic-bezier(.34,1.56,.64,1),height .3s cubic-bezier(.34,1.56,.64,1),background .3s}.badge svg{width:8px;height:8px;opacity:0;transition:opacity .2s}.trigger[data-active="true"] .badge{width:12px;height:12px;background:rgb(127 233 195 / 72%);color:rgb(6 35 26 / 85%)}.trigger[data-active="true"] .badge svg{opacity:1}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 28%),rgb(255 255 255 / 9%)),rgb(16 20 36 / 72%)}.trigger:active{transform:none}.panel,.sheet{position:absolute;width:320px;max-width:calc(100vw - 24px);padding:16px;border:1px solid rgb(255 255 255 / 16%);border-radius:24px;background:linear-gradient(180deg,rgb(34 42 66 / 86%),rgb(14 18 32 / 92%));box-shadow:inset 0 1px 0 rgb(255 255 255 / 24%),0 24px 50px -16px rgb(0 0 0 / 65%);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);overflow:auto}.panel,.sheet{display:flex;flex-direction:column;gap:8px}.panel h2,.sheet h2{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}.panel .destination{margin:-4px 0 4px;color:rgb(226 233 247 / 70%)}.panel .consent{margin:0;color:rgb(226 233 247 / 56%)}.panel .row{margin:0}.wide{width:100%}.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 14px;border-radius:16px}.switch .track{flex:none;width:34px;height:20px;padding:2px;border-radius:999px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);transition:background .3s}.switch .track span{display:block;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}.switch[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}.switch[aria-checked="true"] .track span{transform:translateX(14px)}.footer button{flex:1}.panel p,.sheet p{margin:8px 0;overflow-wrap:anywhere;color:rgb(226 233 247 / 74%)}.row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}button,select,textarea{font:inherit;color:inherit;border:1px solid rgb(255 255 255 / 12%);background:rgb(255 255 255 / 8%);border-radius:12px;padding:8px 12px}button{cursor:pointer;border-radius:999px;transition:background .2s,transform .4s cubic-bezier(.34,1.56,.64,1)}button:hover{background:rgb(255 255 255 / 16%)}button:active{transform:scale(.95)}select,textarea{background:rgb(0 0 0 / 28%)}select option{background:#141a2a;color:#f3f6fc}button:disabled{opacity:.45;cursor:default;transform:none}button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button[aria-pressed="true"]{background:linear-gradient(180deg,rgb(255 255 255 / 30%),rgb(255 255 255 / 12%));color:#fff;border-color:rgb(255 255 255 / 30%);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%)}.primary{background:linear-gradient(135deg,#9ad3ff,#c2b1ff);color:#0b1022;font-weight:700;width:100%;border:0;box-shadow:inset 0 1px 0 rgb(255 255 255 / 70%)}.primary:hover{background:linear-gradient(135deg,#aadbff,#cbbcff)}.result{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;padding:10px 12px;border-radius:14px;background:rgb(255 255 255 / 7%);box-shadow:inset 0 0 0 1px rgb(255 255 255 / 10%)}.result:empty{display:none}textarea{width:100%;min-height:82px;resize:vertical}.label{font-size:11px}.status{font-size:12px}.status:empty{display:none}select{max-width:100%}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(prefers-reduced-transparency:reduce){.trigger,.panel,.sheet{-webkit-backdrop-filter:none;backdrop-filter:none}}.tip{position:absolute;top:19px;right:calc(100% + 10px);transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;max-width:min(320px,calc(100vw - 80px));padding:7px 12px;border-radius:12px;background:rgb(10 12 22 / 88%);box-shadow:0 10px 24px -10px rgb(0 0 0 / 70%);font:13px/1.35 var(--font);white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s,visibility 0s .15s}.tip small{font-size:11px;color:rgb(226 233 247 / 66%);white-space:normal}.tip small:empty{display:none}.dock[data-side="0"] .tip{right:auto;left:calc(100% + 10px)}.trigger:hover+.tip,.trigger:focus-visible+.tip,.tip[data-flash="true"]{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .tip{display:none}.hover-only{opacity:0;visibility:hidden;transition:opacity .15s .25s,visibility 0s .4s}.dock:hover .hover-only,.dock:has(:focus-visible) .hover-only{opacity:1;visibility:visible;transition-delay:0s}.dock[data-open="true"] .hover-only{display:none}.extras{position:absolute;top:44px;left:5px;display:flex;flex-direction:column;gap:6px}.dock[data-up="true"] .extras{top:auto;bottom:44px;flex-direction:column-reverse}.mini{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;color:#dfe7f7;background:linear-gradient(180deg,rgb(255 255 255 / 16%),rgb(255 255 255 / 4%)),rgb(16 20 36 / 72%);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 35%),inset 0 0 0 1px rgb(255 255 255 / 12%)}.mini:hover{background:linear-gradient(180deg,rgb(255 255 255 / 26%),rgb(255 255 255 / 8%)),rgb(16 20 36 / 80%)}.close{position:absolute;bottom:-5px;left:-7px;width:18px;height:18px}.dock[data-side="0"] .close{left:auto;right:-7px}.close svg{width:10px;height:10px}.dock[data-compact="true"] .trigger{width:28px;height:28px;border-radius:10px;opacity:.85;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .2s}.dock[data-compact="true"] .trigger>svg{width:18px;height:18px}.dock[data-compact="true"][data-side="1"] .trigger{transform:translateX(12px)}.dock[data-compact="true"][data-side="0"] .trigger{transform:translateX(-12px)}.dock[data-compact="true"]:hover .trigger,.dock[data-compact="true"] .trigger:focus-visible,.dock[data-compact="true"][data-open="true"] .trigger{transform:none;opacity:1}.dock[data-compact="true"] .tip{top:14px}.dock[data-compact="true"] .extras{top:34px;left:0}.dock[data-compact="true"][data-up="true"] .extras{top:auto;bottom:34px}${EDGE_SETTINGS_CSS}`;
     this.#dock.className = 'dock';
@@ -332,17 +365,22 @@ export class PageTools {
             throw new Error('Unavailable');
           if (!this.#closed) await reloadMenu(result.sessionId, resume);
         },
-        status: async () => {
+        captions: this.#captionControl,
+        status: async () =>
+          captionResult(
+            await this.#watch(
+              sendRequest({ type: 'page.caption-status', sessionId }),
+            ),
+          ),
+        appearance: async (appearance) => {
           const result = await this.#watch(
-            sendRequest({ type: 'page.caption-status', sessionId }),
+            sendRequest({
+              type: 'page.menu-appearance',
+              sessionId,
+              appearance,
+            }),
           );
-          return result.kind === 'playback' ? result.state : 'unavailable';
-        },
-        toggle: async (enabled) => {
-          const result = await this.#watch(
-            sendRequest({ type: 'page.caption-toggle', sessionId, enabled }),
-          );
-          return result.kind === 'playback' ? result.state : 'unavailable';
+          if (result.kind !== 'settings') throw new Error('Unavailable');
         },
         settings: async () => {
           await sendRequest({ type: 'page.open-settings', sessionId });
@@ -681,13 +719,14 @@ export class PageTools {
   };
   #paintState() {
     if (this.#closed || this.host.dataset.stale) return;
-    this.#captions.setAttribute('aria-checked', String(this.#captionsOn));
+    const captionsOn = this.#captionControl.on;
+    this.#captions.setAttribute('aria-checked', String(captionsOn));
     this.#pageSwitch?.setAttribute('aria-checked', String(this.#page.active));
     const target = this.#target();
     const active =
       target === 'page'
         ? this.#page.active
-        : target === 'captions' && this.#captionsOn;
+        : target === 'captions' && captionsOn;
     this.#button.dataset.active = String(active);
     this.#button.setAttribute('aria-pressed', String(active));
     this.#button.setAttribute(
@@ -712,73 +751,36 @@ export class PageTools {
           : 'Translation tools',
     );
   }
-  // Display hint only: the overlay exists while captions run in this document.
-  // The menu switch asks the background for the real state when it opens.
+  // The overlay appears and disappears with subtitles in this document; on a
+  // change, ask the background for the real state rather than guess it.
   #watchCaptions() {
-    if (!this.prefs.captions || this.#captionBusy) return;
+    if (!this.prefs.captions || this.#captionControl.busy) return;
     const running = Boolean(
       document.querySelector('subtitle-translator-overlay'),
     );
-    if (running !== this.#captionsOn) {
-      this.#captionsOn = running;
-      this.#paintState();
-    }
+    if (running === this.#overlaySeen) return;
+    this.#overlaySeen = running;
+    if (!running) this.#captionControl.observe('disabled');
+    else void this.refreshCaptions();
   }
   private async refreshCaptions() {
     if (!this.prefs.captions || this.#closed) return;
+    const since = this.#captionControl.version;
     try {
       const result = await sendRequest({
         type: 'page.caption-status',
         sessionId: this.sessionId,
       });
-      if (this.#closed || this.#captionBusy || result.kind !== 'playback')
-        return;
-      this.#captionsOn = result.state === 'enabled';
-      this.#paintState();
+      if (!this.#closed && result.kind === 'playback')
+        this.#captionControl.observe(result.state, since);
     } catch {
       // Keep the last known state; actions still report their own errors.
     }
   }
   private async toggleCaptions() {
-    if (!this.prefs.captions || this.#captionBusy) return;
-    const enable = !this.#captionsOn;
-    this.#captionBusy = true;
-    this.#captions.disabled = true;
-    try {
-      const result = await sendRequest({
-        type: 'page.caption-toggle',
-        sessionId: this.sessionId,
-        enabled: enable,
-      });
-      if (this.#closed) return;
-      const state = result.kind === 'playback' ? result.state : 'unavailable';
-      this.#captionsOn = state === 'enabled';
-      const messages = {
-        enabled: 'Video subtitles started.',
-        'no-video': 'No supported video found on this page.',
-        'source-required':
-          'Confirm the original YouTube caption track in Customize translation.',
-        'key-required': 'Add your provider key in settings, then try again.',
-        'permission-required':
-          'Allow provider access in settings, then try again.',
-        'needs-restart':
-          'Choose a provider and translated display in the popup first.',
-        disabled: enable
-          ? 'Video subtitles could not start. Try again from the popup.'
-          : 'Video subtitles stopped.',
-        unavailable:
-          'Video subtitles could not start. Try again from the popup.',
-      };
-      this.showStatus(messages[state]);
-    } catch {
-      this.showStatus(
-        'Video subtitles could not start. Try again from the popup.',
-      );
-    } finally {
-      this.#captionBusy = false;
-      this.#captions.disabled = false;
-      this.#paintState();
-    }
+    if (!this.prefs.captions || this.#closed) return;
+    const outcome = await this.#captionControl.toggle();
+    if (!this.#closed) this.showStatus(captionMessage(outcome, 'edge'));
   }
   get placement() {
     return { ...this.#position, hidden: Boolean(this.#dock.hidden) };
@@ -1080,6 +1082,7 @@ export class PageTools {
     this.#serial++;
     this.#page.dispose();
     this.#playerShortcut?.dispose();
+    this.#captionControl.dispose();
     this.#selectionPopup?.dispose();
     clearInterval(this.#expiry);
     clearTimeout(this.#hoverTimer);

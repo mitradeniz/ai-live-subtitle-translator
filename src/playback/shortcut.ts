@@ -1,4 +1,13 @@
-import type { PlayerMenu, MenuProvider } from '../messaging/protocol.ts';
+import type {
+  Appearance,
+  PlayerMenu,
+  MenuProvider,
+} from '../messaging/protocol.ts';
+import {
+  captionMessage,
+  type CaptionControl,
+  type CaptionResult,
+} from '../page/caption-control.ts';
 import { nativeSourceWebVtt } from './download.ts';
 import { readWithDeadline, ReadTimeout } from '../messaging/deadline.ts';
 import { RequestError } from '../messaging/client.ts';
@@ -27,7 +36,6 @@ function loadMessage(error: unknown): (typeof LOAD_MESSAGES)[number] {
 }
 import { createMark } from '../ui/mark.ts';
 import { LANGUAGES, languageName } from '../translation/languages.ts';
-import type { PlaybackState } from '../messaging/playback.ts';
 
 // Player-owned control rows are unstable. Keep their selectors local and only
 // mount beside controls belonging to the selected main-document video.
@@ -72,13 +80,18 @@ type MenuChange =
 export interface PlayerMenuOptions {
   t(text: string): string;
   recipient: string;
+  // Shared with the edge button, so both always show the same state.
+  captions: CaptionControl;
   read(): Promise<PlayerMenu>;
   // resume: subtitles were running, so continue them after the change.
   change(change: MenuChange, resume: boolean): Promise<void>;
-  status(): Promise<PlaybackState>;
-  toggle(enabled: boolean): Promise<PlaybackState>;
+  status(): Promise<CaptionResult>;
+  appearance(next: Appearance): Promise<void>;
   settings(): Promise<void>;
 }
+
+const FONT_MIN = 16,
+  FONT_MAX = 48;
 
 export class PlayerShortcut {
   readonly button = document.createElement('button');
@@ -91,12 +104,26 @@ export class PlayerShortcut {
   #language = document.createElement('select');
   #swap = document.createElement('button');
   #pair = document.createElement('small');
+  #main = document.createElement('div');
+  #lookPage = document.createElement('div');
+  #lookRow = document.createElement('button');
+  #lookSummary = document.createElement('small');
+  #display = document.createElement('select');
+  #contrast = document.createElement('select');
+  #place = document.createElement('select');
+  #size = document.createElement('output');
+  #smaller = document.createElement('button');
+  #larger = document.createElement('button');
+  #look: Appearance | undefined;
+  #queued: Appearance | undefined;
+  #saving = false;
+  #hint = '';
+  #unsubscribe: () => void;
   #config: PlayerMenu | undefined;
   #timer: ReturnType<typeof setInterval>;
   #closed = false;
   #busy = false;
   #refreshing = false;
-  #state: PlaybackState = 'unavailable';
   #epoch = 0;
   #lastRead = 0;
   #video: HTMLVideoElement | undefined;
@@ -104,7 +131,7 @@ export class PlayerShortcut {
   constructor(private options: PlayerMenuOptions) {
     const shadow = this.#host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host{all:initial;display:inline-flex;flex:0 0 34px;align-self:stretch;align-items:center;justify-content:center;width:34px;vertical-align:middle;color-scheme:dark}*{box-sizing:border-box}button{cursor:pointer;font:500 13px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#f3f6fc}select:focus-visible,button:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.trigger{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:9px;background:linear-gradient(180deg,rgb(255 255 255 / 24%),rgb(255 255 255 / 6%)),rgb(16 20 36 / 45%);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 16%)}.trigger svg{width:20px;height:20px;pointer-events:none}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 32%),rgb(255 255 255 / 10%)),rgb(16 20 36 / 55%)}.menu{position:fixed;inset:auto;margin:0;width:270px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:8px;border:1px solid rgb(255 255 255 / 16%);border-radius:20px;background:linear-gradient(180deg,rgb(34 42 66 / 88%),rgb(14 18 32 / 92%));color:#f3f6fc;box-shadow:inset 0 1px 0 rgb(255 255 255 / 22%),0 18px 44px -14px rgb(0 0 0 / 70%);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);font:12px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:12px;background:transparent;text-align:start}.item:hover:not(:disabled){background:rgb(255 255 255 / 9%)}.icon{flex:0 0 20px;white-space:nowrap;width:20px;text-align:center;color:#c8ecff}.caption{flex:1}.caption small{display:block;font-size:10px;color:rgb(226 233 247 / 66%);margin-top:2px}.track{width:30px;height:18px;padding:2px;border-radius:20px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);flex-shrink:0;transition:background .3s}.thumb{display:block;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}[aria-checked="true"] .thumb{transform:translateX(12px)}.recipient{font-size:10px;color:rgb(226 233 247 / 66%);border-top:1px solid rgb(255 255 255 / 10%);padding:8px 10px 2px;margin:3px 0 0;overflow-wrap:anywhere}.status{font-size:11px;color:#ffe1b3;margin:4px 10px;overflow-wrap:anywhere}.status:empty{display:none}.field{display:block;padding:6px 10px;font-size:11px;color:rgb(226 233 247 / 74%)}.field select{display:block;width:100%;min-width:0;margin-top:5px;padding:7px 10px;border:1px solid rgb(255 255 255 / 12%);border-radius:10px;background:rgb(0 0 0 / 28%);color:#f3f6fc;font:12px ui-sans-serif,system-ui,sans-serif}.field select option{background:#141a2a}.field select:disabled{opacity:.5}.swap .icon{font-size:15px;transition:transform .55s cubic-bezier(.3,1.45,.5,1)}.swap:hover:not(:disabled) .icon{transform:rotate(180deg)}.swap small{direction:ltr;unicode-bidi:isolate}@media(prefers-reduced-motion:reduce){*{transition:none!important}}`;
+    style.textContent = `:host{all:initial;display:inline-flex;flex:0 0 34px;align-self:stretch;align-items:center;justify-content:center;width:34px;vertical-align:middle;color-scheme:dark}*{box-sizing:border-box}button{cursor:pointer;font:500 13px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#f3f6fc}select:focus-visible,button:focus-visible{outline:2px solid #9fd0ff;outline-offset:2px}button:disabled{opacity:.5;cursor:default}.trigger{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:9px;background:linear-gradient(180deg,rgb(255 255 255 / 24%),rgb(255 255 255 / 6%)),rgb(16 20 36 / 45%);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 1px 0 rgb(255 255 255 / 50%),inset 0 0 0 1px rgb(255 255 255 / 16%)}.trigger svg{width:20px;height:20px;pointer-events:none}.trigger:hover{background:linear-gradient(180deg,rgb(255 255 255 / 32%),rgb(255 255 255 / 10%)),rgb(16 20 36 / 55%)}.menu{position:fixed;inset:auto;margin:0;width:270px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:8px;border:1px solid rgb(255 255 255 / 16%);border-radius:20px;background:linear-gradient(180deg,rgb(34 42 66 / 88%),rgb(14 18 32 / 92%));color:#f3f6fc;box-shadow:inset 0 1px 0 rgb(255 255 255 / 22%),0 18px 44px -14px rgb(0 0 0 / 70%);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);font:12px/1.4 ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}.item{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:12px;background:transparent;text-align:start}.item:hover:not(:disabled){background:rgb(255 255 255 / 9%)}.icon{flex:0 0 20px;white-space:nowrap;width:20px;text-align:center;color:#c8ecff}.caption{flex:1}.caption small{display:block;font-size:10px;color:rgb(226 233 247 / 66%);margin-top:2px}.track{width:30px;height:18px;padding:2px;border-radius:20px;background:rgb(255 255 255 / 16%);box-shadow:inset 0 1px 2px rgb(0 0 0 / 40%);flex-shrink:0;transition:background .3s}.thumb{display:block;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / 40%);transition:transform .45s cubic-bezier(.34,1.56,.64,1)}[aria-checked="true"] .track{background:linear-gradient(135deg,#7fe9c3,#6ec3ff)}[aria-checked="true"] .thumb{transform:translateX(12px)}.recipient{font-size:10px;color:rgb(226 233 247 / 66%);border-top:1px solid rgb(255 255 255 / 10%);padding:8px 10px 2px;margin:3px 0 0;overflow-wrap:anywhere}.status{font-size:11px;color:#ffe1b3;margin:4px 10px;overflow-wrap:anywhere}.status:empty{display:none}.field{display:block;padding:6px 10px;font-size:11px;color:rgb(226 233 247 / 74%)}.field select{display:block;width:100%;min-width:0;margin-top:5px;padding:7px 10px;border:1px solid rgb(255 255 255 / 12%);border-radius:10px;background:rgb(0 0 0 / 28%);color:#f3f6fc;font:12px ui-sans-serif,system-ui,sans-serif}.field select option{background:#141a2a}.field select:disabled{opacity:.5}.swap .icon{font-size:15px;transition:transform .55s cubic-bezier(.3,1.45,.5,1)}.swap:hover:not(:disabled) .icon{transform:rotate(180deg)}.swap small{direction:ltr;unicode-bidi:isolate}.chevron{flex:none;font-size:18px;line-height:1;color:rgb(226 233 247 / 60%)}.back{border-bottom:1px solid rgb(255 255 255 / 10%);border-radius:12px 12px 0 0;margin-bottom:4px}.back .icon{font-size:18px;line-height:1}.pair{display:grid;grid-template-columns:1fr 1fr}.pair .field:first-child{padding-right:4px}.pair .field:last-child{padding-left:4px}.size{display:flex;align-items:center;justify-content:space-between;gap:8px}.stepper{display:flex;align-items:center;gap:4px}.stepper button{display:grid;place-items:center;width:32px;height:28px;padding:0;border:1px solid rgb(255 255 255 / 12%);border-radius:9px;background:rgb(0 0 0 / 28%);font-size:12px}.stepper button:hover:not(:disabled){background:rgb(255 255 255 / 12%)}.stepper output{min-width:28px;text-align:center;font-variant-numeric:tabular-nums;color:#f3f6fc;font-size:12px}[aria-busy="true"] .track{opacity:.7}@media(prefers-reduced-motion:reduce){*{transition:none!important}}`;
     this.button.type = 'button';
     this.button.className = 'trigger';
     this.button.append(createMark(20));
@@ -131,8 +158,12 @@ export class PlayerShortcut {
     this.#menu.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && event.isTrusted) {
         event.preventDefault();
-        this.#menu.hidePopover();
-        this.button.focus();
+        // The style page steps back first, like a player's own settings.
+        if (!this.#lookPage.hidden) this.#showLook(false);
+        else {
+          this.#menu.hidePopover();
+          this.button.focus();
+        }
       }
       event.stopPropagation();
     });
@@ -153,6 +184,9 @@ export class PlayerShortcut {
     this.#switch.setAttribute('aria-checked', 'false');
     this.#switch.disabled = true;
     this.#row(this.#switch, 'A文', 'Subtitle translation');
+    this.#unsubscribe = options.captions.subscribe(() => {
+      if (!this.#closed) this.#paint();
+    });
     const track = document.createElement('span');
     track.className = 'track';
     track.setAttribute('aria-hidden', 'true');
@@ -160,9 +194,10 @@ export class PlayerShortcut {
     thumb.className = 'thumb';
     track.append(thumb);
     this.#switch.append(track);
+    // Every click counts, even while an earlier one is still being applied.
     this.#switch.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (event.isTrusted && !this.#busy) void this.#toggle();
+      if (event.isTrusted && !this.#busy) void this.#flip();
     });
     this.#download.type = 'button';
     this.#download.className = 'item';
@@ -257,15 +292,37 @@ export class PlayerShortcut {
       });
       return label;
     });
-    this.#menu.append(
+    // Subtitle style opens as its own page, so the menu stays short enough
+    // to sit above the player's controls.
+    this.#lookRow.type = 'button';
+    this.#lookRow.className = 'item';
+    this.#lookRow.setAttribute('aria-haspopup', 'true');
+    this.#row(this.#lookRow, 'Aa', 'Subtitle style');
+    this.#lookRow.querySelector('.caption')?.append(this.#lookSummary);
+    const chevron = document.createElement('span');
+    chevron.className = 'chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '›';
+    this.#lookRow.append(chevron);
+    this.#lookRow.disabled = true;
+    this.#lookRow.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (event.isTrusted) this.#showLook(true);
+    });
+    this.#main.append(
       this.#switch,
       ...labels,
       this.#swap,
+      this.#lookRow,
       this.#download,
       settings,
       recipient,
-      this.#status,
     );
+    this.#lookPage.hidden = true;
+    this.#lookPage.setAttribute('role', 'group');
+    this.#lookPage.setAttribute('aria-label', options.t('Subtitle style'));
+    this.#lookPage.append(...this.#buildLook());
+    this.#menu.append(this.#main, this.#lookPage, this.#status);
     shadow.append(style, this.button, this.#menu);
     this.#timer = setInterval(() => {
       this.layout();
@@ -282,6 +339,7 @@ export class PlayerShortcut {
   }
   open(notice = '') {
     if (this.#closed || !this.#host.isConnected) return;
+    this.#showLook(false, false);
     this.#menu.showPopover();
     this.#menu.focus();
     this.#download.disabled = !this.#source();
@@ -339,7 +397,175 @@ export class PlayerShortcut {
       config.sourceLanguage === 'auto'
         ? this.options.t('Set a source language in settings to swap.')
         : this.options.t('Swap source and target languages');
+    // A saved change still on its way keeps what the person just chose.
+    if (!this.#saving && !this.#queued) {
+      this.#look = config.appearance;
+      this.#paintLook();
+    }
     this.#position();
+  }
+  // Subtitle display, background, position and size, saved as they change.
+  #showLook(show: boolean, focus = true) {
+    this.#main.hidden = show;
+    this.#lookPage.hidden = !show;
+    if (focus)
+      (show
+        ? this.#lookPage.querySelector<HTMLElement>('.back')
+        : this.#lookRow
+      )?.focus();
+    this.#position();
+  }
+  #buildLook() {
+    const t = this.options.t;
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'item back';
+    this.#row(back, '‹', 'Subtitle style');
+    back.setAttribute('aria-label', t('Back'));
+    back.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (event.isTrusted) this.#showLook(false);
+    });
+    const field = (text: string, select: HTMLSelectElement) => {
+      const label = document.createElement('label');
+      label.className = 'field';
+      label.textContent = t(text);
+      select.setAttribute('aria-label', t(text));
+      select.disabled = true;
+      label.append(select);
+      return label;
+    };
+    const fill = (
+      select: HTMLSelectElement,
+      items: readonly (readonly [string, string])[],
+    ) =>
+      select.replaceChildren(
+        ...items.map(([value, text]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = t(text);
+          return option;
+        }),
+      );
+    fill(this.#display, [
+      ['translated', 'Translation only'],
+      ['bilingual', 'Original and translation'],
+      ['original', 'Original only'],
+    ]);
+    fill(this.#contrast, [
+      ['glass', 'Glass'],
+      ['solid', 'Solid'],
+    ]);
+    fill(this.#place, [
+      ['bottom', 'Bottom'],
+      ['top', 'Top'],
+    ]);
+    for (const [select, key] of [
+      [this.#display, 'displayMode'],
+      [this.#contrast, 'contrast'],
+      [this.#place, 'position'],
+    ] as const)
+      select.addEventListener('change', (event) => {
+        event.stopPropagation();
+        if (event.isTrusted)
+          this.#setLook({ [key]: select.value } as Partial<Appearance>);
+      });
+    const pair = document.createElement('div');
+    pair.className = 'pair';
+    pair.append(
+      field('Background', this.#contrast),
+      field('Position', this.#place),
+    );
+    const size = document.createElement('div');
+    size.className = 'field size';
+    const name = document.createElement('span');
+    name.textContent = t('Font size');
+    const stepper = document.createElement('div');
+    stepper.className = 'stepper';
+    stepper.setAttribute('role', 'group');
+    stepper.setAttribute('aria-label', t('Font size'));
+    for (const [button, text, label, step] of [
+      [this.#smaller, 'A−', 'Smaller text', -2],
+      [this.#larger, 'A+', 'Larger text', 2],
+    ] as const) {
+      button.type = 'button';
+      button.textContent = text;
+      button.title = t(label);
+      button.setAttribute('aria-label', t(label));
+      button.disabled = true;
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (!event.isTrusted || !this.#look) return;
+        this.#setLook({
+          fontSize: Math.min(
+            FONT_MAX,
+            Math.max(FONT_MIN, this.#look.fontSize + step),
+          ),
+        });
+      });
+    }
+    this.#size.setAttribute('aria-live', 'polite');
+    stepper.append(this.#smaller, this.#size, this.#larger);
+    size.append(name, stepper);
+    return [back, field('Display mode', this.#display), pair, size];
+  }
+  #paintLook() {
+    const look = this.#look;
+    const off = this.#busy || !look;
+    this.#display.disabled =
+      this.#contrast.disabled =
+      this.#place.disabled =
+        off;
+    this.#smaller.disabled = off || look.fontSize <= FONT_MIN;
+    this.#larger.disabled = off || look.fontSize >= FONT_MAX;
+    this.#lookRow.disabled = off;
+    if (!look) return;
+    this.#display.value = look.displayMode;
+    this.#contrast.value = look.contrast;
+    this.#place.value = look.position;
+    this.#size.textContent = String(look.fontSize);
+    const mode = {
+      translated: 'Translation only',
+      bilingual: 'Original and translation',
+      original: 'Original only',
+    }[look.displayMode];
+    this.#lookSummary.textContent = `${this.options.t(mode)} · ${look.fontSize}`;
+  }
+  #setLook(patch: Partial<Appearance>) {
+    if (this.#closed || this.#busy || !this.#look) return;
+    const next = { ...this.#look, ...patch };
+    if (JSON.stringify(next) === JSON.stringify(this.#look)) return;
+    this.#look = next;
+    this.#queued = next;
+    this.#paintLook();
+    void this.#saveLook();
+  }
+  // Saves one change at a time and always ends with the latest choice.
+  async #saveLook() {
+    if (this.#saving) return;
+    this.#saving = true;
+    this.#epoch++;
+    try {
+      while (this.#queued && !this.#closed) {
+        const next = this.#queued;
+        this.#queued = undefined;
+        await this.options.appearance(next);
+        if (this.#config) this.#config = { ...this.#config, appearance: next };
+      }
+      if (this.#hint && this.#status.textContent === this.#hint)
+        this.#notice('');
+    } catch {
+      this.#queued = undefined;
+      this.#notice('Could not save the subtitle style. Try again.');
+      if (this.#config) {
+        this.#look = this.#config.appearance;
+        this.#paintLook();
+      }
+    } finally {
+      this.#saving = false;
+      // A display change can start or stop translation; show it soon.
+      this.#lastRead = 0;
+    }
   }
   async #change(change: MenuChange) {
     this.#busy = true;
@@ -347,7 +573,7 @@ export class PlayerShortcut {
     this.#paint();
     this.#notice('Saving preferences…');
     try {
-      await this.options.change(change, this.#state === 'enabled');
+      await this.options.change(change, this.options.captions.on);
     } catch {
       if (this.#config) this.#paintConfig(this.#config);
       this.#notice(
@@ -388,11 +614,11 @@ export class PlayerShortcut {
     }
   }
   #paint() {
-    this.#switch.setAttribute(
-      'aria-checked',
-      String(this.#state === 'enabled'),
-    );
+    const captions = this.options.captions;
+    this.#switch.setAttribute('aria-checked', String(captions.on));
+    this.#switch.setAttribute('aria-busy', String(captions.busy));
     this.#switch.disabled = this.#busy;
+    this.#paintLook();
     this.#provider.disabled = this.#language.disabled =
       this.#busy || !this.#config;
     this.#swap.disabled =
@@ -401,6 +627,7 @@ export class PlayerShortcut {
   async #refresh() {
     if (this.#closed || this.#busy || this.#refreshing) return;
     const epoch = this.#epoch;
+    const since = this.options.captions.version;
     this.#refreshing = true;
     this.#lastRead = Date.now();
     let loaded = Boolean(this.#config);
@@ -420,14 +647,12 @@ export class PlayerShortcut {
           if (JSON.stringify(config.value) !== JSON.stringify(this.#config))
             this.#paintConfig(config.value);
         }
-        // An unknown status keeps the switch usable; a click reports the
+        // An unknown status keeps the last state; a click reports the
         // exact reason if subtitles cannot start.
-        this.#state =
-          state.status === 'fulfilled'
-            ? state.value
-            : this.#state === 'enabled'
-              ? 'enabled'
-              : 'disabled';
+        if (state.status === 'fulfilled') {
+          this.options.captions.observe(state.value.state, since);
+          this.#explain(state.value);
+        }
       }
     } finally {
       this.#refreshing = false;
@@ -444,45 +669,45 @@ export class PlayerShortcut {
     }
   }
   // Continue subtitles after a menu change replaced this page session. The
-  // background allows one start per second, so a quick change retries once.
+  // shared switch waits out the background's one-start-per-second limit.
   async resume() {
-    for (let attempt = 0; attempt < 2 && !this.#closed; attempt++) {
-      if (attempt) await new Promise((resolve) => setTimeout(resolve, 1100));
-      while (this.#busy && !this.#closed)
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      if ((await this.#toggle(true)) !== undefined) return;
+    await this.#flip(true, true);
+  }
+  async #flip(enable?: boolean, keepNotice = false) {
+    this.#epoch++;
+    if (!keepNotice) this.#notice('');
+    const captions = this.options.captions;
+    const outcome = await (enable === undefined
+      ? captions.toggle()
+      : captions.set(enable));
+    if (this.#closed) return;
+    this.#hint = '';
+    this.#notice(captionMessage(outcome, 'menu'));
+    // Show the display the switch picked without waiting for the next read.
+    if (outcome.displayChanged && this.#look && !this.#queued) {
+      this.#look = { ...this.#look, displayMode: 'bilingual' };
+      if (this.#config)
+        this.#config = { ...this.#config, appearance: this.#look };
+      this.#paintLook();
     }
   }
-  async #toggle(enable = this.#state !== 'enabled') {
-    this.#busy = true;
-    this.#epoch++;
-    this.#notice('');
-    this.#paint();
-    try {
-      const state = await this.options.toggle(enable);
-      if (this.#closed) return state;
-      this.#state = state;
-      const message = {
-        enabled: '',
-        disabled: '',
-        'needs-restart':
-          'Choose a provider and translated display in the popup first.',
-        'key-required': 'Add your provider key in settings, then try again.',
-        'permission-required':
-          'Allow provider access in settings, then try again.',
-        'source-required':
-          'Confirm the original YouTube caption track in Customize translation.',
-        'no-video': 'No supported video found on this page.',
-        unavailable: 'Open the extension popup to re-enable these tools.',
-      }[state];
-      this.#notice(message);
-      return state;
-    } catch {
-      this.#notice('Open the extension popup to re-enable these tools.');
-      return undefined;
-    } finally {
-      this.#busy = false;
-      this.#paint();
+  // While the switch is off for a reason the menu can fix, say which.
+  #explain(result: CaptionResult) {
+    const text = !result.reason
+      ? ''
+      : this.options.t(
+          result.reason === 'original-only'
+            ? 'Showing original subtitles only. Turn subtitle translation on to translate them.'
+            : captionMessage({ enable: true, result }, 'menu'),
+        );
+    const shown = this.#status.textContent ?? '';
+    if (text && (!shown || shown === this.#hint)) {
+      this.#hint = text;
+      this.#status.textContent = text;
+      this.#position();
+    } else if (!text && this.#hint && shown === this.#hint) {
+      this.#hint = '';
+      this.#notice('');
     }
   }
   #position() {
@@ -549,6 +774,7 @@ export class PlayerShortcut {
     window.removeEventListener('scroll', this.layout, true);
     window.removeEventListener('resize', this.layout);
     document.removeEventListener('fullscreenchange', this.layout);
+    this.#unsubscribe();
     for (const url of this.#urls) URL.revokeObjectURL(url);
     this.#urls.clear();
     this.#host.remove();

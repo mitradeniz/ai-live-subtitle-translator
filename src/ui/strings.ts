@@ -601,3 +601,31 @@ Object.assign(turkish, {
   'Restarting subtitle translation…': 'Altyazı çevirisi yeniden başlatılıyor…',
   'Video subtitles stopped.': 'Video altyazıları durduruldu.',
 });
+
+// Player menu subtitle style and the reasons subtitles cannot start.
+Object.assign(turkish, {
+  Background: 'Arka plan',
+  Solid: 'Düz',
+  'Could not save the subtitle style. Try again.':
+    'Altyazı görünümü kaydedilemedi. Tekrar dene.',
+  'Video subtitles could not start. Try again.':
+    'Video altyazıları başlatılamadı. Tekrar dene.',
+  'Display changed to Original and translation. Change it in Subtitle style.':
+    'Görünüm Orijinal ve çeviri olarak değişti. Altyazı görünümü bölümünden değiştirebilirsin.',
+  'Subtitle style': 'Altyazı görünümü',
+  Back: 'Geri',
+  'Display changed to Original and translation. Change it in the player menu.':
+    'Görünüm Orijinal ve çeviri olarak değişti. Oynatıcı menüsünden değiştirebilirsin.',
+  'Subtitle display is set to Original only. Choose a display with translation.':
+    'Altyazı görünümü Yalnızca orijinal. Çeviri içeren bir görünüm seç.',
+  'Showing original subtitles only. Turn subtitle translation on to translate them.':
+    'Yalnızca orijinal altyazı gösteriliyor. Çevirmek için altyazı çevirisini aç.',
+  'Choose a translation provider above to translate subtitles.':
+    'Altyazıları çevirmek için yukarıdan bir çeviri sağlayıcısı seç.',
+  'Choose a translation provider in the player menu or the popup.':
+    'Oynatıcı menüsünden veya eklenti penceresinden bir çeviri sağlayıcısı seç.',
+  'Google translation is not set up yet. Turn it on in Settings.':
+    'Google çevirisi henüz kurulmadı. Ayarlar’dan aç.',
+  'Subtitle translation stopped. Turn it on again to resume.':
+    'Altyazı çevirisi durdu. Devam etmek için yeniden aç.',
+});

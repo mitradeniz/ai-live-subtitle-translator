@@ -549,15 +549,129 @@ try {
         ?.shadowRoot.querySelector('[role="switch"]')
         ?.getAttribute('aria-checked') === 'false',
   );
+  // The switch moves at once; this waits until the click has been applied.
+  const settled = (expected) =>
+    page.waitForFunction(
+      (value) => {
+        const control = document
+          .querySelector('translator-player-shortcut')
+          ?.shadowRoot.querySelector('[role="switch"]');
+        const edge = document
+          .querySelector('translator-page-tools')
+          ?.shadowRoot.querySelector('.trigger');
+        return (
+          control?.getAttribute('aria-busy') === 'false' &&
+          control.getAttribute('aria-checked') === value &&
+          edge?.dataset.active === value &&
+          Boolean(document.querySelector('subtitle-translator-overlay')) ===
+            (value === 'true')
+        );
+      },
+      expected,
+      { timeout: 20000 },
+    );
   await toggle.click();
-  await page.waitForFunction(
-    () =>
-      document
-        .querySelector('translator-player-shortcut')
-        ?.shadowRoot.querySelector('[role="switch"]')
-        ?.getAttribute('aria-checked') === 'true',
+  await settled('true');
+  await toggle.click();
+  await settled('false');
+  assert.equal(
+    await page.locator('subtitle-translator-overlay').count(),
+    0,
+    'Turning the switch off removes captions',
   );
+  assert.equal(await page.evaluate(() => window.track.mode), 'showing');
+  // Quick repeated clicks are applied in order. Once they settle the menu
+  // switch, the edge logo and the captions agree, and no click is lost to the
+  // one-start-per-second limit.
+  const menuStatus = () =>
+    page.evaluate(
+      () =>
+        document
+          .querySelector('translator-player-shortcut')
+          ?.shadowRoot.querySelector('.status')?.textContent ?? '',
+    );
+  for (let click = 0; click < 5; click++) await toggle.click();
+  await settled('true');
+  assert.equal(await menuStatus(), '', 'Rapid clicks end without an error');
+  for (let click = 0; click < 3; click++) await toggle.click();
+  await settled('false');
+  assert.equal(await menuStatus(), '');
+  // Subtitle style is chosen in the player menu and applies live.
+  const savedStyle = async (check) => {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const current = (await send('settings.read')).data.settings;
+      if (check(current)) return current;
+      await page.waitForTimeout(100);
+    }
+    throw new Error('Subtitle style was not saved');
+  };
+  // Native type-ahead from the keyboard; repeating a letter moves on to the
+  // next option that starts with it.
+  const choose = async (name, ...keys) => {
+    const select = mini.getByRole('combobox', { name, exact: true });
+    await page.waitForFunction(
+      (label) =>
+        document
+          .querySelector('translator-player-shortcut')
+          ?.shadowRoot.querySelector(`select[aria-label="${label}"]`)
+          ?.disabled === false,
+      name,
+    );
+    await select.focus();
+    for (const key of keys) await page.keyboard.press(key);
+    await page.keyboard.press('Tab');
+  };
+  // Style lives on its own page in the menu; Escape or Back returns.
+  const styleRow = mini.getByRole('button', { name: /^Subtitle style/ });
+  const back = mini.getByRole('button', { name: 'Back', exact: true });
+  await styleRow.evaluate((button) => button.click());
+  assert.equal(await back.isVisible(), false, 'Scripted clicks do nothing');
+  await styleRow.click();
+  await back.waitFor();
+  assert.equal(await toggle.isVisible(), false);
+  const display = mini.getByRole('combobox', {
+    name: 'Display mode',
+    exact: true,
+  });
+  await display.evaluate((select) => {
+    select.value = 'original';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForTimeout(300);
+  assert.equal(
+    (await send('settings.read')).data.settings.displayMode,
+    'bilingual',
+    'A scripted change cannot set the subtitle display',
+  );
+  await page.keyboard.press('Escape');
+  await toggle.waitFor();
+  assert.equal(await mini.isVisible(), true, 'Escape steps back first');
   await toggle.click();
+  await settled('true');
+  await styleRow.click();
+  await choose('Display mode', 't');
+  await savedStyle((value) => value.displayMode === 'translated');
+  await choose('Background', 's');
+  await savedStyle((value) => value.contrast === 'solid');
+  await choose('Position', 't');
+  await savedStyle((value) => value.position === 'top');
+  const fontBefore = (await send('settings.read')).data.settings.fontSize;
+  await mini.getByRole('button', { name: 'Larger text', exact: true }).click();
+  await mini.getByRole('button', { name: 'Larger text', exact: true }).click();
+  await savedStyle((value) => value.fontSize === fontBefore + 4);
+  await page.waitForFunction((size) => {
+    const overlay = document.querySelector('subtitle-translator-overlay');
+    return (
+      overlay?.style.getPropertyValue('--size') === `${size}px` &&
+      overlay.style.getPropertyValue('--caption-bg') === '#000' &&
+      overlay.shadowRoot.querySelector('.top') !== null
+    );
+  }, fontBefore + 4);
+  await settled('true');
+  // Original only turns translation off; the switch says why. Turning it on
+  // again picks a display with translation in one click.
+  await choose('Display mode', 'o', 'o');
+  await savedStyle((value) => value.displayMode === 'original');
   await page.waitForFunction(
     () =>
       document
@@ -565,12 +679,35 @@ try {
         ?.shadowRoot.querySelector('[role="switch"]')
         ?.getAttribute('aria-checked') === 'false',
   );
-  assert.equal(
-    await page.locator('subtitle-translator-overlay').count(),
-    0,
-    'Turning the switch off removes captions',
+  await mini
+    .getByText(
+      'Showing original subtitles only. Turn subtitle translation on to translate them.',
+    )
+    .waitFor();
+  await back.click();
+  await toggle.click();
+  await settled('true');
+  await mini
+    .getByText(
+      'Display changed to Original and translation. Change it in Subtitle style.',
+    )
+    .waitFor();
+  await styleRow.click();
+  assert.equal(await display.inputValue(), 'bilingual');
+  await savedStyle((value) => value.displayMode === 'bilingual');
+  await mini.getByRole('button', { name: 'Smaller text', exact: true }).click();
+  await mini.getByRole('button', { name: 'Smaller text', exact: true }).click();
+  await choose('Background', 'g');
+  await choose('Position', 'b');
+  await savedStyle(
+    (value) =>
+      value.fontSize === fontBefore &&
+      value.contrast === 'glass' &&
+      value.position === 'bottom',
   );
-  assert.equal(await page.evaluate(() => window.track.mode), 'showing');
+  await back.click();
+  await toggle.click();
+  await settled('false');
   await page.keyboard.press('Escape');
   // On a page built around a video the edge logo switches its subtitles, and
   // only for a real click. The page text is left alone.
@@ -742,7 +879,7 @@ try {
       scanningTicks: after - before,
       providerRequests,
       checks:
-        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack, Video.js, Shaka and Plyr cues, CC toggle with visible hint and original restoration, edge logo switching subtitles on a video page',
+        'hung page status independent popup, finite nonoverlapping reads, player button trusted click/placement, live menu language change, menu language swap, no automatic request, track event feedback bounded, large live DOM responsiveness, rendered Vidstack, Video.js, Shaka and Plyr cues, CC toggle with visible hint and original restoration, edge logo switching subtitles on a video page, quick repeated switch clicks, subtitle style page and reasons',
     }),
   );
 } finally {

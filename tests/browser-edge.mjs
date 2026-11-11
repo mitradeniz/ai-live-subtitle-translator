@@ -128,10 +128,11 @@ try {
     'Synthetic switch click is ignored',
   );
   assert.equal(requests, 0, 'Opening the menu must not translate');
-  // No engine is configured: a real click gives guidance without network activity.
+  // No engine is configured: a real click names what to set up, without
+  // network activity.
   await videoSwitch.click();
   await tools
-    .getByText('Choose a provider and translated display in the popup first.')
+    .getByText('Google translation is not set up yet. Turn it on in Settings.')
     .waitFor();
   assert.equal(await videoSwitch.getAttribute('aria-checked'), 'false');
   await page.evaluate(() => history.pushState({}, '', '/next'));

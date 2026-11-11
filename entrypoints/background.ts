@@ -304,6 +304,7 @@ export default defineBackground(() => {
             'data.clear',
             'controls.update',
             'content.appearance',
+            'page.menu-appearance',
             'controls.select',
             'page.menu-provider',
             'page.menu-language',
@@ -315,6 +316,7 @@ export default defineBackground(() => {
               'settings.update',
               'controls.update',
               'content.appearance',
+              'page.menu-appearance',
             ].includes(String(message.type))
               ? 'playback.preferences'
               : 'playback.translation-reset',

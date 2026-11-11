@@ -158,8 +158,9 @@ folder after clearing extension data; delete it there if no longer needed.
 
 - Disable captions to stop that playback session and restore native caption state.
   Disable automatic YouTube activation separately if you do not want it after refresh.
-- Use **Original only** to pause translation. Resume through the popup/settings or the player menu after explicitly choosing
-  a configured provider. Switching providers or languages invalidates pending results.
+- Use **Original only** to pause translation. Resume through the popup/settings, or with the player menu's
+  **Subtitle translation** switch or **Subtitle style** page, with a configured provider. Switching providers or
+  languages invalidates pending results. Subtitle style changes send no text.
 - Delete keys in **Open settings → API keys and privacy**. Remove provider/site access
   using the corresponding controls or Chrome's extension settings.
 - **Clear translation cache** clears session and device translations and stops active

@@ -161,8 +161,9 @@ Build output and local caches are ignored by Git.
    Drag the control along either page edge (or use arrow keys), and use Hide/Show to collapse it. Focus remains visible;
    captions use automatic text direction for Arabic/Hebrew and other RTL text.
    The controls also work inside supported fullscreen containers. After choosing
-   **Original only**, resume translation from the popup or settings; a page control
-   cannot authorize restarting provider traffic.
+   **Original only** here, resume translation from the popup, settings or the
+   player menu (the **A文** button in the video's controls); the caption overlay's
+   own controls cannot restart provider traffic.
 6. In settings, expand **API keys and privacy** to configure accounts, delete keys
    or clear cached translations. **Export saved preferences** excludes credentials.
    No paid engine is selected or tested automatically.
@@ -555,10 +556,21 @@ If both tools are enabled, the menu's **Video subtitles** switch controls captio
 With page tools enabled, a smaller **A文** button also appears inside the largest
 visible main-document video’s recognized control bar, beside CC/settings. It opens a
 compact menu directly above the button with a **Subtitle translation** switch,
-**Provider**, **Target language**, **Download subtitles**, and **Settings**. The switch reads actual playback state;
+**Provider**, **Target language**, **Subtitle style**, **Download subtitles**, and **Settings**. The switch reads actual playback state;
 it can stop captions immediately, and starting still requires your configured
-provider/access/key and a translated display mode. It does not change the edge
-button's selected Page/Video action. Opening the menu sends no text.
+provider/access/key. The switch and the edge button share one state: each click
+shows at once and quick repeated clicks are applied in order, ending on the
+last one. If subtitles cannot start, the menu names the reason (Google not set
+up yet, no provider chosen, or a missing key or access). Turning the switch on
+while the display is **Original only** switches it to **Original and
+translation**. It does not change the edge button's selected Page/Video action.
+Opening the menu sends no text.
+
+**Subtitle style** opens its own page in the menu: display mode (**Translation
+only**, **Original and translation** or **Original only**), background (glass or
+solid), position (bottom or top) and font size. Changes are saved as you make
+them and apply to running subtitles at once. **Original only** stops translation
+until you turn the switch on again. Escape or **Back** returns to the main menu.
 
 Provider and target-language changes save the same preferences used by the popup.
 The menu stays open and stops old translation work; if subtitles were running they

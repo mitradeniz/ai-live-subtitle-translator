@@ -40,11 +40,27 @@ export const MenuProviderSchema = z.enum([
   'DeepSeek',
   'Gemini',
 ]);
+export const AppearanceSchema = PreferencesSchema.pick({
+  displayMode: true,
+  fontSize: true,
+  contrast: true,
+  position: true,
+});
+export type Appearance = z.infer<typeof AppearanceSchema>;
+// Why video subtitles could not start from the page, so the page can say
+// exactly what to change instead of a general hint.
+export const CaptionReasonSchema = z.enum([
+  'original-only',
+  'no-provider',
+  'provider-setup',
+]);
+export type CaptionReason = z.infer<typeof CaptionReasonSchema>;
 export const PlayerMenuSchema = z.strictObject({
   kind: z.literal('player-menu'),
   selected: MenuProviderSchema,
   sourceLanguage: PreferencesSchema.shape.sourceLanguage,
   targetLanguage: PreferencesSchema.shape.targetLanguage,
+  appearance: AppearanceSchema,
   choices: z
     .array(
       z.strictObject({
@@ -63,12 +79,6 @@ export const PlayerMenuSchema = z.strictObject({
 });
 export type PlayerMenu = z.infer<typeof PlayerMenuSchema>;
 export type MenuProvider = z.infer<typeof MenuProviderSchema>;
-export const AppearanceSchema = PreferencesSchema.pick({
-  displayMode: true,
-  fontSize: true,
-  contrast: true,
-  position: true,
-});
 export const SettingsSchema = PreferencesSchema.extend({
   schemaVersion: z.literal(1),
 });
@@ -207,6 +217,13 @@ export const RequestSchema = z.discriminatedUnion('type', [
     ...envelope,
     type: z.literal('page.menu-swap'),
     sessionId,
+  }),
+  // Subtitle display, size, background and position from the player menu.
+  z.strictObject({
+    ...envelope,
+    type: z.literal('page.menu-appearance'),
+    sessionId,
+    appearance: AppearanceSchema,
   }),
   z.strictObject({
     ...envelope,
@@ -413,6 +430,7 @@ export const ResponseSchema = z.discriminatedUnion('ok', [
       z.strictObject({
         kind: z.literal('playback'),
         state: PlaybackStateSchema,
+        reason: CaptionReasonSchema.optional(),
       }),
       z.strictObject({
         kind: z.literal('settings'),

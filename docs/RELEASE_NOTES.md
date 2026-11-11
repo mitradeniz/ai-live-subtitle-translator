@@ -1,3 +1,18 @@
+# Unreleased
+
+- The video player menu has a **Subtitle style** page: display mode
+  (**Translation only**, **Original and translation**, **Original only**),
+  background, position and font size. Changes apply to running subtitles at
+  once.
+- The **Subtitle translation** switch and the edge button now share one state.
+  Quick repeated clicks are applied in order and end on the last click, instead
+  of being dropped with "Open the extension popup…" or leaving translation
+  running while the switch shows off.
+- When subtitles cannot start, the message names the reason: Google is not set
+  up yet, no provider is chosen, or a key or access is missing. Turning the
+  switch on while the display is **Original only** now switches the display to
+  **Original and translation** instead of asking you to use the popup.
+
 # 0.2.7-preview.1 — 2026-11-10
 
 - On a page built around a video (a lesson or watch page), clicking the edge

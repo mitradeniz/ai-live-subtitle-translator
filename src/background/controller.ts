@@ -24,6 +24,7 @@ import {
   type Response,
   type PopupStatus,
   type PlayerMenu,
+  type CaptionReason,
 } from '../messaging/protocol.ts';
 import { CredentialStore } from './credentials.ts';
 import { BoundaryError } from './errors.ts';
@@ -139,6 +140,17 @@ export function createController(
   const settingsOpened = new Map<number, number>();
 
   let menuUpdating = false;
+  // What keeps subtitle translation from starting, if anything.
+  async function captionBlock(): Promise<CaptionReason | undefined> {
+    if ((await settings.read()).displayMode === 'original')
+      return 'original-only';
+    const selected = await selection.read();
+    if (selected === 'none') return 'no-provider';
+    if (selected === 'google' && !(await google.enabled()))
+      return 'provider-setup';
+    return undefined;
+  }
+
   async function playerMenu(): Promise<PlayerMenu> {
     const profile = AIProfileSchema.parse(await ai.profile());
     const selected = await selection.read();
@@ -158,6 +170,12 @@ export function createController(
       selected: selected === 'ai' ? aiDefinition(profile).name : selected,
       sourceLanguage: languages.sourceLanguage,
       targetLanguage: languages.targetLanguage,
+      appearance: {
+        displayMode: languages.displayMode,
+        fontSize: languages.fontSize,
+        contrast: languages.contrast,
+        position: languages.position,
+      },
       choices: [
         { id: 'none', label: 'Original only', state: 'ready', keySaved: false },
         {
@@ -334,11 +352,10 @@ export function createController(
             operation,
           );
           if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
-          const originalOnly =
-            operation === 'status' &&
-            state === 'enabled' &&
-            ((await settings.read()).displayMode === 'original' ||
-              (await selection.read()) === 'none');
+          const reason =
+            operation === 'status' && state === 'enabled'
+              ? await captionBlock()
+              : undefined;
           if (!(await authorized())) throw new BoundaryError('FORBIDDEN');
           await sessions.flush();
           await pageSessions.flush();
@@ -346,23 +363,21 @@ export function createController(
             ok: true,
             data: {
               kind: 'playback',
-              state: originalOnly ? 'needs-restart' : state,
+              state: reason ? 'needs-restart' : state,
+              ...(reason ? { reason } : {}),
             },
           };
           return ResponseSchema.parse(response);
         }
-        const preferences = await settings.read();
-        const selected = await selection.read();
-        // The page action cannot change engines, languages or resume original-only.
-        if (
-          preferences.displayMode === 'original' ||
-          selected === 'none' ||
-          (selected === 'google' && !(await google.enabled()))
-        )
+        // Starting never changes the display, engine or languages; the player
+        // menu does that through its own narrow requests.
+        const reason = await captionBlock();
+        if (reason)
           return {
             ok: true,
-            data: { kind: 'playback', state: 'needs-restart' },
+            data: { kind: 'playback', state: 'needs-restart', reason },
           };
+        const selected = await selection.read();
         if (selected === 'ai' || selected === 'google-cloud') {
           const paid = selected === 'ai' ? ai : cloud;
           const profile = await paid.profile();
@@ -403,6 +418,34 @@ export function createController(
               sender.identity.documentId,
               (await pageSettings.read()).youtubeSourceConfirmed,
               authorized,
+            ),
+          },
+        };
+      } else if (request.type === 'page.menu-appearance') {
+        if (sender.kind !== 'content') throw new BoundaryError('FORBIDDEN');
+        const ticket = epoch;
+        const valid = () => {
+          if (ticket !== epoch) throw new BoundaryError('INVALID_SESSION');
+          pageSessions.assertBound(request.sessionId, sender.identity);
+        };
+        valid();
+        if (!(await pageSettings.read()).captions)
+          throw new BoundaryError('FORBIDDEN');
+        valid();
+        const prior = await settings.read();
+        valid();
+        // Running jobs were made for the old layout; the page applies the new
+        // one live once the change is saved.
+        if (prior.displayMode !== request.appearance.displayMode)
+          sessions.interruptAll();
+        response = {
+          ok: true,
+          data: {
+            kind: 'settings',
+            settings: await settings.updateAppearance(
+              request.appearance,
+              valid,
+              true,
             ),
           },
         };

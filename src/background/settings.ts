@@ -56,7 +56,14 @@ export class SettingsStore {
     });
   }
 
-  updateAppearance(input: unknown, valid: () => void): Promise<Settings> {
+  // resume: the player menu, opened by the person in the video's controls, may
+  // leave original-only, as its switch may start translation. The caption
+  // overlay's own buttons may not.
+  updateAppearance(
+    input: unknown,
+    valid: () => void,
+    resume = false,
+  ): Promise<Settings> {
     const appearance = AppearanceSchema.safeParse(input);
     if (!appearance.success) throw new BoundaryError('INVALID_MESSAGE');
     return this.#storage.run(async ({ local }) => {
@@ -69,6 +76,7 @@ export class SettingsStore {
       // Page-owned DOM controls cannot authorize restarting provider traffic.
       // Resume from original-only through trusted popup/options operations.
       if (
+        !resume &&
         current.data.displayMode === 'original' &&
         appearance.data.displayMode !== 'original'
       )

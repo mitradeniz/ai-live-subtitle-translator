@@ -608,3 +608,163 @@ test('pages start translation-only with a confirmed YouTube track and the select
     assert.equal(later.selection, false, 'A later choice is kept');
   }
 });
+
+test('the player menu says why subtitles cannot start and sets subtitle style only for its own document', async () => {
+  const calls: string[] = [];
+  let running: 'enabled' | 'disabled' = 'disabled';
+  const controller = createController(
+    EXTENSION_ID,
+    fakeAreas(),
+    undefined,
+    { permitted: async () => true },
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    async (_tabId, _documentId, _confirmed, authorized, operation) => {
+      assert.equal(await authorized(), true);
+      calls.push(operation ?? 'enable');
+      if (operation === 'disable') running = 'disabled';
+      else if (operation !== 'status') running = 'enabled';
+      return running;
+    },
+  );
+  const sender = contentSender();
+  let sessionId = controller.pageSessions.grant(sender);
+  const send = (type: string, extra = {}, from: unknown = sender) =>
+    controller.dispatch(request(type, { sessionId, ...extra }), from);
+  // Trusted changes end page sessions; the page then reconnects.
+  const trusted = async (type: string, extra = {}) => {
+    const result = await controller.dispatch(request(type, extra), uiSender());
+    sessionId = controller.pageSessions.grant(sender);
+    return result;
+  };
+  const start = async () => {
+    const result = await send('page.caption-toggle', { enabled: true });
+    assert.ok(
+      result.ok && result.data.kind === 'playback',
+      JSON.stringify(result),
+    );
+    return result.data;
+  };
+  // Google is selected by default but not turned on yet.
+  assert.deepEqual(await start(), {
+    kind: 'playback',
+    state: 'needs-restart',
+    reason: 'provider-setup',
+  });
+  await trusted('google.enable');
+  await trusted('controls.select', { provider: 'none' });
+  assert.equal((await start()).reason, 'no-provider');
+  await trusted('controls.select', { provider: 'google' });
+  const settings = await trusted('settings.read');
+  assert.ok(settings.ok && settings.data.kind === 'settings');
+  const { schemaVersion, ...preferences } = settings.data.settings;
+  void schemaVersion;
+  await trusted('settings.update', {
+    preferences: { ...preferences, displayMode: 'original' },
+  });
+  assert.equal((await start()).reason, 'original-only');
+  assert.deepEqual(calls, [], 'No reason above reaches the page');
+
+  // The menu shows the saved style and can change it, including leaving
+  // original-only, but only from the bound document with valid values.
+  const menu = await send('page.menu');
+  assert.ok(menu.ok && menu.data.kind === 'player-menu');
+  assert.deepEqual(menu.data.appearance, {
+    displayMode: 'original',
+    fontSize: preferences.fontSize,
+    contrast: preferences.contrast,
+    position: preferences.position,
+  });
+  const style = {
+    displayMode: 'translated',
+    fontSize: 30,
+    contrast: 'solid',
+    position: 'top',
+  };
+  for (const from of [
+    uiSender('popup'),
+    { ...sender, documentId: 'forged' },
+    { ...sender, frameId: 1 },
+  ])
+    assert.equal(
+      (await send('page.menu-appearance', { appearance: style }, from)).ok,
+      false,
+    );
+  for (const appearance of [
+    { ...style, fontSize: 100 },
+    { ...style, displayMode: 'loud' },
+    { ...style, targetLanguage: 'ar' },
+  ])
+    assert.equal(
+      (await send('page.menu-appearance', { appearance })).ok,
+      false,
+    );
+  assert.equal(
+    (await send('page.menu-appearance', { appearance: style, tabId: 9 })).ok,
+    false,
+  );
+  // The caption overlay's own controls still cannot leave original-only.
+  const captionId = controller.sessions.grant(sender);
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('content.appearance', {
+          sessionId: captionId,
+          appearance: style,
+        }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+  const saved = await send('page.menu-appearance', { appearance: style });
+  assert.ok(saved.ok && saved.data.kind === 'settings');
+  assert.deepEqual(
+    {
+      displayMode: saved.data.settings.displayMode,
+      fontSize: saved.data.settings.fontSize,
+      contrast: saved.data.settings.contrast,
+      position: saved.data.settings.position,
+      targetLanguage: saved.data.settings.targetLanguage,
+    },
+    { ...style, targetLanguage: preferences.targetLanguage },
+  );
+  assert.deepEqual(await start(), { kind: 'playback', state: 'enabled' });
+  assert.deepEqual(calls, ['enable']);
+  // Original only from the menu turns translation off; the status says why.
+  await send('page.menu-appearance', {
+    appearance: { ...style, displayMode: 'original' },
+  });
+  const status = await send('page.caption-status');
+  assert.ok(status.ok && status.data.kind === 'playback');
+  assert.deepEqual(status.data, {
+    kind: 'playback',
+    state: 'needs-restart',
+    reason: 'original-only',
+  });
+  // Without the video subtitle tool the menu cannot change anything.
+  await controller.dispatch(
+    request('page.configure', {
+      preferences: { ...DEFAULT_PAGE_PREFERENCES, captions: false },
+    }),
+    uiSender('popup'),
+  );
+  const later = controller.pageSessions.grant(sender);
+  assert.equal(
+    (
+      await controller.dispatch(
+        request('page.menu-appearance', {
+          sessionId: later,
+          appearance: style,
+        }),
+        sender,
+      )
+    ).ok,
+    false,
+  );
+});
